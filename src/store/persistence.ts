@@ -295,6 +295,72 @@ export function exportSnapshot(settings: Settings, journal: Journal, now: Date =
   return JSON.stringify(snapshot, null, 2);
 }
 
+const DAY_KEY = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Разбор копии. Чужой или битый файл должен упасть с внятным сообщением,
+ * а не втихую подменить данные пустышкой — восстановление делается ровно тогда,
+ * когда терять уже нечего.
+ */
+export function parseSnapshot(json: string): { settings: Settings; journal: Journal } {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(json);
+  } catch {
+    throw new Error('Файл не читается: это не JSON.');
+  }
+
+  const snapshot = raw as Partial<Snapshot>;
+  if (snapshot?.app !== 'my-priorities') {
+    throw new Error('Это копия не от «Моих Приоритетов».');
+  }
+
+  const settings = sanitizeSettings(snapshot.settings);
+  if (!settings || settings.priorities.length === 0) {
+    throw new Error('В копии нет списка приоритетов.');
+  }
+
+  const journal = emptyJournal();
+  const source = (snapshot.journal ?? {}) as Partial<Journal>;
+
+  for (const [day, entry] of Object.entries(source.clicks ?? {})) {
+    if (!DAY_KEY.test(day) || !entry || typeof entry !== 'object') continue;
+    const clean: DayClicks = {};
+    for (const [id, count] of Object.entries(entry)) {
+      const n = Number(count);
+      if (Number.isFinite(n) && n > 0) clean[id] = Math.floor(n);
+    }
+    if (Object.keys(clean).length > 0) journal.clicks[day] = clean;
+  }
+
+  for (const [day, shifts] of Object.entries(source.battery ?? {})) {
+    if (!DAY_KEY.test(day) || !Array.isArray(shifts)) continue;
+    const clean = shifts
+      .filter(
+        (s): s is BatteryShift =>
+          Array.isArray(s) && s.length === 2 && Number.isFinite(s[0]) && [1, 2, 3, 4].includes(s[1]),
+      )
+      .map((s): BatteryShift => [Math.max(0, Math.min(1440, Math.floor(s[0]))), s[1] as BatteryLevel])
+      .sort((a, b) => a[0] - b[0]);
+    if (clean.length > 0) journal.battery[day] = clean;
+  }
+
+  return { settings, journal };
+}
+
+/** Записывает состояние целиком: настройки и все месяцы, что есть в журнале. */
+export async function writeAll(settings: Settings, journal: Journal): Promise<void> {
+  await saveSettings(settings);
+  const months = new Set([
+    ...Object.keys(journal.clicks).map(monthKey),
+    ...Object.keys(journal.battery).map(monthKey),
+  ]);
+  for (const month of months) {
+    await saveClicksMonth(journal, month);
+    await saveBatteryMonth(journal, month);
+  }
+}
+
 /** Месяцы, которые нужно держать в памяти: горизонт хранения целиком. */
 export function monthsToLoad(now: Date = new Date()): string[] {
   return recentMonths(RETENTION_MONTHS, now);

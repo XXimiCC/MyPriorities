@@ -74,6 +74,25 @@ export function SettingsScreen({ onPresets }: Props): JSX.Element {
       }
     });
 
+  const importData = (file: File): void =>
+    run(async () => {
+      try {
+        const text = await file.text();
+        const ok = await confirmDialog(
+          'Восстановить данные из копии? Текущие приоритеты и вся история будут заменены содержимым файла.',
+        );
+        if (!ok) return;
+        const restored = await actions.importData(text);
+        haptics.success();
+        await alertDialog(
+          `Готово: ${restored.settings.priorities.length} ${plural(restored.settings.priorities.length, 'приоритет', 'приоритета', 'приоритетов')}, ${Object.keys(restored.journal.clicks).length} ${plural(Object.keys(restored.journal.clicks).length, 'день', 'дня', 'дней')} истории.`,
+        );
+      } catch (error) {
+        haptics.warning();
+        await alertDialog(error instanceof Error ? error.message : 'Не удалось прочитать копию.');
+      }
+    });
+
   return (
     <>
       <header className="header">
@@ -155,6 +174,21 @@ export function SettingsScreen({ onPresets }: Props): JSX.Element {
         <button className="edit__add press" type="button" disabled={busy} onClick={exportData}>
           Скачать копию данных
         </button>
+
+        <label className="edit__add press sset__gap sset__file">
+          Восстановить из копии
+          <input
+            type="file"
+            accept="application/json,.json"
+            disabled={busy}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              // Сбрасываем значение, иначе повторный выбор того же файла не даёт события.
+              event.target.value = '';
+              if (file) importData(file);
+            }}
+          />
+        </label>
 
         {homeScreen.supported() && homeStatus !== 'added' && (
           <button

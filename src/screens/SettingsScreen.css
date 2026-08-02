@@ -72,6 +72,22 @@
   margin-top: 10px;
 }
 
+/* Метка, которая выглядит и ведёт себя как кнопка: нативный выбор файла
+   стилизовать нельзя, поэтому сам input убран с глаз. */
+.sset__file {
+  display: block;
+  text-align: center;
+  cursor: pointer;
+}
+
+.sset__file input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .sset__facts {
   display: flex;
   flex-direction: column;

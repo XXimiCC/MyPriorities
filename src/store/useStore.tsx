@@ -40,10 +40,12 @@ import {
   materialize,
   monthsToLoad,
   newPriorityId,
+  parseSnapshot,
   pruneOldMonths,
   saveBatteryMonth,
   saveClicksMonth,
   saveSettings,
+  writeAll,
 } from './persistence';
 import { MOCK_MODE, buildMockData } from './mock';
 
@@ -124,6 +126,8 @@ export interface StoreActions {
   resetEverything(): Promise<void>;
   /** JSON со всеми данными — забрать копию до сброса. */
   exportData(): string;
+  /** Восстановление из такой копии. Бросает, если файл не тот или повреждён. */
+  importData(json: string): Promise<{ settings: Settings; journal: Journal }>;
 }
 
 interface StoreValue extends State {
@@ -178,13 +182,40 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     flushTimer.current = window.setTimeout(() => void flush(), FLUSH_DELAY_MS);
   }, [flush]);
 
+  /**
+   * Настройки пишутся сразу, а не пачкой через паузу.
+   *
+   * Список приоритетов меняется редко (набор, добавление, переименование), зато
+   * его потеря выглядит как «все данные пропали»: без ключа mp:s приложение
+   * открывается онбордингом. Отложенная запись здесь ничего не экономила, но
+   * давала окно, в котором закрытый мини-апп уносил изменение с собой.
+   *
+   * Значение приходит аргументом, а не берётся из latest: markSettings вызывается
+   * сразу за dispatch, в том же такте, когда состояние ещё старое.
+   */
+  const pendingSettings = useRef<Promise<void>>(Promise.resolve());
+
+  const writeSettings = useCallback(
+    (settings: Settings) => {
+      if (MOCK_MODE) return;
+      pendingSettings.current = saveSettings(settings).catch((error) => {
+        console.warn('[store] настройки не записались, повторим общим флашем', error);
+        dirtySettings.current = true;
+        scheduleFlush();
+      });
+    },
+    [scheduleFlush],
+  );
+
   /** Отменяет всё, что ещё не записано. Нужно перед сбросом, чтобы стёртое не вернулось. */
-  const dropPendingWrites = useCallback(() => {
+  const dropPendingWrites = useCallback(async () => {
     window.clearTimeout(flushTimer.current);
     flushTimer.current = undefined;
     dirtyClicks.current.clear();
     dirtyBattery.current.clear();
     dirtySettings.current = false;
+    // Незавершённая запись настроек иначе доедет уже после очистки и воскресит их.
+    await pendingSettings.current;
   }, []);
 
   const markClicks = useCallback(
@@ -203,10 +234,6 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     [scheduleFlush],
   );
 
-  const markSettings = useCallback(() => {
-    dirtySettings.current = true;
-    scheduleFlush();
-  }, [scheduleFlush]);
 
   // --- Гидратация ---
   useEffect(() => {
@@ -255,7 +282,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
   const actions = useMemo<StoreActions>(() => {
     const commitSettings = (settings: Settings): void => {
       dispatch({ type: 'settings', settings });
-      markSettings();
+      writeSettings(settings);
     };
 
     return {
@@ -369,13 +396,13 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       async resetHistory() {
         // Сначала гасим отложенную запись: иначе таймер, взведённый последним
         // кликом, допишет только что стёртый месяц обратно.
-        dropPendingWrites();
+        await dropPendingWrites();
         dispatch({ type: 'journal', journal: emptyJournal() });
         await clearHistory();
       },
 
       async resetEverything() {
-        dropPendingWrites();
+        await dropPendingWrites();
         dispatch({ type: 'hydrate', settings: emptySettings(), journal: emptyJournal() });
         await clearEverything();
       },
@@ -384,8 +411,18 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         const { settings, journal } = latest.current;
         return exportSnapshot(settings, journal);
       },
+
+      async importData(json) {
+        const restored = parseSnapshot(json);
+        await dropPendingWrites();
+        dispatch({ type: 'hydrate', ...restored });
+        // Старые месяцы сносятся целиком: иначе то, чего нет в копии, осталось бы в облаке.
+        await clearHistory();
+        await writeAll(restored.settings, restored.journal);
+        return restored;
+      },
     };
-  }, [markClicks, markBattery, markSettings, dropPendingWrites]);
+  }, [markClicks, markBattery, writeSettings, dropPendingWrites]);
 
   const value = useMemo<StoreValue>(
     () => ({ ...state, today, actions }),

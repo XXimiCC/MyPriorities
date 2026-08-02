@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { VALUE_LIMIT } from '../telegram/cloudStorage';
 import { MAX_PRIORITIES, type Journal } from '../domain/types';
 import {
+  exportSnapshot,
   materialize,
   newPriorityId,
+  parseSnapshot,
   serializeBatteryMonth,
   serializeClicksMonth,
 } from './persistence';
@@ -78,6 +80,55 @@ describe('запас по лимиту CloudStorage', () => {
     }
 
     expect(serializeBatteryMonth(journal, '2026-07').length).toBeLessThan(VALUE_LIMIT);
+  });
+});
+
+describe('копия данных', () => {
+  const settings = {
+    version: 1 as const,
+    priorities: [{ id: 'ab', title: 'Работа', colorId: 1 }],
+    archived: [],
+    onboarded: true,
+    blockMinutes: 45,
+  };
+  const journal: Journal = {
+    clicks: { '2026-07-31': { ab: 3 } },
+    battery: { '2026-07-31': [[540, 2]] },
+  };
+
+  it('выгрузка и восстановление дают то же самое', () => {
+    const restored = parseSnapshot(exportSnapshot(settings, journal));
+    expect(restored.settings.priorities).toEqual(settings.priorities);
+    expect(restored.settings.blockMinutes).toBe(45);
+    expect(restored.journal).toEqual(journal);
+  });
+
+  it('чужой файл отклоняется, а не подменяет данные пустышкой', () => {
+    expect(() => parseSnapshot('{"app":"something-else"}')).toThrow(/не от/);
+  });
+
+  it('нечитаемый файл отклоняется', () => {
+    expect(() => parseSnapshot('не json вовсе')).toThrow(/не читается/);
+  });
+
+  it('копия без приоритетов отклоняется', () => {
+    const empty = JSON.stringify({ app: 'my-priorities', version: 1, settings: { priorities: [] }, journal: {} });
+    expect(() => parseSnapshot(empty)).toThrow(/нет списка/);
+  });
+
+  it('мусор внутри копии отбрасывается, а не ломает восстановление', () => {
+    const dirty = JSON.stringify({
+      app: 'my-priorities',
+      version: 1,
+      settings,
+      journal: {
+        clicks: { '2026-07-31': { ab: 2, cd: -5, ef: 'нет' }, 'не-дата': { ab: 9 } },
+        battery: { '2026-07-31': [[540, 2], [999, 7], 'мусор'] },
+      },
+    });
+    const restored = parseSnapshot(dirty);
+    expect(restored.journal.clicks).toEqual({ '2026-07-31': { ab: 2 } });
+    expect(restored.journal.battery).toEqual({ '2026-07-31': [[540, 2]] });
   });
 });
 

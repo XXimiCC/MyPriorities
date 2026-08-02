@@ -1,0 +1,101 @@
+.presets {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.pcard {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 16px 14px 14px;
+  border-radius: var(--r-lg);
+  text-align: left;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  transition: box-shadow 0.16s ease, background 0.16s ease;
+}
+
+.pcard--current {
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface-2));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 50%, transparent),
+    0 0 22px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.picon {
+  color: var(--accent);
+  filter: drop-shadow(0 0 5px currentColor) drop-shadow(0 0 14px currentColor);
+}
+
+.pcard__name {
+  margin-top: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.pcard__tagline {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-faint);
+}
+
+.pcard__badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+}
+
+/* --- Предпросмотр набора --- */
+
+.ppreview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.ppreview__tagline {
+  font-size: 13px;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.ppreview__list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 6px 0 4px;
+}
+
+.ppreview__list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  font-size: 14px;
+  background: var(--surface-2);
+}
+
+.ppreview__index {
+  width: 16px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+}
+
+.ppreview .pform__submit {
+  width: 100%;
+  margin-top: 6px;
+}

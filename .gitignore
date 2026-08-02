@@ -1,0 +1,16 @@
+node_modules/
+dist/
+
+# Снимки расширения VS Code Local History — дубликаты рабочих файлов.
+.history/
+
+# Секреты. Токен бота приложению не нужен и в репозиторий попадать не должен.
+.env
+.env.*
+!.env.example
+
+.vercel/
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db

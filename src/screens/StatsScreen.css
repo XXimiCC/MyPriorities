@@ -1,0 +1,168 @@
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-top: 16px;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 13px 4px 11px;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+.tile__value {
+  font-size: 17px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.tile__label {
+  font-size: 9.5px;
+  text-align: center;
+  letter-spacing: 0.03em;
+  color: var(--text-faint);
+}
+
+/* --- Полосы по приоритетам --- */
+
+.sbars {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sbar__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 7px;
+}
+
+.sbar__title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sbar__archived {
+  flex: none;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 8.5px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.sbar__meta {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.sbar__time {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.sbar__share {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* --- Заряд --- */
+
+.bstack {
+  display: flex;
+  gap: 2px;
+  height: 12px;
+  margin-bottom: 16px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.bstack__seg {
+  height: 100%;
+  border-radius: 2px;
+}
+
+.blist {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.blist li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.blist__title {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.blist__time {
+  font-size: 13px;
+}
+
+.blist__share {
+  width: 44px;
+  text-align: right;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* --- Полоска дней --- */
+
+.dstrip {
+  margin-top: 18px;
+}
+
+.dstrip__bars {
+  display: flex;
+  gap: 2px;
+  height: 34px;
+  align-items: stretch;
+}
+
+.dstrip__bar {
+  flex: 1;
+  min-width: 2px;
+  border-radius: 2px;
+}
+
+.dstrip__axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 7px;
+  font-size: 10px;
+  color: var(--text-faint);
+}

@@ -1,0 +1,273 @@
+@import './tokens.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+input {
+  font: inherit;
+  color: inherit;
+}
+
+h1,
+h2,
+h3,
+p,
+ul {
+  margin: 0;
+  padding: 0;
+}
+
+ul {
+  list-style: none;
+}
+
+/* --- Каркас приложения ---
+   Страница целиком не прокручивается: скроллится только .app__body внутри.
+   Так шапка и переключатель периода стоят на месте, а жест «потянуть вниз»
+   в Telegram не спорит со скроллом списка. */
+
+.app {
+  height: var(--app-height, 100dvh);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-top: calc(var(--safe-top) + var(--tg-content-top));
+}
+
+.app__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 var(--pad-x) 20px;
+}
+
+/* Место под таб-бар нужно только там, где он есть: на вложенных экранах его
+   заменяет обычная панель-сосед, и лишний отступ превращался бы в пустоту. */
+.app--tabs .app__body {
+  padding-bottom: calc(var(--tabbar-h) + var(--safe-bottom) + var(--tg-content-bottom) + 16px);
+}
+
+/* Блок под шапкой, который остаётся на месте при скролле списка. */
+.app__sticky {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  padding: 0 var(--pad-x);
+}
+
+/* Растушёвка под неподвижным блоком: без неё прокрученный список обрывается
+   ровной линией и первая строка выглядит обрезанной, а не уходящей вверх. */
+.app__sticky::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: 14px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, var(--bg), transparent);
+}
+
+.app--loading {
+  display: grid;
+  place-items: center;
+}
+
+/* Нижняя панель с одной кнопкой: «Готово», «Применить» и подобное. */
+.app__footer {
+  position: relative;
+  z-index: 20;
+  flex: none;
+  padding: 12px var(--pad-x) calc(12px + var(--safe-bottom) + var(--tg-content-bottom));
+  background: var(--bg);
+  box-shadow: 0 -1px 0 var(--hairline-strong);
+}
+
+/* Растушёвка над панелью: без неё контент обрывается ровной линией и кажется
+   обрезанным, а не уходящим под кнопку. */
+.app__footer::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: 28px;
+  pointer-events: none;
+  background: linear-gradient(to top, var(--bg), transparent);
+}
+
+.app__footer button {
+  width: 100%;
+  padding: 15px;
+  border-radius: var(--r-md);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+}
+
+.wp__spinner {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--hairline-strong);
+  border-top-color: var(--text-dim);
+  animation: wp-spin 0.8s linear infinite;
+}
+
+@keyframes wp-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+/* --- Шапка --- */
+
+.header {
+  height: var(--header-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 var(--pad-x);
+}
+
+.header__title {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* --- Таб-бар --- */
+
+.tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  height: calc(var(--tabbar-h) + var(--safe-bottom) + var(--tg-content-bottom));
+  padding-bottom: calc(var(--safe-bottom) + var(--tg-content-bottom));
+  background: rgba(0, 0, 0, 0.94);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-top: 1px solid var(--hairline);
+}
+
+.tabbar__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  transition: color 0.16s ease;
+}
+
+.tabbar__item svg {
+  width: 22px;
+  height: 22px;
+}
+
+.tabbar__item[aria-selected='true'] {
+  color: var(--text);
+}
+
+.tabbar__item[aria-selected='true'] svg {
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.45));
+}
+
+/* --- Общие мелочи --- */
+
+.divider-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 22px 0 12px;
+}
+
+.divider-label::before,
+.divider-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--hairline);
+}
+
+.divider-label span {
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  font-size: 10px;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.empty {
+  padding: 48px 16px;
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 14px;
+}
+
+.press {
+  transition: transform 0.1s ease, opacity 0.1s ease;
+}
+
+.press:active {
+  transform: scale(0.96);
+  opacity: 0.85;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

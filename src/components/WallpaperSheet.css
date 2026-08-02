@@ -1,0 +1,116 @@
+.wp__preview {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 250px;
+  margin-bottom: 16px;
+  border-radius: var(--r-lg);
+  background: #000;
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  overflow: hidden;
+}
+
+/* Картинка растягивается абсолютом, а не процентами по высоте: неявная строка
+   грида имеет размер auto, из-за чего процентные height и max-height считаются
+   неопределёнными и молча игнорируются — кадр 9:16 вырастал втрое выше
+   контейнера, и батарея уезжала за нижнюю кромку. Вписывает object-fit. */
+.wp__preview img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.wp__levels {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.wp__level {
+  display: grid;
+  place-items: center;
+  padding: 14px 6px;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  transition: box-shadow 0.16s ease, background 0.16s ease;
+}
+
+.wp__level--on {
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface-2));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+.wp__sizes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.wp__size {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  text-align: left;
+  color: var(--text-dim);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+.wp__size small {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+}
+
+.wp__size--on {
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.wp__save {
+  width: 100%;
+  margin-top: 20px;
+}
+
+/* --- Ручное сохранение: последний рубеж, когда ни share, ни download не сработали --- */
+
+.wp__manual {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.wp__manual-body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  max-height: 86vh;
+}
+
+.wp__manual-body p {
+  font-size: 13px;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.wp__manual-body img {
+  max-width: 100%;
+  min-height: 0;
+  max-height: 58vh;
+  border-radius: var(--r-md);
+  object-fit: contain;
+  /* Без этого iOS не показывает меню сохранения по долгому нажатию. */
+  -webkit-touch-callout: default;
+}

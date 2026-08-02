@@ -1,0 +1,133 @@
+.sset__row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--r-md);
+  text-align: left;
+  color: var(--text-faint);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+.sset__row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sset__row-text b {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.sset__row-text small {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--text-faint);
+}
+
+.sset__blocks {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.sset__block {
+  padding: 14px 6px;
+  border-radius: var(--r-md);
+  font-size: 17px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  transition: color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+}
+
+.sset__block small {
+  font-size: 11px;
+  font-weight: 400;
+  opacity: 0.7;
+}
+
+.sset__block--on {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+}
+
+.sset__note {
+  margin: 12px 2px 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-faint);
+}
+
+.sset__gap {
+  margin-top: 10px;
+}
+
+.sset__facts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+
+.sset__facts li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 14px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+}
+
+.sset__facts span {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.sset__facts b {
+  font-size: 13px;
+  font-weight: 600;
+  text-align: right;
+}
+
+/* Красным подсвечен только контур: сплошная заливка на чёрном читается как
+   основное действие, а это последнее, что тут стоит нажимать случайно. */
+.sset__danger {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  margin-bottom: 10px;
+  padding: 14px 16px;
+  border-radius: var(--r-md);
+  text-align: left;
+  color: var(--battery-low);
+  background: color-mix(in srgb, var(--battery-low) 7%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--battery-low) 34%, transparent);
+}
+
+.sset__danger b {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.sset__danger small {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--text-faint);
+}
+
+.sset__danger:disabled {
+  opacity: 0.5;
+}

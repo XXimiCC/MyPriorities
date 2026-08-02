@@ -1,0 +1,92 @@
+/*
+ * Дизайн-токены. Источник правды — references/{high,mid,low}.jpg:
+ * чистый чёрный, один насыщенный неоновый акцент, свечение вокруг него,
+ * подписи капсом с большим трекингом между двумя тонкими линиями.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* --- Поверхности --- */
+  --bg: #000000;
+  --surface: #0a0a0b;
+  --surface-2: #121214;
+  --hairline: rgba(255, 255, 255, 0.09);
+  --hairline-strong: rgba(255, 255, 255, 0.16);
+
+  /* --- Текст --- */
+  --text: #f4f4f5;
+  --text-dim: rgba(244, 244, 245, 0.62);
+  --text-faint: rgba(244, 244, 245, 0.34);
+
+  /* --- Уровни батареи (взяты пипеткой из референсов) --- */
+  --battery-high: #22e356;
+  --battery-high-soft: #6bf58f;
+  --battery-mid: #ffd400;
+  --battery-mid-soft: #ffe23f;
+  --battery-low: #ff2b3d;
+  --battery-low-soft: #ff5f6b;
+  --battery-charge: #35e0ff;
+  --battery-charge-soft: #8df0ff;
+
+  /* --- Палитра приоритетов: 10 неоновых оттенков, держатся на чёрном --- */
+  --p0: #22e356; /* лайм-зелёный */
+  --p1: #35e0ff; /* циан */
+  --p2: #4d7cff; /* синий */
+  --p3: #a56bff; /* фиолетовый */
+  --p4: #ff5ce1; /* маджента */
+  --p5: #ff2b3d; /* красный */
+  --p6: #ff7a1a; /* оранжевый */
+  --p7: #ffd400; /* жёлтый */
+  --p8: #00f0b5; /* мятный */
+  --p9: #ff4f8b; /* розовый */
+
+  /* --- Геометрия --- */
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-xl: 28px;
+  --gap: 12px;
+  --pad-x: 18px;
+
+  /* --- Типографика --- */
+  --font: 'Inter Tight', Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --tracking-wide: 0.18em;
+  --tracking-wider: 0.42em;
+
+  /* --- Безопасные зоны. Значения из Telegram подставляет sdk.ts, env() — фолбэк браузера. --- */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --tg-content-top: 0px;
+  --tg-content-bottom: 0px;
+
+  --header-h: 56px;
+  --tabbar-h: 62px;
+}
+
+/*
+ * Свечение задаётся через currentColor, поэтому любой элемент с выставленным
+ * --accent получает неон "бесплатно", без отдельного класса на каждый цвет.
+ */
+.neon-text {
+  color: var(--accent);
+  text-shadow:
+    0 0 4px color-mix(in srgb, var(--accent) 70%, transparent),
+    0 0 14px color-mix(in srgb, var(--accent) 45%, transparent),
+    0 0 34px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.neon-box {
+  box-shadow:
+    0 0 6px color-mix(in srgb, var(--accent) 55%, transparent),
+    0 0 18px color-mix(in srgb, var(--accent) 32%, transparent),
+    0 0 46px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-faint);
+}

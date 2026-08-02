@@ -1,0 +1,36 @@
+/* Свечение вокруг иконки. Три слоя drop-shadow повторяют блум из референсов:
+   плотное ядро, средний ореол и широкий рассеянный след. */
+.battery--glow {
+  filter:
+    drop-shadow(0 0 2px currentColor)
+    drop-shadow(0 0 7px currentColor)
+    drop-shadow(0 0 20px currentColor);
+}
+
+.battery-caption {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  width: 100%;
+}
+
+.battery-caption__rule {
+  flex: 1;
+  max-width: 84px;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.55;
+}
+
+.battery-caption__text {
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+  /* Трекинг добавляет пустоту справа от последней буквы — компенсируем сдвигом. */
+  text-indent: var(--tracking-wider);
+  text-shadow:
+    0 0 5px currentColor,
+    0 0 16px currentColor;
+}

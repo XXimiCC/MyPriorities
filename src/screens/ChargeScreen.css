@@ -1,0 +1,85 @@
+.charge__hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 22px 0 26px;
+}
+
+.charge__meaning {
+  max-width: 300px;
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
+  color: var(--text-dim);
+}
+
+.charge__note {
+  margin: 0 2px 14px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-faint);
+}
+
+.charge__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.charge__option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 14px;
+  border-radius: var(--r-md);
+  text-align: left;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  transition: background 0.16s ease, box-shadow 0.16s ease;
+}
+
+.charge__option--on {
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface-2));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 52%, transparent),
+    0 0 20px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.charge__option-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.charge__option-text b {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.charge__option--on .charge__option-text b {
+  color: var(--text);
+}
+
+.charge__option-text small {
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: var(--text-faint);
+}
+
+.charge__today {
+  flex: none;
+  align-self: flex-start;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.charge__wallpaper {
+  margin-top: 0;
+}

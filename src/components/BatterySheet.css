@@ -1,0 +1,54 @@
+.bsheet {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.bsheet__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 10px 14px;
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  transition: background 0.16s ease, box-shadow 0.16s ease;
+}
+
+.bsheet__item--active {
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface-2));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent),
+    0 0 22px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.bsheet__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.bsheet__item:not(.bsheet__item--active) .bsheet__title {
+  color: var(--text-dim);
+}
+
+.bsheet__label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  text-indent: var(--tracking-wide);
+  color: var(--text-faint);
+}
+
+.bsheet__item--active .bsheet__label {
+  color: var(--accent);
+}
+
+.bsheet__hint {
+  margin-top: 16px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-faint);
+  text-align: center;
+}

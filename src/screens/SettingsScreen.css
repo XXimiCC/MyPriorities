@@ -68,6 +68,10 @@
   color: var(--text-faint);
 }
 
+.sset__warn {
+  color: var(--battery-mid);
+}
+
 .sset__gap {
   margin-top: 10px;
 }

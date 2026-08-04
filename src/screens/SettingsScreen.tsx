@@ -8,7 +8,7 @@ import { MOCK_MODE } from '../store/mock';
 import { RETENTION_MONTHS } from '../store/persistence';
 import { useStore } from '../store/useStore';
 import { store } from '../telegram/cloudStorage';
-import { alertDialog, confirmDialog, haptics, homeScreen, isTelegram } from '../telegram/sdk';
+import { alertDialog, clientInfo, confirmDialog, haptics, homeScreen, isTelegram } from '../telegram/sdk';
 import { saveFile } from '../wallpaper/save';
 import { plural } from './HomeScreen';
 import './SettingsScreen.css';
@@ -31,6 +31,7 @@ export function SettingsScreen({ onPresets }: Props): JSX.Element {
   );
   const since = earliestDay(journal);
   const current = findPreset(settings.presetId);
+  const synced = store.kind === 'cloud' && !store.isDegraded();
 
   useEffect(() => {
     if (!homeScreen.supported()) return;
@@ -151,7 +152,9 @@ export function SettingsScreen({ onPresets }: Props): JSX.Element {
         <ul className="sset__facts">
           <li>
             <span>Где хранятся</span>
-            <b>{store.kind === 'cloud' ? 'Аккаунт Telegram' : 'Только это устройство'}</b>
+            <b className={synced ? undefined : 'sset__warn'}>
+              {synced ? 'Аккаунт Telegram' : 'Только это устройство'}
+            </b>
           </li>
           <li>
             <span>История с</span>
@@ -163,11 +166,21 @@ export function SettingsScreen({ onPresets }: Props): JSX.Element {
               {RETENTION_MONTHS} {plural(RETENTION_MONTHS, 'месяц', 'месяца', 'месяцев')}
             </b>
           </li>
+          <li>
+            <span>Клиент</span>
+            <b>
+              {clientInfo.platform} {clientInfo.version}
+            </b>
+          </li>
         </ul>
-        {store.kind === 'local' && (
-          <p className="sset__note">
-            Приложение открыто вне Telegram, поэтому данные лежат в этом браузере и между устройствами не
-            синхронизируются.
+
+        {/* Молчаливый откат на локальное хранилище выглядит как пропажа данных:
+            на телефоне всё есть, на компьютере пусто. Поэтому он назван вслух. */}
+        {!synced && (
+          <p className="sset__note sset__warn">
+            {clientInfo.isTelegram
+              ? 'Этот клиент Telegram не отдал общее хранилище, поэтому данные лежат только на этом устройстве и не видны на других. Перенести их можно через «Скачать копию данных» и «Восстановить из копии».'
+              : 'Приложение открыто вне Telegram, поэтому данные лежат в этом браузере и между устройствами не синхронизируются.'}
           </p>
         )}
 

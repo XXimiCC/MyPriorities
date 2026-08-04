@@ -16,13 +16,23 @@ export interface KeyValueStore {
   set(key: string, value: string): Promise<void>;
   remove(keys: string[]): Promise<void>;
   keys(): Promise<string[]>;
+  /** Облако было выбрано, но отказало на ходу — синхронизации между устройствами нет. */
+  isDegraded(): boolean;
 }
+
+/**
+ * Мост Telegram передаёт ответ одним сообщением, поэтому длинный список ключей
+ * запрашиваем частями. Тринадцать месяцев — это 26 ключей по 4 КБ, и на десктопных
+ * реализациях такой ответ надёжнее разбить, чем проверять эмпирически, где он порвётся.
+ */
+const GET_BATCH = 8;
 
 /** Свой префикс, чтобы локальная копия не путалась с чужими ключами на том же домене. */
 const LOCAL_PREFIX = 'mypri/';
 
 const localStore: KeyValueStore = {
   kind: 'local',
+  isDegraded: () => false,
   async get(keys) {
     const out: Record<string, string> = {};
     for (const key of keys) {
@@ -47,22 +57,31 @@ const localStore: KeyValueStore = {
   },
 };
 
+function getBatch(keys: string[]): Promise<Record<string, string>> {
+  return new Promise((resolve, reject) => {
+    cloudStorage!.getItems(keys, (err, values) => {
+      if (err) return reject(new Error(err));
+      // Отсутствующий ключ приходит пустой строкой — отличить его от пустого
+      // значения нельзя, поэтому пустые просто отбрасываем.
+      const out: Record<string, string> = {};
+      for (const [key, value] of Object.entries(values ?? {})) {
+        if (value) out[key] = value;
+      }
+      resolve(out);
+    });
+  });
+}
+
 const cloudStore: KeyValueStore = {
   kind: 'cloud',
-  get(keys) {
-    if (keys.length === 0) return Promise.resolve({});
-    return new Promise((resolve, reject) => {
-      cloudStorage!.getItems(keys, (err, values) => {
-        if (err) return reject(new Error(err));
-        // Отсутствующий ключ приходит пустой строкой — отличить его от пустого
-        // значения нельзя, поэтому пустые просто отбрасываем.
-        const out: Record<string, string> = {};
-        for (const [key, value] of Object.entries(values ?? {})) {
-          if (value) out[key] = value;
-        }
-        resolve(out);
-      });
-    });
+  isDegraded: () => false,
+  async get(keys) {
+    if (keys.length === 0) return {};
+    const out: Record<string, string> = {};
+    for (let i = 0; i < keys.length; i += GET_BATCH) {
+      Object.assign(out, await getBatch(keys.slice(i, i + GET_BATCH)));
+    }
+    return out;
   },
   set(key, value) {
     return new Promise((resolve, reject) => {
@@ -103,6 +122,7 @@ function mirrored(primary: KeyValueStore): KeyValueStore {
 
   return {
     kind: 'cloud',
+    isDegraded: () => broken,
     async get(keys) {
       const local = await localStore.get(keys);
       const remote = await fallback(

@@ -94,14 +94,27 @@ function atLeast(version: string): boolean {
 export const isTelegram = Boolean(webApp && webApp.initData !== undefined && webApp.platform !== 'unknown');
 
 /**
- * Проверка версии обязательна, а не только наличия объекта: в обычном браузере
- * telegram-web-app.js всё равно создаёт WebApp с версией 6.0, где CloudStorage
- * ещё нет. Без этой проверки каждое чтение и запись уходили бы в заведомо
- * провальный вызов и сорили ошибками в консоль, прежде чем упасть на localStorage.
+ * Признак реального клиента, а не версия.
+ *
+ * Раньше здесь стояло isVersionAtLeast('6.9'), и это было ошибкой: клиенты
+ * занижают заявленную версию вебвью (Telegram Desktop сообщает старую, хотя
+ * CloudStorage у него есть). Проверка отсекала облако целиком, приложение молча
+ * уходило в localStorage — на телефоне данные были, на компьютере тот же аккаунт
+ * открывался онбордингом.
+ *
+ * От шума в обычном браузере защищает isTelegram: там platform === 'unknown'.
+ * А если вызов всё-таки не пройдёт, обёртка в cloudStorage.ts переключится
+ * на локальное хранилище сама.
  */
-export const cloudStorage: CloudStorageApi | undefined = atLeast('6.9')
-  ? webApp?.CloudStorage
-  : undefined;
+export const cloudStorage: CloudStorageApi | undefined =
+  isTelegram && webApp?.CloudStorage ? webApp.CloudStorage : undefined;
+
+/** Для диагностики в настройках: без этого «почему не синхронизируется» не разобрать. */
+export const clientInfo = {
+  platform: webApp?.platform ?? 'браузер',
+  version: webApp?.version ?? '—',
+  isTelegram,
+};
 
 /**
  * Прокидывает геометрию Telegram в CSS-переменные: env() внутри вебвью врёт,

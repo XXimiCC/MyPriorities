@@ -10,6 +10,8 @@
  * HTTPS-адрес, а у нас картинка существует лишь как blob в памяти.
  */
 
+import { t } from '../i18n';
+
 export type SaveOutcome = 'shared' | 'downloaded' | 'manual';
 
 export function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
@@ -83,13 +85,16 @@ export function deviceSize(): ScreenSize {
   const ratio = window.devicePixelRatio || 1;
   const width = Math.round(Math.min(window.screen.width, window.screen.height) * ratio);
   const height = Math.round(Math.max(window.screen.width, window.screen.height) * ratio);
-  return { id: 'device', label: 'Мой экран', width, height };
+  return { id: 'device', label: t('wallpaper.myScreen'), width, height };
 }
 
-export const SIZE_PRESETS: ScreenSize[] = [
-  { id: 'iphone-pro', label: 'iPhone Pro', width: 1179, height: 2556 },
-  { id: 'iphone-max', label: 'iPhone Max', width: 1290, height: 2796 },
-  { id: 'android', label: 'Android', width: 1440, height: 3120 },
-  { id: 'ipad', label: 'iPad', width: 2048, height: 2732 },
-  { id: 'desktop', label: 'Рабочий стол', width: 2560, height: 1440 },
-];
+/** Названия устройств — имена собственные и не переводятся. */
+export function sizePresets(): ScreenSize[] {
+  return [
+    { id: 'iphone-pro', label: 'iPhone Pro', width: 1179, height: 2556 },
+    { id: 'iphone-max', label: 'iPhone Max', width: 1290, height: 2796 },
+    { id: 'android', label: 'Android', width: 1440, height: 3120 },
+    { id: 'ipad', label: 'iPad', width: 2048, height: 2732 },
+    { id: 'desktop', label: t('wallpaper.desktop'), width: 2560, height: 1440 },
+  ];
+}

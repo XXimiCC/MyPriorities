@@ -3,22 +3,15 @@ import { useMemo, useState } from 'react';
 import { BatteryCaption, BatteryIcon } from '../components/BatteryIcon';
 import { WallpaperSheet } from '../components/WallpaperSheet';
 import { formatMinutes, formatPercent } from '../domain/date';
-import { batteryTheme } from '../domain/palette';
+import { batteryMeaning, batteryTheme, batteryTitle } from '../domain/palette';
 import { computeBatteryStats, currentBatteryLevel, periodDays } from '../domain/stats';
-import { BATTERY_LEVELS, PERIODS, type BatteryLevel } from '../domain/types';
+import { BATTERY_LEVELS, PERIODS } from '../domain/types';
+import { t } from '../i18n';
 import { useStore } from '../store/useStore';
 import { haptics } from '../telegram/sdk';
 import './ChargeScreen.css';
 
 const TODAY = PERIODS.find((p) => p.id === 'today')!;
-
-/** Что именно значит каждое состояние — иначе выбор превращается в гадание. */
-const MEANING: Record<BatteryLevel, string> = {
-  3: 'Есть силы на сложное. Беритесь за то, что требует головы.',
-  2: 'Рабочее состояние. Тянете рутину, но не подвиги.',
-  1: 'Ресурс на нуле. Всё, что сейчас делается, делается через силу.',
-  4: 'Восстанавливаетесь: сон, тишина, прогулка, ничегонеделание.',
-};
 
 export function ChargeScreen(): JSX.Element {
   const { journal, actions } = useStore();
@@ -35,7 +28,7 @@ export function ChargeScreen(): JSX.Element {
   return (
     <>
       <header className="header">
-        <h1 className="header__title">Заряд</h1>
+        <h1 className="header__title">{t('charge.title')}</h1>
       </header>
 
       <div className="app__body" style={theme ? ({ '--accent': theme.hex } as React.CSSProperties) : undefined}>
@@ -48,30 +41,23 @@ export function ChargeScreen(): JSX.Element {
                   поэтому здесь — то, чего там нет: сколько вы сегодня так прожили. */}
               <p className="charge__meaning">
                 {todayStats.minutes[level] > 0
-                  ? `Сегодня в этом состоянии — ${formatMinutes(todayStats.minutes[level])}`
-                  : 'Отсчёт пошёл'}
+                  ? t('charge.todayIn', { time: formatMinutes(todayStats.minutes[level]) })
+                  : t('charge.started')}
               </p>
             </>
           ) : (
             <>
               <BatteryIcon level={2} width={168} dimmed />
-              <p className="charge__meaning">
-                Заряд ещё не отмечен. Выберите состояние — с этого момента приложение начнёт считать,
-                сколько времени вы в нём проводите.
-              </p>
+              <p className="charge__meaning">{t('charge.unset')}</p>
             </>
           )}
         </div>
 
         <div className="divider-label">
-          <span>Как вы сейчас</span>
+          <span>{t('charge.pickTitle')}</span>
         </div>
 
-        <p className="charge__note">
-          Это не про батарею телефона, а про ваш собственный ресурс. Отмечайте, когда состояние
-          действительно изменилось: приложение считает время между переключениями, поэтому один тап
-          утром описывает всё утро.
-        </p>
+        <p className="charge__note">{t('charge.pickNote')}</p>
 
         <ul className="charge__list">
           {BATTERY_LEVELS.map((option) => {
@@ -92,8 +78,8 @@ export function ChargeScreen(): JSX.Element {
                 >
                   <BatteryIcon level={option} width={48} dimmed={!active} glow={active} />
                   <span className="charge__option-text">
-                    <b>{optionTheme.title}</b>
-                    <small>{MEANING[option]}</small>
+                    <b>{batteryTitle(option)}</b>
+                    <small>{batteryMeaning(option)}</small>
                   </span>
                   {minutes > 0 && <span className="charge__today">{formatMinutes(minutes)}</span>}
                 </button>
@@ -105,7 +91,7 @@ export function ChargeScreen(): JSX.Element {
         {todayStats.totalMinutes > 0 && (
           <>
             <div className="divider-label">
-              <span>Сегодня</span>
+              <span>{t('charge.todayTitle')}</span>
             </div>
             <div className="bstack">
               {BATTERY_LEVELS.map((option) => {
@@ -117,28 +103,23 @@ export function ChargeScreen(): JSX.Element {
                     key={option}
                     className="bstack__seg"
                     style={{ width: `${share * 100}%`, background: hex, boxShadow: `0 0 12px ${hex}` }}
-                    title={`${batteryTheme(option).title}: ${formatPercent(share)}`}
+                    title={`${batteryTitle(option)}: ${formatPercent(share)}`}
                   />
                 );
               })}
             </div>
-            <p className="charge__note">
-              Полная разбивка за неделю и месяц — на вкладке «Статистика».
-            </p>
+            <p className="charge__note">{t('charge.todayNote')}</p>
           </>
         )}
 
         <div className="divider-label">
-          <span>Вынести на рабочий стол</span>
+          <span>{t('charge.wallpaperTitle')}</span>
         </div>
 
-        <p className="charge__note">
-          Системного виджета у мини-приложений быть не может, поэтому заряд выносится картинкой:
-          заставка с текущим состоянием под точное разрешение вашего экрана.
-        </p>
+        <p className="charge__note">{t('charge.wallpaperNote')}</p>
 
         <button className="edit__add press charge__wallpaper" type="button" onClick={() => setWallpaperOpen(true)}>
-          Сделать обои с зарядом
+          {t('charge.wallpaperAction')}
         </button>
       </div>
 

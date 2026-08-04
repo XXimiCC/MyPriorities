@@ -1,7 +1,8 @@
 import { BatteryIcon } from './BatteryIcon';
 import { Sheet } from './Sheet';
-import { batteryTheme } from '../domain/palette';
+import { batteryTheme, batteryTitle } from '../domain/palette';
 import { BATTERY_LEVELS, type BatteryLevel } from '../domain/types';
+import { t } from '../i18n';
 import { haptics } from '../telegram/sdk';
 import './BatterySheet.css';
 
@@ -14,7 +15,7 @@ interface Props {
 
 export function BatterySheet({ open, current, onPick, onClose }: Props): JSX.Element {
   return (
-    <Sheet open={open} title="Сколько заряда" onClose={onClose}>
+    <Sheet open={open} title={t('charge.sheetTitle')} onClose={onClose}>
       <div className="bsheet">
         {BATTERY_LEVELS.map((level) => {
           const theme = batteryTheme(level);
@@ -31,15 +32,13 @@ export function BatterySheet({ open, current, onPick, onClose }: Props): JSX.Ele
               }}
             >
               <BatteryIcon level={level} width={72} dimmed={!active} />
-              <span className="bsheet__title">{theme.title}</span>
+              <span className="bsheet__title">{batteryTitle(level)}</span>
               <span className="bsheet__label">{theme.label}</span>
             </button>
           );
         })}
       </div>
-      <p className="bsheet__hint">
-        Меняйте состояние, когда оно действительно изменилось — статистика считает время между переключениями.
-      </p>
+      <p className="bsheet__hint">{t('charge.sheetHint')}</p>
     </Sheet>
   );
 }

@@ -3,6 +3,7 @@ import { memo } from 'react';
 import { formatHoursCompact } from '../domain/date';
 import { colorOf } from '../domain/palette';
 import type { PriorityStat } from '../domain/stats';
+import { t } from '../i18n';
 import { useLongPress } from './useLongPress';
 import './PriorityRow.css';
 
@@ -10,6 +11,7 @@ interface Props {
   stat: PriorityStat;
   /** Сколько блоков отмечено сегодня — показывается точками у кнопки «+». */
   todayBlocks: number;
+  blockMinutes: number;
   onAdd(): void;
   onOpen(): void;
   /** Удержание на строке включает режим редактирования списка. */
@@ -22,6 +24,7 @@ const MAX_DOTS = 5;
 export const PriorityRow = memo(function PriorityRow({
   stat,
   todayBlocks,
+  blockMinutes,
   onAdd,
   onOpen,
   onHold,
@@ -57,7 +60,7 @@ export const PriorityRow = memo(function PriorityRow({
         className="prow__add press"
         onClick={onAdd}
         type="button"
-        aria-label={`Добавить 30 минут: ${stat.priority.title}`}
+        aria-label={t('home.addBlock', { minutes: blockMinutes, title: stat.priority.title })}
       >
         <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
           <path d="M12 5.5v13M5.5 12h13" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />

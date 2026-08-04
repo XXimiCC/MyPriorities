@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { haptics } from '../telegram/sdk';
 import type { Period, PeriodId } from '../domain/types';
 import './PeriodSwitch.css';
@@ -10,7 +11,7 @@ interface Props {
 
 export function PeriodSwitch({ periods, value, onChange }: Props): JSX.Element {
   return (
-    <div className="pswitch" role="tablist" aria-label="Период">
+    <div className="pswitch" role="tablist" aria-label={t('period.label')}>
       {periods.map((period) => (
         <button
           key={period.id}
@@ -24,7 +25,7 @@ export function PeriodSwitch({ periods, value, onChange }: Props): JSX.Element {
             onChange(period.id);
           }}
         >
-          {period.label}
+          {t(period.labelKey)}
         </button>
       ))}
     </div>

@@ -1,0 +1,123 @@
+.dbars__plot {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  height: 116px;
+}
+
+.dbars__plot--dense {
+  gap: 2px;
+}
+
+.dbars__col {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 5px;
+  padding: 0;
+  border-radius: 4px;
+  transition: opacity 0.16s ease;
+}
+
+/* Невыбранные приглушаются, а не выбранный подсвечивается: подсветка на неоне
+   поверх неона не читается. Ниже 0.55 прозрачность смешивает неон с чёрным
+   до грязно-коричневого, и цвета перестают различаться между собой. */
+.dbars__plot--has-pick .dbars__col {
+  opacity: 0.55;
+}
+
+.dbars__col--on {
+  opacity: 1;
+}
+
+.dbars__stack {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-start;
+  gap: 1px;
+  width: 100%;
+  height: 96px;
+  align-self: flex-end;
+}
+
+.dbars__seg {
+  width: 100%;
+  border-radius: 2px;
+  flex: none;
+}
+
+.dbars__tick {
+  font-size: 9px;
+  line-height: 1;
+  text-align: center;
+  color: var(--text-faint);
+}
+
+.dbars__col--on .dbars__tick {
+  color: var(--text);
+}
+
+/* --- Подпись выбранного дня --- */
+
+.dbars__detail {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+.dbars__detail-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.dbars__detail-head b {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.dbars__detail-head span {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+}
+
+.dbars__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dbars__list li {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+}
+
+.dbars__name {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dbars__time {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+
+.dbars__empty {
+  font-size: 12px;
+  color: var(--text-faint);
+}

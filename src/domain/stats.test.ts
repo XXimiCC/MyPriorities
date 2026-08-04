@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+﻿import { describe, expect, it } from 'vitest';
 
 import { lastNDays } from './date';
 import {
@@ -6,6 +6,7 @@ import {
   clickStreak,
   computeBatteryStats,
   computeStats,
+  dailyBreakdown,
   fillFraction,
   periodDays,
 } from './stats';
@@ -30,26 +31,26 @@ function journalOf(clicks: Journal['clicks'], battery: Journal['battery'] = {}):
 
 describe('periodDays', () => {
   it('окно в 7 дней заканчивается сегодняшним днём', () => {
-    const days = periodDays({ id: 'week', label: '7 дней', days: 7 }, journalOf({}), NOW);
+    const days = periodDays({ id: 'week', labelKey: 'period.week', days: 7 }, journalOf({}), NOW);
     expect(days).toHaveLength(7);
     expect(days[6]).toBe('2026-07-31');
     expect(days[0]).toBe('2026-07-25');
   });
 
   it('окно в 30 дней переходит через границу месяца', () => {
-    const days = periodDays({ id: 'month', label: '30 дней', days: 30 }, journalOf({}), NOW);
+    const days = periodDays({ id: 'month', labelKey: 'period.month', days: 30 }, journalOf({}), NOW);
     expect(days).toHaveLength(30);
     expect(days[0]).toBe('2026-07-02');
   });
 
   it('«всё время» на пустом журнале — это один сегодняшний день', () => {
-    const days = periodDays({ id: 'all', label: 'Всё время', days: null }, journalOf({}), NOW);
+    const days = periodDays({ id: 'all', labelKey: 'period.all', days: null }, journalOf({}), NOW);
     expect(days).toEqual(['2026-07-31']);
   });
 
   it('«всё время» тянется от самой ранней записи до сегодня', () => {
     const journal = journalOf({ '2026-07-28': { a: 1 } }, { '2026-07-26': [[600, 3]] });
-    const days = periodDays({ id: 'all', label: 'Всё время', days: null }, journal, NOW);
+    const days = periodDays({ id: 'all', labelKey: 'period.all', days: null }, journal, NOW);
     expect(days[0]).toBe('2026-07-26');
     expect(days[days.length - 1]).toBe('2026-07-31');
     expect(days).toHaveLength(6);
@@ -164,6 +165,53 @@ describe('computeStats', () => {
       days,
     );
     expect(stats.activeDays).toBe(2);
+  });
+});
+
+describe('разбивка по дням', () => {
+  const work = priority('w', 'Работа');
+  const family = priority('f', 'Семья');
+  const settings = settingsOf([work, family]);
+
+  it('высота столбца — сумма блоков за день, сегменты в порядке приоритетов', () => {
+    const journal = journalOf({ '2026-07-30': { f: 1, w: 3 } });
+    const { columns, maxBlocks } = dailyBreakdown(settings, journal, ['2026-07-30']);
+
+    expect(columns[0]!.blocks).toBe(4);
+    expect(maxBlocks).toBe(4);
+    // В журнале «Семья» шла первой, но порядок задаёт список пользователя.
+    expect(columns[0]!.segments.map((s) => s.priority.id)).toEqual(['w', 'f']);
+  });
+
+  it('пустые дни остаются в ряду, иначе шкала времени поедет', () => {
+    const journal = journalOf({ '2026-07-30': { w: 2 } });
+    const { columns } = dailyBreakdown(settings, journal, ['2026-07-29', '2026-07-30', '2026-07-31']);
+
+    expect(columns).toHaveLength(3);
+    expect(columns[0]!.blocks).toBe(0);
+    expect(columns[0]!.segments).toEqual([]);
+  });
+
+  it('масштаб берётся по самому нагруженному дню периода', () => {
+    const journal = journalOf({ '2026-07-30': { w: 2 }, '2026-07-31': { w: 9 } });
+    expect(dailyBreakdown(settings, journal, ['2026-07-30', '2026-07-31']).maxBlocks).toBe(9);
+  });
+
+  it('архивный приоритет тоже попадает в столбец', () => {
+    const archived = settingsOf([work], [priority('old', 'Хобби')]);
+    const journal = journalOf({ '2026-07-30': { w: 1, old: 2 } });
+    const { columns } = dailyBreakdown(archived, journal, ['2026-07-30']);
+
+    expect(columns[0]!.blocks).toBe(3);
+    expect(columns[0]!.segments.map((s) => s.priority.title)).toEqual(['Работа', 'Хобби']);
+  });
+
+  it('идентификатор без названия пропускается, а не рисуется безымянным', () => {
+    const journal = journalOf({ '2026-07-30': { w: 2, ghost: 5 } });
+    const { columns } = dailyBreakdown(settings, journal, ['2026-07-30']);
+
+    expect(columns[0]!.segments).toHaveLength(1);
+    expect(columns[0]!.blocks).toBe(2);
   });
 });
 

@@ -7,7 +7,7 @@
  * Те же самые доли повторяет canvas-рендер обоев в wallpaper/render.ts.
  */
 
-import { batteryTheme } from '../domain/palette';
+import { batteryTheme, batteryTitle } from '../domain/palette';
 import type { BatteryLevel } from '../domain/types';
 import './BatteryIcon.css';
 
@@ -55,7 +55,7 @@ export function BatteryIcon({ level, width = 34, dimmed = false, glow = true, ti
       viewBox={`0 0 ${G.viewWidth} ${G.viewHeight}`}
       fill="none"
       role="img"
-      aria-label={title ?? theme.title}
+      aria-label={title ?? batteryTitle(level)}
     >
       <defs>
         <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">

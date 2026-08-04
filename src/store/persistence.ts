@@ -23,6 +23,7 @@ import type {
   Settings,
 } from '../domain/types';
 import { DEFAULT_BLOCK_MINUTES, MAX_PRIORITIES } from '../domain/types';
+import type { StringKey } from '../i18n';
 
 const KEY_SETTINGS = 'mp:s';
 const keyClicks = (month: string): string => `mp:p:${month}`;
@@ -298,6 +299,18 @@ export function exportSnapshot(settings: Settings, journal: Journal, now: Date =
 const DAY_KEY = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
+ * Ошибка разбора копии несёт ключ строки, а не готовый текст: сообщение
+ * показывается пользователю, значит его должен переводить тот, кто рисует,
+ * а не слой хранения.
+ */
+export class SnapshotError extends Error {
+  constructor(readonly key: StringKey) {
+    super(key);
+    this.name = 'SnapshotError';
+  }
+}
+
+/**
  * Разбор копии. Чужой или битый файл должен упасть с внятным сообщением,
  * а не втихую подменить данные пустышкой — восстановление делается ровно тогда,
  * когда терять уже нечего.
@@ -307,17 +320,17 @@ export function parseSnapshot(json: string): { settings: Settings; journal: Jour
   try {
     raw = JSON.parse(json);
   } catch {
-    throw new Error('Файл не читается: это не JSON.');
+    throw new SnapshotError('import.notJson');
   }
 
   const snapshot = raw as Partial<Snapshot>;
   if (snapshot?.app !== 'my-priorities') {
-    throw new Error('Это копия не от «Моих Приоритетов».');
+    throw new SnapshotError('import.foreignFile');
   }
 
   const settings = sanitizeSettings(snapshot.settings);
   if (!settings || settings.priorities.length === 0) {
-    throw new Error('В копии нет списка приоритетов.');
+    throw new SnapshotError('import.noPriorities');
   }
 
   const journal = emptyJournal();

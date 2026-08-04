@@ -1,19 +1,21 @@
 import { useMemo, useState } from 'react';
 
 import { BatteryIcon } from '../components/BatteryIcon';
+import { DayBars } from '../components/DayBars';
 import { PeriodSwitch } from '../components/PeriodSwitch';
 import { formatDayShort, formatHoursCompact, formatMinutes, formatPercent } from '../domain/date';
-import { batteryTheme, colorOf } from '../domain/palette';
+import { batteryTheme, batteryTitle, colorOf } from '../domain/palette';
 import {
   clickStreak,
   computeBatteryStats,
   computeStats,
+  dailyBreakdown,
   periodDays,
   type PriorityStat,
 } from '../domain/stats';
-import { BATTERY_LEVELS, PERIODS, type PeriodId } from '../domain/types';
+import { BATTERY_LEVELS, PERIODS, blockMinutesOf, type PeriodId } from '../domain/types';
+import { plural, t } from '../i18n';
 import { useStore } from '../store/useStore';
-import { plural } from './HomeScreen';
 import './StatsScreen.css';
 
 const STATS_PERIODS = PERIODS.filter((p) => p.id !== 'today');
@@ -27,6 +29,11 @@ export function StatsScreen(): JSX.Element {
   const stats = useMemo(() => computeStats(settings, journal, days), [settings, journal, days]);
   const battery = useMemo(() => computeBatteryStats(journal, days), [journal, days]);
   const streak = useMemo(() => clickStreak(journal), [journal]);
+  const breakdown = useMemo(
+    () => dailyBreakdown(settings, journal, days),
+    [settings, journal, days],
+  );
+  const blockMinutes = blockMinutesOf(settings);
 
   const ranked = useMemo(
     () => [...stats.active, ...stats.archived].sort((a, b) => b.blocks - a.blocks),
@@ -38,39 +45,47 @@ export function StatsScreen(): JSX.Element {
   return (
     <>
       <header className="header">
-        <h1 className="header__title">Статистика</h1>
+        <h1 className="header__title">{t('stats.title')}</h1>
       </header>
 
       <div className="app__body">
         <PeriodSwitch periods={STATS_PERIODS} value={periodId} onChange={setPeriodId} />
 
         <div className="tiles">
-          <Tile value={formatHoursCompact(stats.totalMinutes)} label="всего" />
-          <Tile value={String(stats.totalBlocks)} label={plural(stats.totalBlocks, 'блок', 'блока', 'блоков')} />
-          <Tile value={formatHoursCompact(averagePerDay)} label="в день" />
-          <Tile value={String(streak)} label={`${plural(streak, 'день', 'дня', 'дней')} подряд`} />
+          <Tile value={formatHoursCompact(stats.totalMinutes)} label={t('stats.total')} />
+          <Tile value={String(stats.totalBlocks)} label={plural('block', stats.totalBlocks)} />
+          <Tile value={formatHoursCompact(averagePerDay)} label={t('stats.perDay')} />
+          <Tile value={String(streak)} label={t('stats.streak', { unit: plural('day', streak) })} />
         </div>
 
         <div className="divider-label">
-          <span>Куда уходит время</span>
+          <span>{t('stats.whereTime')}</span>
         </div>
 
         {stats.totalBlocks === 0 ? (
-          <p className="empty">За этот период ничего не отмечено.</p>
+          <p className="empty">{t('stats.empty')}</p>
         ) : (
-          <ul className="sbars">
-            {ranked.map((stat) => (
-              <StatBar key={stat.priority.id} stat={stat} />
-            ))}
-          </ul>
+          <>
+            <ul className="sbars">
+              {ranked.map((stat) => (
+                <StatBar key={stat.priority.id} stat={stat} />
+              ))}
+            </ul>
+
+            <div className="divider-label">
+              <span>{t('stats.byDays')}</span>
+            </div>
+            <p className="charge__note">{t('stats.byDaysNote')}</p>
+            <DayBars breakdown={breakdown} blockMinutes={blockMinutes} />
+          </>
         )}
 
         <div className="divider-label">
-          <span>Заряд</span>
+          <span>{t('stats.chargeTitle')}</span>
         </div>
 
         {battery.totalMinutes === 0 ? (
-          <p className="empty">Состояние батареи ещё не отмечалось.</p>
+          <p className="empty">{t('stats.chargeEmpty')}</p>
         ) : (
           <>
             <div className="bstack">
@@ -83,7 +98,7 @@ export function StatsScreen(): JSX.Element {
                     key={level}
                     className="bstack__seg"
                     style={{ width: `${share * 100}%`, background: theme.hex, boxShadow: `0 0 12px ${theme.hex}` }}
-                    title={`${theme.title}: ${formatPercent(share)}`}
+                    title={`${batteryTitle(level)}: ${formatPercent(share)}`}
                   />
                 );
               })}
@@ -92,11 +107,10 @@ export function StatsScreen(): JSX.Element {
             <ul className="blist">
               {BATTERY_LEVELS.map((level) => {
                 const minutes = battery.minutes[level];
-                const theme = batteryTheme(level);
                 return (
-                  <li key={level} style={{ '--accent': theme.hex } as React.CSSProperties}>
+                  <li key={level} style={{ '--accent': batteryTheme(level).hex } as React.CSSProperties}>
                     <BatteryIcon level={level} width={30} dimmed={minutes === 0} glow={false} />
-                    <span className="blist__title">{theme.title}</span>
+                    <span className="blist__title">{batteryTitle(level)}</span>
                     <span className="blist__time">{formatMinutes(minutes)}</span>
                     <span className="blist__share">
                       {formatPercent(battery.totalMinutes > 0 ? minutes / battery.totalMinutes : 0)}
@@ -130,7 +144,7 @@ function StatBar({ stat }: { stat: PriorityStat }): JSX.Element {
       <div className="sbar__head">
         <span className="sbar__title">
           {stat.priority.title}
-          {stat.archived && <span className="sbar__archived">архив</span>}
+          {stat.archived && <span className="sbar__archived">{t('stats.archived')}</span>}
         </span>
         <span className="sbar__meta">
           <span className="sbar__time">{formatHoursCompact(stat.minutes)}</span>
@@ -160,15 +174,16 @@ function DayStrip({
       <div className="dstrip__bars">
         {days.map((day) => {
           const level = perDay[day];
-          const theme = level ? batteryTheme(level as 1 | 2 | 3 | 4) : null;
+          const hex = level ? batteryTheme(level as 1 | 2 | 3 | 4).hex : null;
+          const label = level ? batteryTitle(level as 1 | 2 | 3 | 4) : t('stats.noData');
           return (
             <span
               key={day}
               className="dstrip__bar"
-              title={`${formatDayShort(day)}${theme ? ` — ${theme.title}` : ' — нет данных'}`}
+              title={`${formatDayShort(day)} — ${label}`}
               style={
-                theme
-                  ? { background: theme.hex, boxShadow: `0 0 6px ${theme.hex}` }
+                hex
+                  ? { background: hex, boxShadow: `0 0 6px ${hex}` }
                   : { background: 'rgba(255,255,255,0.07)' }
               }
             />

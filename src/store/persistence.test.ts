@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+﻿import { describe, expect, it } from 'vitest';
 
 import { VALUE_LIMIT } from '../telegram/cloudStorage';
 import { MAX_PRIORITIES, type Journal } from '../domain/types';
@@ -104,16 +104,16 @@ describe('копия данных', () => {
   });
 
   it('чужой файл отклоняется, а не подменяет данные пустышкой', () => {
-    expect(() => parseSnapshot('{"app":"something-else"}')).toThrow(/не от/);
+    expect(() => parseSnapshot('{"app":"something-else"}')).toThrow('import.foreignFile');
   });
 
   it('нечитаемый файл отклоняется', () => {
-    expect(() => parseSnapshot('не json вовсе')).toThrow(/не читается/);
+    expect(() => parseSnapshot('не json вовсе')).toThrow('import.notJson');
   });
 
   it('копия без приоритетов отклоняется', () => {
     const empty = JSON.stringify({ app: 'my-priorities', version: 1, settings: { priorities: [] }, journal: {} });
-    expect(() => parseSnapshot(empty)).toThrow(/нет списка/);
+    expect(() => parseSnapshot(empty)).toThrow('import.noPriorities');
   });
 
   it('мусор внутри копии отбрасывается, а не ломает восстановление', () => {

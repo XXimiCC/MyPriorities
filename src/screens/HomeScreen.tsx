@@ -9,6 +9,7 @@ import { formatHoursCompact, formatMinutes, formatPercent } from '../domain/date
 import { colorOf } from '../domain/palette';
 import { computeStats, currentBatteryLevel, periodDays } from '../domain/stats';
 import { PERIODS, blockMinutesOf, type PeriodId, type Priority } from '../domain/types';
+import { plural, t } from '../i18n';
 import { useStore } from '../store/useStore';
 import { haptics } from '../telegram/sdk';
 import './HomeScreen.css';
@@ -39,12 +40,17 @@ export function HomeScreen({ onEdit }: Props): JSX.Element {
     null,
   );
 
+  const scope =
+    periodId === 'today'
+      ? t('home.scopeToday')
+      : t('home.scopePeriod', { period: t(period.labelKey).toLowerCase() });
+
   return (
     <>
       <header className="header">
-        <h1 className="header__title">Мои приоритеты</h1>
+        <h1 className="header__title">{t('app.title')}</h1>
         <div className="header__actions">
-          <button className="header__btn press" onClick={onEdit} type="button" aria-label="Изменить приоритеты">
+          <button className="header__btn press" onClick={onEdit} type="button" aria-label={t('home.edit')}>
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
               <path
                 d="M4 20h4l10-10a2.5 2.5 0 10-3.5-3.5L4.5 16.5V20z"
@@ -58,12 +64,12 @@ export function HomeScreen({ onEdit }: Props): JSX.Element {
             className="header__battery press"
             onClick={() => setBatteryOpen(true)}
             type="button"
-            aria-label="Состояние батареи"
+            aria-label={t('home.battery')}
           >
             {battery ? (
               <BatteryIcon level={battery} width={36} />
             ) : (
-              <span className="header__battery-empty">Заряд?</span>
+              <span className="header__battery-empty">{t('home.batteryEmpty')}</span>
             )}
           </button>
         </div>
@@ -75,18 +81,17 @@ export function HomeScreen({ onEdit }: Props): JSX.Element {
 
         {stats.totalBlocks === 0 ? (
           <p className="home__lead home__lead--empty">
-            Каждый клик по «+» — это {blockMinutes}{' '}
-            {plural(blockMinutes, 'минута', 'минуты', 'минут')} жизни, вложенные в приоритет.
+            {t('home.empty', { minutes: blockMinutes, unit: plural('minute', blockMinutes) })}
           </p>
         ) : (
           <p className="home__lead">
-            {periodId === 'today' ? 'Сегодня' : `За ${period.label.toLowerCase()}`} —{' '}
+            {t('home.total', { scope })}
             <strong>{formatMinutes(stats.totalMinutes)}</strong>
             {/* Название подставляется как есть: склонять его в шаблоне нечем,
                 а «больше всего в работа» читается как ошибка. */}
             {leader && leader.blocks > 0 && (
               <>
-                . Лидер:{' '}
+                {t('home.leader')}
                 <span style={{ color: colorOf(leader.priority.colorId).hex }}>
                   {leader.priority.title}
                 </span>
@@ -104,6 +109,7 @@ export function HomeScreen({ onEdit }: Props): JSX.Element {
               key={stat.priority.id}
               stat={stat}
               todayBlocks={todayClicks[stat.priority.id] ?? 0}
+              blockMinutes={blockMinutes}
               onAdd={() => {
                 haptics.tap();
                 actions.addBlock(stat.priority.id);
@@ -114,13 +120,7 @@ export function HomeScreen({ onEdit }: Props): JSX.Element {
           ))}
         </ul>
 
-        {stats.active.length > 0 && (
-          <p className="home__hint">Удерживайте приоритет, чтобы изменить список</p>
-        )}
-
-        {stats.active.length === 0 && (
-          <p className="empty">Ни одного приоритета. Добавьте их вручную или выберите готовый набор.</p>
-        )}
+        {stats.active.length > 0 && <p className="home__hint">{t('home.holdHint')}</p>}
       </div>
 
       <BatterySheet
@@ -153,7 +153,7 @@ function TuneSheet({ priority, onClose }: { priority: Priority | null; onClose()
             className="tune__btn press"
             type="button"
             disabled={blocks === 0}
-            aria-label="Убрать 30 минут"
+            aria-label={t('home.minus', { minutes: blockMinutes })}
             onClick={() => {
               haptics.tap();
               actions.removeBlock(priority.id);
@@ -167,14 +167,14 @@ function TuneSheet({ priority, onClose }: { priority: Priority | null; onClose()
           <div className="tune__value">
             <span className="tune__time">{formatHoursCompact(blocks * blockMinutes)}</span>
             <span className="tune__blocks">
-              {blocks} {plural(blocks, 'блок', 'блока', 'блоков')} сегодня
+              {t('home.todayBlocks', { count: blocks, unit: plural('block', blocks) })}
             </span>
           </div>
 
           <button
             className="tune__btn press"
             type="button"
-            aria-label="Добавить 30 минут"
+            aria-label={t('home.plus', { minutes: blockMinutes })}
             onClick={() => {
               haptics.tap();
               actions.addBlock(priority.id);
@@ -188,13 +188,4 @@ function TuneSheet({ priority, onClose }: { priority: Priority | null; onClose()
       )}
     </Sheet>
   );
-}
-
-export function plural(n: number, one: string, few: string, many: string): string {
-  const mod100 = Math.abs(n) % 100;
-  const mod10 = mod100 % 10;
-  if (mod100 >= 11 && mod100 <= 14) return many;
-  if (mod10 === 1) return one;
-  if (mod10 >= 2 && mod10 <= 4) return few;
-  return many;
 }

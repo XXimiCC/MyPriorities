@@ -124,6 +124,60 @@ export function computeStats(settings: Settings, journal: Journal, days: DayKey[
   };
 }
 
+export interface DaySegment {
+  priority: Priority;
+  blocks: number;
+}
+
+export interface DayColumn {
+  day: DayKey;
+  blocks: number;
+  /** Порядок сегментов — порядок приоритетов пользователя, чтобы цвета не прыгали между днями. */
+  segments: DaySegment[];
+}
+
+export interface DailyBreakdown {
+  columns: DayColumn[];
+  /** Самый нагруженный день периода: по нему масштабируется высота столбцов. */
+  maxBlocks: number;
+}
+
+/** Разбивка по дням: сколько блоков в каждый день и из чего они складывались. */
+export function dailyBreakdown(
+  settings: Settings,
+  journal: Journal,
+  days: DayKey[],
+): DailyBreakdown {
+  const known = new Map<string, Priority>();
+  settings.priorities.forEach((p) => known.set(p.id, p));
+  settings.archived.forEach((p) => known.set(p.id, p));
+
+  const rank = new Map(
+    [...settings.priorities, ...settings.archived].map((p, index) => [p.id, index]),
+  );
+
+  const columns = days.map((day): DayColumn => {
+    const entry = journal.clicks[day] ?? {};
+    const segments: DaySegment[] = [];
+    let blocks = 0;
+
+    for (const [id, count] of Object.entries(entry)) {
+      if (count <= 0) continue;
+      const priority = known.get(id);
+      // Идентификатор без названия остаётся только если архив переполнился и
+      // вытеснил запись. Рисовать безымянный цветной сегмент хуже, чем не рисовать.
+      if (!priority) continue;
+      segments.push({ priority, blocks: count });
+      blocks += count;
+    }
+
+    segments.sort((a, b) => (rank.get(a.priority.id) ?? 0) - (rank.get(b.priority.id) ?? 0));
+    return { day, blocks, segments };
+  });
+
+  return { columns, maxBlocks: columns.reduce((max, c) => Math.max(max, c.blocks), 0) };
+}
+
 /** Нормировка по лидеру: у лидера полоса полная, у остальных — доля от него. */
 export function fillFraction(value: number, leader: number): number {
   if (value <= 0 || leader <= 0) return 0;

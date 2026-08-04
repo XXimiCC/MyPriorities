@@ -7,18 +7,19 @@ import { OnboardingScreen } from './screens/OnboardingScreen';
 import { PresetsScreen } from './screens/PresetsScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { StatsScreen } from './screens/StatsScreen';
+import { t, type StringKey } from './i18n';
 import { useStore } from './store/useStore';
 import { backButton, haptics } from './telegram/sdk';
 
 type Tab = 'home' | 'stats' | 'charge' | 'settings';
 
-const TABS: Array<{ id: Tab; label: string; icon: string[] }> = [
-  { id: 'home', label: 'Главная', icon: ['M4 10.5L12 4l8 6.5V20a1 1 0 01-1 1h-4v-6H9v6H5a1 1 0 01-1-1z'] },
-  { id: 'stats', label: 'Статистика', icon: ['M4 20V9M10 20V4M16 20v-7M22 20H2'] },
-  { id: 'charge', label: 'Заряд', icon: ['M3 8h13v8H3zM16 10.5h3v3h-3', 'M7 10.5h4v3H7'] },
+const TABS: Array<{ id: Tab; labelKey: StringKey; icon: string[] }> = [
+  { id: 'home', labelKey: 'tab.home', icon: ['M4 10.5L12 4l8 6.5V20a1 1 0 01-1 1h-4v-6H9v6H5a1 1 0 01-1-1z'] },
+  { id: 'stats', labelKey: 'tab.stats', icon: ['M4 20V9M10 20V4M16 20v-7M22 20H2'] },
+  { id: 'charge', labelKey: 'tab.charge', icon: ['M3 8h13v8H3zM16 10.5h3v3h-3', 'M7 10.5h4v3H7'] },
   {
     id: 'settings',
-    label: 'Настройки',
+    labelKey: 'tab.settings',
     icon: [
       'M12 15a3 3 0 100-6 3 3 0 000 6',
       'M12 2.8l1.5 2.3 2.7-.5.6 2.7 2.4 1.3-1.4 2.4 1.4 2.4-2.4 1.3-.6 2.7-2.7-.5L12 21.2l-1.5-2.3-2.7.5-.6-2.7-2.4-1.3L6.2 13l-1.4-2.4 2.4-1.3.6-2.7 2.7.5z',
@@ -29,9 +30,9 @@ const TABS: Array<{ id: Tab; label: string; icon: string[] }> = [
 /** Вложенные экраны поверх вкладок. */
 type Overlay = 'edit' | 'presets' | null;
 
-const OVERLAY_ACTION: Record<Exclude<Overlay, null>, string> = {
-  edit: 'Готово',
-  presets: 'Назад',
+const OVERLAY_ACTION: Record<Exclude<Overlay, null>, StringKey> = {
+  edit: 'common.done',
+  presets: 'common.back',
 };
 
 export function App(): JSX.Element {
@@ -55,7 +56,7 @@ export function App(): JSX.Element {
   if (!ready) {
     return (
       <div className="app app--loading">
-        <span className="wp__spinner" aria-label="Загрузка" />
+        <span className="wp__spinner" aria-label={t('app.loading')} />
       </div>
     );
   }
@@ -75,7 +76,7 @@ export function App(): JSX.Element {
         {overlay === 'presets' && <PresetsScreen onApplied={() => setOverlay(null)} />}
         <div className="app__footer">
           <button type="button" onClick={() => setOverlay(null)}>
-            {OVERLAY_ACTION[overlay]}
+            {t(OVERLAY_ACTION[overlay])}
           </button>
         </div>
       </div>
@@ -89,7 +90,7 @@ export function App(): JSX.Element {
       {tab === 'charge' && <ChargeScreen />}
       {tab === 'settings' && <SettingsScreen onPresets={() => setOverlay('presets')} />}
 
-      <nav className="tabbar" role="tablist" aria-label="Разделы">
+      <nav className="tabbar" role="tablist" aria-label={t('app.title')}>
         {TABS.map((item) => (
           <button
             key={item.id}
@@ -108,7 +109,7 @@ export function App(): JSX.Element {
                 <path key={d} d={d} />
               ))}
             </svg>
-            {item.label}
+            {t(item.labelKey)}
           </button>
         ))}
       </nav>

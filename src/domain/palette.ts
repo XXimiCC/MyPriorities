@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import type { BatteryLevel } from './types';
 
 export interface NeonColor {
@@ -37,24 +38,35 @@ export function nextFreeColorId(used: number[]): number {
 
 export interface BatteryTheme {
   level: BatteryLevel;
-  /** Сколько ячеек из трёх залито. У зарядки залиты все — её отличает подпись и пульсация. */
+  /** Сколько ячеек из трёх залито. У зарядки залиты все — её отличает молния. */
   cells: number;
   hex: string;
   soft: string;
-  /** Подпись на обоях: в референсах она английская. */
+  /**
+   * Подпись на обоях. Не переводится намеренно: в референсах она английская,
+   * и это часть оформления, а не текст интерфейса.
+   */
   label: string;
-  /** Подпись в интерфейсе. */
-  title: string;
   charging: boolean;
 }
 
 export const BATTERY_THEMES: Record<BatteryLevel, BatteryTheme> = {
-  3: { level: 3, cells: 3, hex: '#22e356', soft: '#6bf58f', label: 'HIGH', title: 'Полный заряд', charging: false },
-  2: { level: 2, cells: 2, hex: '#ffd400', soft: '#ffe23f', label: 'MEDIUM', title: 'Средний', charging: false },
-  1: { level: 1, cells: 1, hex: '#ff2b3d', soft: '#ff5f6b', label: 'LOW', title: 'На нуле', charging: false },
-  4: { level: 4, cells: 3, hex: '#35e0ff', soft: '#8df0ff', label: 'CHARGING', title: 'Заряжаюсь', charging: true },
+  3: { level: 3, cells: 3, hex: '#22e356', soft: '#6bf58f', label: 'HIGH', charging: false },
+  2: { level: 2, cells: 2, hex: '#ffd400', soft: '#ffe23f', label: 'MEDIUM', charging: false },
+  1: { level: 1, cells: 1, hex: '#ff2b3d', soft: '#ff5f6b', label: 'LOW', charging: false },
+  4: { level: 4, cells: 3, hex: '#35e0ff', soft: '#8df0ff', label: 'CHARGING', charging: true },
 };
 
 export function batteryTheme(level: BatteryLevel): BatteryTheme {
   return BATTERY_THEMES[level];
+}
+
+/** Подписи резолвятся при обращении, а не при загрузке модуля: константа с текстом
+ *  застыла бы на языке, выбранном до первого рендера. */
+export function batteryTitle(level: BatteryLevel): string {
+  return t(`battery.${level}.title`);
+}
+
+export function batteryMeaning(level: BatteryLevel): string {
+  return t(`battery.${level}.meaning`);
 }

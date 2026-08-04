@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from 'react';
 
+import { t } from '../i18n';
 import { backButton } from '../telegram/sdk';
 import './Sheet.css';
 
@@ -35,7 +36,7 @@ export function Sheet({ open, title, onClose, children }: Props): JSX.Element | 
 
   return (
     <div className="sheet" role="dialog" aria-modal="true" aria-label={title}>
-      <button className="sheet__scrim" onClick={onClose} type="button" aria-label="Закрыть" />
+      <button className="sheet__scrim" onClick={onClose} type="button" aria-label={t('common.close')} />
       <div className="sheet__panel">
         <span className="sheet__grip" aria-hidden="true" />
         {title && <h2 className="sheet__title">{title}</h2>}

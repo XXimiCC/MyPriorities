@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Sheet } from '../components/Sheet';
 import { colorOf } from '../domain/palette';
 import { PRESETS, type Preset } from '../domain/presets';
+import { t } from '../i18n';
 import { useStore } from '../store/useStore';
 import { confirmDialog, haptics } from '../telegram/sdk';
 import './PresetsScreen.css';
@@ -20,11 +21,7 @@ export function PresetsScreen({ onApplied, intro = false }: Props): JSX.Element 
   const apply = (preset: Preset): void => {
     void (async () => {
       // При первом запуске заменять нечего — подтверждение только мешает.
-      const ok =
-        intro ||
-        (await confirmDialog(
-          `Заменить текущие приоритеты набором «${preset.name}»? Накопленное время сохранится — совпадающие по названию приоритеты продолжат свою историю.`,
-        ));
+      const ok = intro || (await confirmDialog(t('presets.applyConfirm', { name: preset.name })));
       if (!ok) return;
       actions.applyPreset(preset.id);
       haptics.success();
@@ -36,15 +33,11 @@ export function PresetsScreen({ onApplied, intro = false }: Props): JSX.Element 
   return (
     <>
       <header className="header">
-        <h1 className="header__title">{intro ? 'Мои приоритеты' : 'Наборы'}</h1>
+        <h1 className="header__title">{intro ? t('app.title') : t('presets.title')}</h1>
       </header>
 
       <div className="app__body">
-        <p className="edit__hint">
-          {intro
-            ? 'С чего начнём? Возьмите готовый сборник под свой тип жизни — потом всё можно переставить, переименовать и перекрасить.'
-            : 'Готовые сборники приоритетов под тип жизни. Можно взять целиком, а потом поправить под себя.'}
-        </p>
+        <p className="edit__hint">{intro ? t('presets.intro') : t('presets.hint')}</p>
 
         <ul className="presets">
           {PRESETS.map((preset) => (
@@ -58,12 +51,13 @@ export function PresetsScreen({ onApplied, intro = false }: Props): JSX.Element 
                 <PresetIcon preset={preset} />
                 <span className="pcard__name">{preset.name}</span>
                 <span className="pcard__tagline">{preset.tagline}</span>
-                {settings.presetId === preset.id && <span className="pcard__badge">Выбран</span>}
+                {settings.presetId === preset.id && (
+                  <span className="pcard__badge">{t('presets.current')}</span>
+                )}
               </button>
             </li>
           ))}
         </ul>
-
       </div>
 
       <Sheet open={Boolean(preview)} title={preview?.name} onClose={() => setPreview(null)}>
@@ -83,7 +77,7 @@ export function PresetsScreen({ onApplied, intro = false }: Props): JSX.Element 
             </ol>
 
             <button className="pform__submit press" type="button" onClick={() => apply(preview)}>
-              Применить набор
+              {t('presets.apply')}
             </button>
           </div>
         )}

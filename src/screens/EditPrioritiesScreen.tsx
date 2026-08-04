@@ -4,9 +4,9 @@ import { Sheet } from '../components/Sheet';
 import { useReorder } from '../components/useReorder';
 import { NEON_PALETTE, colorOf } from '../domain/palette';
 import { MAX_PRIORITIES, MIN_PRIORITIES, type Priority } from '../domain/types';
+import { plural, t } from '../i18n';
 import { useStore } from '../store/useStore';
 import { confirmDialog, haptics } from '../telegram/sdk';
-import { plural } from './HomeScreen';
 import './EditPrioritiesScreen.css';
 
 export function EditPrioritiesScreen(): JSX.Element {
@@ -21,16 +21,14 @@ export function EditPrioritiesScreen(): JSX.Element {
   return (
     <>
       <header className="header">
-        <h1 className="header__title">Приоритеты</h1>
+        <h1 className="header__title">{t('edit.title')}</h1>
         <span className="edit__counter">
-          {settings.priorities.length} из {MAX_PRIORITIES}
+          {t('edit.counter', { count: settings.priorities.length, max: MAX_PRIORITIES })}
         </span>
       </header>
 
       <div className="app__body">
-        <p className="edit__hint">
-          Потяните за ручку, чтобы поменять порядок. Нажмите на строку, чтобы переименовать или сменить цвет.
-        </p>
+        <p className="edit__hint">{t('edit.hint')}</p>
 
         <ul className="edit__list" ref={list.containerRef}>
           {settings.priorities.map((priority, index) => {
@@ -60,7 +58,7 @@ export function EditPrioritiesScreen(): JSX.Element {
                 <span className="erow__arrows">
                   <button
                     type="button"
-                    aria-label="Выше"
+                    aria-label={t('edit.up')}
                     disabled={index === 0}
                     onClick={() => {
                       haptics.tap();
@@ -73,7 +71,7 @@ export function EditPrioritiesScreen(): JSX.Element {
                   </button>
                   <button
                     type="button"
-                    aria-label="Ниже"
+                    aria-label={t('edit.down')}
                     disabled={index === settings.priorities.length - 1}
                     onClick={() => {
                       haptics.tap();
@@ -89,13 +87,11 @@ export function EditPrioritiesScreen(): JSX.Element {
                 <button
                   className="erow__delete"
                   type="button"
-                  aria-label={`Удалить ${priority.title}`}
+                  aria-label={t('edit.delete', { title: priority.title })}
                   disabled={atMinimum}
                   onClick={() => {
                     void (async () => {
-                      const ok = await confirmDialog(
-                        `Удалить «${priority.title}»? Накопленное время сохранится и останется видно в статистике.`,
-                      );
+                      const ok = await confirmDialog(t('edit.deleteConfirm', { title: priority.title }));
                       if (!ok) return;
                       haptics.warning();
                       actions.deletePriority(priority.id);
@@ -117,20 +113,20 @@ export function EditPrioritiesScreen(): JSX.Element {
           disabled={atLimit}
           onClick={() => setAdding(true)}
         >
-          {atLimit ? `Максимум ${MAX_PRIORITIES} приоритетов` : 'Добавить приоритет'}
+          {atLimit ? t('edit.limit', { max: MAX_PRIORITIES }) : t('edit.add')}
         </button>
 
         {settings.archived.length > 0 && (
           <>
             <div className="divider-label">
               <span>
-                Архив: {settings.archived.length}{' '}
-                {plural(settings.archived.length, 'приоритет', 'приоритета', 'приоритетов')}
+                {t('edit.archiveTitle', {
+                  count: settings.archived.length,
+                  unit: plural('priority', settings.archived.length),
+                })}
               </span>
             </div>
-            <p className="edit__hint">
-              Удалённые приоритеты хранят своё время. Добавьте приоритет с тем же названием — история вернётся.
-            </p>
+            <p className="edit__hint">{t('edit.archiveHint')}</p>
             <ul className="edit__archive">
               {settings.archived.map((priority) => (
                 <li key={priority.id} style={{ '--accent': colorOf(priority.colorId).hex } as React.CSSProperties}>
@@ -195,16 +191,16 @@ function PriorityEditor({
   onClose(): void;
   onSave(title: string, colorId: number): void;
 }): JSX.Element {
-  // key на форме сбрасывает поля при смене приоритета: без него в шторке
-  // остаётся название предыдущего.
   return (
-    <Sheet open={Boolean(priority)} title="Приоритет" onClose={onClose}>
+    <Sheet open={Boolean(priority)} title={t('edit.formTitle')} onClose={onClose}>
+      {/* key на форме сбрасывает поля при смене приоритета: без него в шторке
+          остаётся название предыдущего. */}
       {priority && (
         <PriorityForm
           key={priority.id}
           initialTitle={priority.title}
           initialColor={priority.colorId}
-          submitLabel="Сохранить"
+          submitLabel={t('common.save')}
           onSubmit={onSave}
         />
       )}
@@ -222,12 +218,12 @@ function AddPriority({
   onAdd(title: string): void;
 }): JSX.Element {
   return (
-    <Sheet open={open} title="Новый приоритет" onClose={onClose}>
+    <Sheet open={open} title={t('edit.newTitle')} onClose={onClose}>
       {open && (
         <PriorityForm
           initialTitle=""
           initialColor={-1}
-          submitLabel="Добавить"
+          submitLabel={t('common.add')}
           hideColor
           onSubmit={(title) => onAdd(title)}
         />
@@ -269,7 +265,7 @@ function PriorityForm({
         value={title}
         maxLength={24}
         autoComplete="off"
-        placeholder="Например, Работа"
+        placeholder={t('edit.placeholder')}
         onChange={(event) => setTitle(event.target.value)}
       />
 

@@ -2,24 +2,26 @@ import { useState } from 'react';
 
 import { BatteryIcon } from '../components/BatteryIcon';
 import { NEON_PALETTE, colorOf } from '../domain/palette';
-import { PresetsScreen } from './PresetsScreen';
+import { DEFAULT_BLOCK_MINUTES } from '../domain/types';
+import { t, type StringKey } from '../i18n';
 import { haptics } from '../telegram/sdk';
+import { PresetsScreen } from './PresetsScreen';
 import './OnboardingScreen.css';
 
 interface Slide {
-  eyebrow: string;
-  title: string;
-  text: string;
+  eyebrow: StringKey;
+  title: StringKey;
+  text: StringKey;
   art: JSX.Element;
 }
 
 /** Полоски-приоритеты с перекосом — тем самым, который приложение и показывает. */
 function BarsArt(): JSX.Element {
   const bars = [
-    { colorId: 1, fill: 1, label: 'Работа' },
-    { colorId: 9, fill: 0.42, label: 'Семья' },
-    { colorId: 0, fill: 0.26, label: 'Здоровье' },
-    { colorId: 6, fill: 0.64, label: 'Отдых' },
+    { colorId: 1, fill: 1 },
+    { colorId: 9, fill: 0.42 },
+    { colorId: 0, fill: 0.26 },
+    { colorId: 6, fill: 0.64 },
   ];
   return (
     <div className="onb__bars">
@@ -27,11 +29,10 @@ function BarsArt(): JSX.Element {
         const color = colorOf(bar.colorId);
         return (
           <div
-            key={bar.label}
+            key={bar.colorId}
             className="onb__bar"
             style={{ '--accent': color.hex, '--accent-soft': color.soft } as React.CSSProperties}
           >
-            <span className="onb__bar-label">{bar.label}</span>
             <span className="prow__track">
               <span className="prow__fill" style={{ width: `${bar.fill * 100}%` }} />
             </span>
@@ -50,7 +51,7 @@ function ClickArt(): JSX.Element {
           <path d="M12 5.5v13M5.5 12h13" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
         </svg>
       </span>
-      <span className="onb__click-eq">= 30 минут</span>
+      <span className="onb__click-eq">{t('onb.2.equals', { minutes: DEFAULT_BLOCK_MINUTES })}</span>
     </div>
   );
 }
@@ -66,24 +67,9 @@ function ChargeArt(): JSX.Element {
 }
 
 const SLIDES: Slide[] = [
-  {
-    eyebrow: 'Зачем это',
-    title: 'Куда на самом деле уходит жизнь',
-    text: 'Планы врут, а отметки — нет. Приложение не говорит, как надо жить: оно показывает, как вы живёте на самом деле, и даёт увидеть перекос своими глазами.',
-    art: <BarsArt />,
-  },
-  {
-    eyebrow: 'Как отмечать',
-    title: 'Один клик — полчаса жизни',
-    text: 'Уделили приоритету сфокусированный блок — нажмите «+». Полоса заполняется относительно лидера: тот, кто съедает больше всех, всегда во всю ширину, остальные — в его долях.',
-    art: <ClickArt />,
-  },
-  {
-    eyebrow: 'Ваш ресурс',
-    title: 'Заряд — это про вас, не про телефон',
-    text: 'Отмечайте состояние, когда оно менялось: полный заряд, средний, на нуле или восстановление. Приложение считает время между переключениями и покажет, сколько вы прожили на нуле.',
-    art: <ChargeArt />,
-  },
+  { eyebrow: 'onb.1.eyebrow', title: 'onb.1.title', text: 'onb.1.text', art: <BarsArt /> },
+  { eyebrow: 'onb.2.eyebrow', title: 'onb.2.title', text: 'onb.2.text', art: <ClickArt /> },
+  { eyebrow: 'onb.3.eyebrow', title: 'onb.3.title', text: 'onb.3.text', art: <ChargeArt /> },
 ];
 
 export function OnboardingScreen(): JSX.Element {
@@ -96,7 +82,7 @@ export function OnboardingScreen(): JSX.Element {
   return (
     <>
       <header className="header">
-        <h1 className="header__title">Мои приоритеты</h1>
+        <h1 className="header__title">{t('app.title')}</h1>
         <button
           className="onb__skip"
           type="button"
@@ -105,20 +91,20 @@ export function OnboardingScreen(): JSX.Element {
             setStep(SLIDES.length);
           }}
         >
-          Пропустить
+          {t('onb.skip')}
         </button>
       </header>
 
       <div className="app__body onb__body">
         <div className="onb__art">{slide.art}</div>
-        <p className="eyebrow onb__eyebrow">{slide.eyebrow}</p>
-        <h2 className="onb__title">{slide.title}</h2>
-        <p className="onb__text">{slide.text}</p>
+        <p className="eyebrow onb__eyebrow">{t(slide.eyebrow)}</p>
+        <h2 className="onb__title">{t(slide.title)}</h2>
+        <p className="onb__text">{t(slide.text)}</p>
       </div>
 
       <div className="app__sticky onb__dots" role="presentation">
         {SLIDES.map((item, index) => (
-          <span key={item.eyebrow} className={index === step ? 'onb__dot onb__dot--on' : 'onb__dot'} />
+          <span key={item.title} className={index === step ? 'onb__dot onb__dot--on' : 'onb__dot'} />
         ))}
       </div>
 
@@ -131,7 +117,7 @@ export function OnboardingScreen(): JSX.Element {
             setStep(step + 1);
           }}
         >
-          {step === SLIDES.length - 1 ? 'Выбрать приоритеты' : 'Дальше'}
+          {step === SLIDES.length - 1 ? t('onb.start') : t('onb.next')}
         </button>
       </div>
     </>

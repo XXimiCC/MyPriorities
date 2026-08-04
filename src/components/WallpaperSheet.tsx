@@ -2,15 +2,16 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { BatteryIcon } from './BatteryIcon';
 import { Sheet } from './Sheet';
-import { batteryTheme } from '../domain/palette';
+import { batteryTheme, batteryTitle } from '../domain/palette';
 import { BATTERY_LEVELS, type BatteryLevel } from '../domain/types';
+import { t } from '../i18n';
 import { alertDialog, haptics } from '../telegram/sdk';
 import { renderWallpaper } from '../wallpaper/render';
 import {
-  SIZE_PRESETS,
   canvasToBlob,
   deviceSize,
   saveFile,
+  sizePresets,
   waitForFonts,
   type ScreenSize,
 } from '../wallpaper/save';
@@ -24,7 +25,7 @@ interface Props {
 
 export function WallpaperSheet({ open, initialLevel, onClose }: Props): JSX.Element {
   return (
-    <Sheet open={open} title="Обои с зарядом" onClose={onClose}>
+    <Sheet open={open} title={t('wallpaper.title')} onClose={onClose}>
       {/* key сбрасывает состояние при каждом открытии: иначе шторка помнит
           прошлый выбор уровня, хотя заряд с тех пор мог смениться. */}
       {open && <WallpaperMaker key={initialLevel} initialLevel={initialLevel} />}
@@ -33,7 +34,7 @@ export function WallpaperSheet({ open, initialLevel, onClose }: Props): JSX.Elem
 }
 
 function WallpaperMaker({ initialLevel }: { initialLevel: BatteryLevel }): JSX.Element {
-  const sizes = useMemo<ScreenSize[]>(() => [deviceSize(), ...SIZE_PRESETS], []);
+  const sizes = useMemo<ScreenSize[]>(() => [deviceSize(), ...sizePresets()], []);
   const [level, setLevel] = useState<BatteryLevel>(initialLevel);
   const [sizeId, setSizeId] = useState(sizes[0]!.id);
   const [preview, setPreview] = useState<{ url: string; blob: Blob } | null>(null);
@@ -77,9 +78,9 @@ function WallpaperMaker({ initialLevel }: { initialLevel: BatteryLevel }): JSX.E
     <div style={{ '--accent': theme.hex } as React.CSSProperties}>
       <div className="wp__preview">
         {preview ? (
-          <img src={preview.url} alt={`Обои: ${theme.title}`} />
+          <img src={preview.url} alt={t('wallpaper.alt', { title: batteryTitle(level) })} />
         ) : (
-          <span className="wp__spinner" aria-label="Готовим картинку" />
+          <span className="wp__spinner" aria-label={t('wallpaper.preparing')} />
         )}
       </div>
 
@@ -90,7 +91,7 @@ function WallpaperMaker({ initialLevel }: { initialLevel: BatteryLevel }): JSX.E
             className={`wp__level press${option === level ? ' wp__level--on' : ''}`}
             style={{ '--accent': batteryTheme(option).hex } as React.CSSProperties}
             type="button"
-            aria-label={batteryTheme(option).title}
+            aria-label={batteryTitle(option)}
             onClick={() => {
               haptics.select();
               setLevel(option);
@@ -102,7 +103,7 @@ function WallpaperMaker({ initialLevel }: { initialLevel: BatteryLevel }): JSX.E
       </div>
 
       <div className="divider-label">
-        <span>Размер</span>
+        <span>{t('wallpaper.size')}</span>
       </div>
 
       <div className="wp__sizes">
@@ -137,24 +138,29 @@ function WallpaperMaker({ initialLevel }: { initialLevel: BatteryLevel }): JSX.E
           })();
         }}
       >
-        Сохранить обои
+        {t('wallpaper.save')}
       </button>
 
       {manual && preview && (
         <div className="wp__manual" role="dialog" aria-modal="true">
-          <button className="sheet__scrim" type="button" aria-label="Закрыть" onClick={() => setManual(false)} />
+          <button
+            className="sheet__scrim"
+            type="button"
+            aria-label={t('common.close')}
+            onClick={() => setManual(false)}
+          />
           <div className="wp__manual-body">
-            <p>Нажмите на картинку и удерживайте, затем выберите «Сохранить в Фото».</p>
-            <img src={preview.url} alt="Обои для сохранения" />
+            <p>{t('wallpaper.manual')}</p>
+            <img src={preview.url} alt={t('wallpaper.manualAlt')} />
             <button
               className="edit__add"
               type="button"
               onClick={() => {
                 setManual(false);
-                void alertDialog('Готово. Поставьте картинку обоями в настройках устройства.');
+                void alertDialog(t('wallpaper.manualDone'));
               }}
             >
-              Закрыть
+              {t('common.close')}
             </button>
           </div>
         </div>

@@ -71,7 +71,16 @@ export function SettingsScreen({ onPresets }: Props): JSX.Element {
       const json = actions.exportData();
       const blob = new Blob([json], { type: 'application/json' });
       const outcome = await saveFile(blob, 'my-priorities-backup.json', 'application/json');
-      if (outcome === 'manual') await alertDialog(t('settings.exportFailed'));
+      if (outcome !== 'manual') return;
+
+      // Долгое нажатие спасает картинку, но не JSON. Буфер обмена — единственный
+      // путь забрать копию из клиента, который не умеет сохранять файлы.
+      try {
+        await navigator.clipboard.writeText(json);
+        await alertDialog(t('settings.exportCopied'));
+      } catch {
+        await alertDialog(t('settings.exportFailed'));
+      }
     });
 
   const importData = (file: File): void =>

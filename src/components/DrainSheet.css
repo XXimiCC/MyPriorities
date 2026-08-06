@@ -1,0 +1,58 @@
+.drain__hint {
+  margin-bottom: 14px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-faint);
+  text-align: center;
+}
+
+.drain__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.drain__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 15px;
+  border-radius: 999px;
+  font-size: 14px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface-2));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.drain__item--muted {
+  color: var(--text-dim);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+.drain__skip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 18px;
+  padding: 13px;
+  border-radius: var(--r-md);
+  font-size: 14px;
+  color: var(--text-faint);
+}
+
+/* Обратный отсчёт: видно, что окно закроется само и держать его не нужно. */
+.drain__count {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+}

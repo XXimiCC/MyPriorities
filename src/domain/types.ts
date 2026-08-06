@@ -46,8 +46,16 @@ export function blockMinutesOf(settings: Settings): number {
 /** Клики за один день: id приоритета → количество блоков. */
 export type DayClicks = Record<string, number>;
 
-/** Смена состояния батареи: минуты от локальной полуночи и новый уровень. */
-export type BatteryShift = [minuteOfDay: number, level: BatteryLevel];
+/**
+ * Смена состояния батареи: минуты от локальной полуночи, новый уровень и —
+ * только для перехода «на нуле» — id приоритета, который на это указали.
+ *
+ * Третий элемент необязателен намеренно: записи, сделанные до появления вопроса
+ * про расход, остаются валидными и читаются без миграции.
+ */
+export type BatteryShift =
+  | [minuteOfDay: number, level: BatteryLevel]
+  | [minuteOfDay: number, level: BatteryLevel, drainedBy: string];
 
 /** Ключ дня — локальная дата `YYYY-MM-DD`. */
 export type DayKey = string;

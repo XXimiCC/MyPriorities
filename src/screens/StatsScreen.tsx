@@ -2,14 +2,16 @@ import { useMemo, useState } from 'react';
 
 import { BatteryIcon } from '../components/BatteryIcon';
 import { DayBars } from '../components/DayBars';
+import { EnergyChart } from '../components/EnergyChart';
 import { PeriodSwitch } from '../components/PeriodSwitch';
-import { formatDayShort, formatHoursCompact, formatMinutes, formatPercent } from '../domain/date';
+import { formatHoursCompact, formatMinutes, formatPercent } from '../domain/date';
 import { batteryTheme, batteryTitle, colorOf } from '../domain/palette';
 import {
   clickStreak,
   computeBatteryStats,
   computeStats,
   dailyBreakdown,
+  drainCounts,
   periodDays,
   type PriorityStat,
 } from '../domain/stats';
@@ -39,6 +41,23 @@ export function StatsScreen(): JSX.Element {
     () => [...stats.active, ...stats.archived].sort((a, b) => b.blocks - a.blocks),
     [stats],
   );
+
+  const drains = useMemo(() => {
+    const known = new Map(
+      [...settings.priorities, ...settings.archived].map((p) => [p.id, p]),
+    );
+    return [...drainCounts(journal, days)]
+      .map(([id, count]) => {
+        const priority = known.get(id);
+        return {
+          id: id || 'unknown',
+          count,
+          title: priority ? priority.title : t('drain.unknown'),
+          hex: priority ? colorOf(priority.colorId).hex : 'var(--text-faint)',
+        };
+      })
+      .sort((a, b) => b.count - a.count);
+  }, [settings, journal, days]);
 
   const averagePerDay = days.length > 0 ? stats.totalMinutes / days.length : 0;
 
@@ -120,7 +139,31 @@ export function StatsScreen(): JSX.Element {
               })}
             </ul>
 
-            <DayStrip days={days} perDay={battery.perDay} />
+            <div className="divider-label">
+              <span>{t('stats.energyTitle')}</span>
+            </div>
+            <p className="charge__note">{t('stats.energyNote')}</p>
+            <EnergyChart days={days} battery={battery} />
+
+            <div className="divider-label">
+              <span>{t('drain.statsTitle')}</span>
+            </div>
+            <p className="charge__note">{t('drain.statsNote')}</p>
+            {drains.length === 0 ? (
+              <p className="empty">{t('drain.statsEmpty')}</p>
+            ) : (
+              <ul className="blist">
+                {drains.map((row) => (
+                  <li key={row.id} style={{ '--accent': row.hex } as React.CSSProperties}>
+                    <span className="erow__swatch" />
+                    <span className="blist__title">{row.title}</span>
+                    <span className="blist__share">
+                      {t('drain.statsCount', { count: row.count, unit: plural('day', row.count) })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </>
         )}
       </div>
@@ -158,42 +201,3 @@ function StatBar({ stat }: { stat: PriorityStat }): JSX.Element {
   );
 }
 
-/** Полоска по дням: каждый день окрашен доминирующим состоянием заряда. */
-function DayStrip({
-  days,
-  perDay,
-}: {
-  days: string[];
-  perDay: Record<string, number | null>;
-}): JSX.Element {
-  const first = days[0];
-  const last = days[days.length - 1];
-
-  return (
-    <div className="dstrip">
-      <div className="dstrip__bars">
-        {days.map((day) => {
-          const level = perDay[day];
-          const hex = level ? batteryTheme(level as 1 | 2 | 3 | 4).hex : null;
-          const label = level ? batteryTitle(level as 1 | 2 | 3 | 4) : t('stats.noData');
-          return (
-            <span
-              key={day}
-              className="dstrip__bar"
-              title={`${formatDayShort(day)} — ${label}`}
-              style={
-                hex
-                  ? { background: hex, boxShadow: `0 0 6px ${hex}` }
-                  : { background: 'rgba(255,255,255,0.07)' }
-              }
-            />
-          );
-        })}
-      </div>
-      <div className="dstrip__axis">
-        <span>{first ? formatDayShort(first) : ''}</span>
-        <span>{last ? formatDayShort(last) : ''}</span>
-      </div>
-    </div>
-  );
-}

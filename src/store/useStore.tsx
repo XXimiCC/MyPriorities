@@ -24,6 +24,7 @@ import {
   MAX_PRIORITIES,
   MIN_PRIORITIES,
   type BatteryLevel,
+  type BatteryShift,
   type DayKey,
   type Journal,
   type Priority,
@@ -42,6 +43,7 @@ import {
   newPriorityId,
   parseSnapshot,
   pruneOldMonths,
+  readLocalOnly,
   saveBatteryMonth,
   saveClicksMonth,
   saveSettings,
@@ -50,6 +52,9 @@ import {
 import { MOCK_MODE, buildMockData } from './mock';
 
 const FLUSH_DELAY_MS = 700;
+
+/** Заведомо больше предела одного вызова к облаку, чтобы не срабатывать раньше него. */
+const HYDRATE_DEADLINE_MS = 9000;
 
 interface State {
   ready: boolean;
@@ -61,6 +66,7 @@ type Action =
   | { type: 'hydrate'; settings: Settings; journal: Journal }
   | { type: 'blocks'; day: DayKey; priorityId: string; delta: number }
   | { type: 'battery'; day: DayKey; minute: number; level: BatteryLevel }
+  | { type: 'drain'; day: DayKey; drainedBy: string }
   | { type: 'settings'; settings: Settings }
   | { type: 'journal'; journal: Journal };
 
@@ -99,6 +105,23 @@ function reduce(state: State, action: Action): State {
       };
     }
 
+    case 'drain': {
+      // Ответ приписывается последнему переходу дня — тому самому, который
+      // только что перевёл заряд на «на нуле» и вызвал вопрос.
+      const shifts = state.journal.battery[action.day];
+      const last = shifts?.[shifts.length - 1];
+      if (!shifts || !last) return state;
+
+      const updated: BatteryShift[] = [
+        ...shifts.slice(0, -1),
+        [last[0], last[1], action.drainedBy],
+      ];
+      return {
+        ...state,
+        journal: { ...state.journal, battery: { ...state.journal.battery, [action.day]: updated } },
+      };
+    }
+
     case 'settings':
       return { ...state, settings: action.settings };
 
@@ -111,9 +134,12 @@ function reduce(state: State, action: Action): State {
 }
 
 export interface StoreActions {
-  addBlock(priorityId: string): void;
-  removeBlock(priorityId: string): void;
+  /** day по умолчанию — сегодня; передаётся явно только при заполнении пропусков. */
+  addBlock(priorityId: string, day?: DayKey): void;
+  removeBlock(priorityId: string, day?: DayKey): void;
   setBattery(level: BatteryLevel): void;
+  /** Ответ на вопрос, что посадило заряд. Пустая строка — «не знаю». */
+  setDrain(drainedBy: string): void;
   reorder(priorities: Priority[]): void;
   addPriority(title: string): Priority | undefined;
   updatePriority(id: string, patch: Partial<Pick<Priority, 'title' | 'colorId'>>): void;
@@ -238,11 +264,30 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
   // --- Гидратация ---
   useEffect(() => {
     let cancelled = false;
+    let settled = false;
+
+    const finish = (settings: Settings | undefined, journal: Journal): void => {
+      if (cancelled || settled) return;
+      settled = true;
+      dispatch({ type: 'hydrate', settings: settings ?? emptySettings(), journal });
+    };
+
+    /**
+     * Последний рубеж против бесконечного спиннера. Отдельные вызовы к облаку
+     * уже ограничены по времени, но если зависнет что-то ещё, приложение всё
+     * равно обязано показаться: пустой экран без объяснений хуже, чем экран
+     * с локальными данными и предупреждением в настройках.
+     */
+    const deadline = window.setTimeout(() => {
+      if (settled) return;
+      console.warn('[store] загрузка затянулась, показываем то, что успели прочитать');
+      void readLocalOnly().then(({ settings, journal }) => finish(settings, journal));
+    }, HYDRATE_DEADLINE_MS);
 
     void (async () => {
       if (MOCK_MODE) {
-        const mock = buildMockData();
-        if (!cancelled) dispatch({ type: 'hydrate', ...mock });
+        finish(buildMockData().settings, buildMockData().journal);
+        window.clearTimeout(deadline);
         return;
       }
 
@@ -254,14 +299,16 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       } catch (error) {
         console.warn('[store] загрузка не удалась, стартуем с пустого состояния', error);
       }
+      window.clearTimeout(deadline);
       if (cancelled) return;
 
-      dispatch({ type: 'hydrate', settings: settings ?? emptySettings(), journal });
+      finish(settings, journal);
       void pruneOldMonths();
     })();
 
     return () => {
       cancelled = true;
+      window.clearTimeout(deadline);
     };
   }, []);
 
@@ -286,14 +333,12 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     };
 
     return {
-      addBlock(priorityId) {
-        const day = todayKey();
+      addBlock(priorityId, day = todayKey()) {
         dispatch({ type: 'blocks', day, priorityId, delta: 1 });
         markClicks(day);
       },
 
-      removeBlock(priorityId) {
-        const day = todayKey();
+      removeBlock(priorityId, day = todayKey()) {
         dispatch({ type: 'blocks', day, priorityId, delta: -1 });
         markClicks(day);
       },
@@ -302,6 +347,12 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         const now = new Date();
         const day = todayKey(now);
         dispatch({ type: 'battery', day, minute: minuteOfDay(now), level });
+        markBattery(day);
+      },
+
+      setDrain(drainedBy) {
+        const day = todayKey();
+        dispatch({ type: 'drain', day, drainedBy });
         markBattery(day);
       },
 

@@ -1,0 +1,75 @@
+.energy__plot {
+  display: block;
+  width: 100%;
+  height: 150px;
+  overflow: visible;
+}
+
+/* preserveAspectRatio="none" растягивает систему координат по ширине, поэтому
+   толщина линий фиксируется через vector-effect, иначе они плющатся вместе с ней. */
+.energy__guide {
+  stroke: var(--hairline);
+  stroke-width: 1;
+}
+
+.energy__average {
+  stroke: var(--text-faint);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+.energy__line {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.85;
+}
+
+.energy__dot {
+  stroke: #000;
+  stroke-width: 1.5;
+}
+
+.energy__hit {
+  cursor: pointer;
+}
+
+.energy__ticks {
+  display: flex;
+  margin-top: 6px;
+}
+
+.energy__tick {
+  flex: 1;
+  min-width: 0;
+  font-size: 9px;
+  text-align: center;
+  color: var(--text-faint);
+}
+
+.energy__tick--on {
+  color: var(--text);
+}
+
+.energy__legend {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.energy__legend-avg {
+  width: 18px;
+  height: 0;
+  border-top: 1px dashed var(--text-faint);
+}
+
+.energy__legend b {
+  font-weight: 600;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}

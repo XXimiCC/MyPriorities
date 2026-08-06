@@ -210,6 +210,8 @@ export interface BatteryStats {
   totalMinutes: number;
   /** Доминирующий уровень каждого дня периода — для полоски по дням. */
   perDay: Record<DayKey, BatteryLevel | null>;
+  /** Минуты по уровням внутри каждого дня — из них строится график энергии. */
+  perDayMinutes: Record<DayKey, Record<BatteryLevel, number>>;
 }
 
 const EMPTY_LEVELS = (): Record<BatteryLevel, number> => ({ 1: 0, 2: 0, 3: 0, 4: 0 });
@@ -245,11 +247,13 @@ export function computeBatteryStats(
   const sortedDays = batteryDaysSorted(journal);
   const minutes = EMPTY_LEVELS();
   const perDay: Record<DayKey, BatteryLevel | null> = {};
+  const perDayMinutes: Record<DayKey, Record<BatteryLevel, number>> = {};
   const today = todayKey(now);
 
   for (const day of days) {
     if (day > today) {
       perDay[day] = null;
+      perDayMinutes[day] = EMPTY_LEVELS();
       continue;
     }
 
@@ -289,10 +293,58 @@ export function computeBatteryStats(
       }
     }
     perDay[day] = dominant;
+    perDayMinutes[day] = dayTotals;
   }
 
   const totalMinutes = (Object.values(minutes) as number[]).reduce((sum, n) => sum + n, 0);
-  return { minutes, totalMinutes, perDay };
+  return { minutes, totalMinutes, perDay, perDayMinutes };
+}
+
+/**
+ * Шкала графика энергии: «на нуле» — 0, «средний» — половина, «полный заряд» — 1.
+ * Зарядки в шкале нет намеренно: это не величина заряда, а занятие, и поставить
+ * её выше или ниже остальных значило бы соврать.
+ */
+const CHARGE_VALUE: Partial<Record<BatteryLevel, number>> = { 1: 0, 2: 0.5, 3: 1 };
+
+/**
+ * Средний заряд за набор минут по уровням, 0..1, взвешенный по времени.
+ * null — заряд не отмечался вовсе или всё время ушло на восстановление: такой
+ * день оставляет разрыв в линии, а не выдуманную точку внизу шкалы.
+ */
+export function chargeLevel(minutes: Record<BatteryLevel, number>): number | null {
+  let weighted = 0;
+  let total = 0;
+  for (const level of [1, 2, 3] as BatteryLevel[]) {
+    const value = CHARGE_VALUE[level];
+    if (value === undefined) continue;
+    weighted += value * minutes[level];
+    total += minutes[level];
+  }
+  return total > 0 ? weighted / total : null;
+}
+
+/**
+ * Сколько раз каждый приоритет называли причиной севшей батареи.
+ * Ключ пустой строки — ответ «не знаю»: он тоже информация, поэтому не теряется.
+ */
+export function drainCounts(journal: Journal, days: DayKey[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const day of days) {
+    for (const shift of journal.battery[day] ?? []) {
+      const drainedBy = shift[2];
+      if (drainedBy === undefined) continue;
+      counts.set(drainedBy, (counts.get(drainedBy) ?? 0) + 1);
+    }
+  }
+  return counts;
+}
+
+/** Ближайший уровень к средней величине заряда 0..1 — только чтобы взять цвет точки. */
+export function nearestChargeLevel(charge: number): BatteryLevel {
+  if (charge >= 0.75) return 3;
+  if (charge >= 0.25) return 2;
+  return 1;
 }
 
 /** Текущий уровень: последний переход по всей истории. null — состояние ещё не задавали. */

@@ -40,6 +40,12 @@ export const ruStrings = {
   'home.plus': 'Добавить {minutes} минут',
   'home.minus': 'Убрать {minutes} минут',
   'home.todayBlocks': '{count} {unit} сегодня',
+  'home.dayPicker': 'День, в который идёт запись',
+  'home.dayToday': 'сег',
+  'home.fillGaps': 'Заполнить пропущенный день',
+  'home.pastWarning': 'Записываете в {day}',
+  'home.backToToday': 'К сегодня',
+  'home.dayBlocks': '{count} {unit} за {day}',
 
   // --- Редактирование ---
   'edit.title': 'Приоритеты',
@@ -89,6 +95,16 @@ export const ruStrings = {
   'battery.1.meaning': 'Ресурс на нуле. Всё, что сейчас делается, делается через силу.',
   'battery.4.meaning': 'Восстанавливаетесь: сон, тишина, прогулка, ничегонеделание.',
 
+  'drain.title': 'Что съело всю энергию?',
+  'drain.hint': 'Одним касанием — потом это соберётся в отдельную статистику.',
+  'drain.skip': 'Пропустить',
+  'drain.other': 'Не знаю',
+  'drain.statsTitle': 'Что сажает батарею',
+  'drain.statsNote': 'Приоритеты, на которые вы указывали, отмечая «на нуле».',
+  'drain.statsCount': '{count} {unit}',
+  'drain.statsEmpty': 'Пока не отмечалось. Вопрос появляется, когда переключаете заряд на «на нуле».',
+  'drain.unknown': 'Не знаю',
+
   // --- Обои ---
   'wallpaper.title': 'Обои с зарядом',
   'wallpaper.preparing': 'Готовим картинку',
@@ -115,6 +131,13 @@ export const ruStrings = {
   'stats.chargeEmpty': 'Состояние батареи ещё не отмечалось.',
   'stats.archived': 'архив',
   'stats.noData': 'нет данных',
+  'stats.energyTitle': 'Как менялась энергия',
+  'stats.energyNote': 'Линия — средний заряд за день: сверху «полный», снизу «на нуле». Пунктир — среднее за период. Столбики под линией показывают, из каких состояний сложились сутки. Нажмите на день, чтобы разобрать его.',
+  'stats.energyAverage': 'среднее',
+  'stats.energyDayEmpty': 'В этот день заряд не отмечался.',
+  'stats.energyUnknown': 'Не отмечено',
+  'stats.energyOnlyCharge': 'Только восстановление',
+  'stats.energyLevel': 'Средний заряд',
 
   // --- Настройки ---
   'settings.title': 'Настройки',
@@ -137,6 +160,7 @@ export const ruStrings = {
   'settings.noSyncBrowser': 'Приложение открыто вне Telegram, поэтому данные лежат в этом браузере и между устройствами не синхронизируются.',
   'settings.export': 'Скачать копию данных',
   'settings.exportFailed': 'Не удалось сохранить файл. Откройте приложение в браузере и повторите.',
+  'settings.exportCopied': 'Клиент Telegram не даёт сохранять файлы, поэтому копия отправлена в буфер обмена. Вставьте её сообщением в «Избранное» — оттуда её всегда можно достать и вернуть через «Восстановить из копии».',
   'settings.import': 'Восстановить из копии',
   'settings.importConfirm': 'Восстановить данные из копии? Текущие приоритеты и вся история будут заменены содержимым файла.',
   'settings.importDone': 'Готово: {priorities} {pUnit}, {days} {dUnit} истории.',

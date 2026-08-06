@@ -1,14 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { BatteryIcon } from '../components/BatteryIcon';
 import { BatterySheet } from '../components/BatterySheet';
 import { PeriodSwitch } from '../components/PeriodSwitch';
 import { PriorityRow } from '../components/PriorityRow';
 import { Sheet } from '../components/Sheet';
-import { formatHoursCompact, formatMinutes, formatPercent } from '../domain/date';
+import { DayPicker } from '../components/DayPicker';
+import { formatDayShort, formatHoursCompact, formatMinutes, formatPercent } from '../domain/date';
 import { colorOf } from '../domain/palette';
 import { computeStats, currentBatteryLevel, periodDays } from '../domain/stats';
-import { PERIODS, blockMinutesOf, type PeriodId, type Priority } from '../domain/types';
+import { PERIODS, blockMinutesOf, type DayKey, type PeriodId, type Priority } from '../domain/types';
 import { plural, t } from '../i18n';
 import { useStore } from '../store/useStore';
 import { haptics } from '../telegram/sdk';
@@ -25,6 +26,21 @@ export function HomeScreen({ onEdit }: Props): JSX.Element {
   const [periodId, setPeriodId] = useState<PeriodId>('today');
   const [batteryOpen, setBatteryOpen] = useState(false);
   const [tuning, setTuning] = useState<Priority | null>(null);
+  /**
+   * День, в который идут клики. Живёт в состоянии экрана, а не в сторе, и
+   * поэтому сбрасывается на сегодня при каждом открытии приложения. Это и есть
+   * защита от главного риска режима: забыть, что пишешь во вчера, и потерять
+   * весь следующий день.
+   */
+  const [writeDay, setWriteDay] = useState<DayKey>(today);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  // Наступила полночь при открытом приложении — переводим запись на новые сутки.
+  useEffect(() => {
+    if (writeDay > today) setWriteDay(today);
+  }, [today, writeDay]);
+
+  const inPast = writeDay !== today;
 
   const period = HOME_PERIODS.find((p) => p.id === periodId) ?? HOME_PERIODS[0]!;
   const stats = useMemo(
@@ -32,7 +48,9 @@ export function HomeScreen({ onEdit }: Props): JSX.Element {
     [settings, journal, period],
   );
   const battery = useMemo(() => currentBatteryLevel(journal), [journal]);
-  const todayClicks = journal.clicks[today] ?? {};
+  // Точки у кнопки «+» показывают тот день, в который идёт запись, а не сегодня:
+  // иначе в режиме прошлого дня счётчик врал бы о том, что вы только что нажали.
+  const dayClicks = journal.clicks[writeDay] ?? {};
   const blockMinutes = blockMinutesOf(settings);
 
   const leader = stats.active.reduce<typeof stats.active[number] | null>(
@@ -100,6 +118,30 @@ export function HomeScreen({ onEdit }: Props): JSX.Element {
             )}
           </p>
         )}
+
+        {pickerOpen || inPast ? (
+          <DayPicker value={writeDay} journal={journal} onChange={setWriteDay} />
+        ) : (
+          <button className="home__gaps" type="button" onClick={() => setPickerOpen(true)}>
+            {t('home.fillGaps')}
+          </button>
+        )}
+
+        {inPast && (
+          <div className="dpast">
+            <span>{t('home.pastWarning', { day: formatDayShort(writeDay) })}</span>
+            <button
+              type="button"
+              onClick={() => {
+                haptics.tap();
+                setWriteDay(today);
+                setPickerOpen(false);
+              }}
+            >
+              {t('home.backToToday')}
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="app__body">
@@ -108,11 +150,11 @@ export function HomeScreen({ onEdit }: Props): JSX.Element {
             <PriorityRow
               key={stat.priority.id}
               stat={stat}
-              todayBlocks={todayClicks[stat.priority.id] ?? 0}
+              todayBlocks={dayClicks[stat.priority.id] ?? 0}
               blockMinutes={blockMinutes}
               onAdd={() => {
                 haptics.tap();
-                actions.addBlock(stat.priority.id);
+                actions.addBlock(stat.priority.id, writeDay);
               }}
               onOpen={() => setTuning(stat.priority)}
               onHold={onEdit}
@@ -133,15 +175,23 @@ export function HomeScreen({ onEdit }: Props): JSX.Element {
         onClose={() => setBatteryOpen(false)}
       />
 
-      <TuneSheet priority={tuning} onClose={() => setTuning(null)} />
+      <TuneSheet priority={tuning} day={writeDay} onClose={() => setTuning(null)} />
     </>
   );
 }
 
-/** Правка сегодняшнего счётчика: сюда попадают, когда «+» нажали лишний раз. */
-function TuneSheet({ priority, onClose }: { priority: Priority | null; onClose(): void }): JSX.Element {
+/** Правка счётчика за выбранный день: сюда попадают, когда «+» нажали лишний раз. */
+function TuneSheet({
+  priority,
+  day,
+  onClose,
+}: {
+  priority: Priority | null;
+  day: DayKey;
+  onClose(): void;
+}): JSX.Element {
   const { settings, journal, today, actions } = useStore();
-  const blocks = priority ? journal.clicks[today]?.[priority.id] ?? 0 : 0;
+  const blocks = priority ? journal.clicks[day]?.[priority.id] ?? 0 : 0;
   const color = priority ? colorOf(priority.colorId) : null;
   const blockMinutes = blockMinutesOf(settings);
 
@@ -156,7 +206,7 @@ function TuneSheet({ priority, onClose }: { priority: Priority | null; onClose()
             aria-label={t('home.minus', { minutes: blockMinutes })}
             onClick={() => {
               haptics.tap();
-              actions.removeBlock(priority.id);
+              actions.removeBlock(priority.id, day);
             }}
           >
             <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
@@ -167,7 +217,13 @@ function TuneSheet({ priority, onClose }: { priority: Priority | null; onClose()
           <div className="tune__value">
             <span className="tune__time">{formatHoursCompact(blocks * blockMinutes)}</span>
             <span className="tune__blocks">
-              {t('home.todayBlocks', { count: blocks, unit: plural('block', blocks) })}
+              {day === today
+                ? t('home.todayBlocks', { count: blocks, unit: plural('block', blocks) })
+                : t('home.dayBlocks', {
+                    count: blocks,
+                    unit: plural('block', blocks),
+                    day: formatDayShort(day),
+                  })}
             </span>
           </div>
 
@@ -177,7 +233,7 @@ function TuneSheet({ priority, onClose }: { priority: Priority | null; onClose()
             aria-label={t('home.plus', { minutes: blockMinutes })}
             onClick={() => {
               haptics.tap();
-              actions.addBlock(priority.id);
+              actions.addBlock(priority.id, day);
             }}
           >
             <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">

@@ -57,17 +57,51 @@ const localStore: KeyValueStore = {
   },
 };
 
+/**
+ * Предел ожидания ответа от облака.
+ *
+ * CloudStorage общается через мост клиента и отвечает колбэком. Колбэк, который
+ * не вызвали ни с ошибкой, ни с успехом, — это не гипотеза: так ведут себя
+ * отдельные сборки Telegram, где объект есть, а обработчика за ним нет.
+ * Без предела промис висит вечно, гидратация не завершается, и пользователь
+ * видит бесконечный спиннер вместо приложения.
+ */
+const CLOUD_TIMEOUT_MS = 4000;
+
+function withTimeout<T>(operation: string, run: (settle: (value: T) => void, fail: (error: Error) => void) => void): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    let done = false;
+    const timer = window.setTimeout(() => {
+      if (done) return;
+      done = true;
+      reject(new Error(`CloudStorage.${operation}: клиент не ответил за ${CLOUD_TIMEOUT_MS} мс`));
+    }, CLOUD_TIMEOUT_MS);
+
+    const finish = (): boolean => {
+      if (done) return false;
+      done = true;
+      window.clearTimeout(timer);
+      return true;
+    };
+
+    run(
+      (value) => finish() && resolve(value),
+      (error) => finish() && reject(error),
+    );
+  });
+}
+
 function getBatch(keys: string[]): Promise<Record<string, string>> {
-  return new Promise((resolve, reject) => {
+  return withTimeout<Record<string, string>>('getItems', (settle, fail) => {
     cloudStorage!.getItems(keys, (err, values) => {
-      if (err) return reject(new Error(err));
+      if (err) return fail(new Error(err));
       // Отсутствующий ключ приходит пустой строкой — отличить его от пустого
       // значения нельзя, поэтому пустые просто отбрасываем.
       const out: Record<string, string> = {};
       for (const [key, value] of Object.entries(values ?? {})) {
         if (value) out[key] = value;
       }
-      resolve(out);
+      settle(out);
     });
   });
 }
@@ -84,19 +118,19 @@ const cloudStore: KeyValueStore = {
     return out;
   },
   set(key, value) {
-    return new Promise((resolve, reject) => {
-      cloudStorage!.setItem(key, value, (err) => (err ? reject(new Error(err)) : resolve()));
+    return withTimeout<void>('setItem', (settle, fail) => {
+      cloudStorage!.setItem(key, value, (err) => (err ? fail(new Error(err)) : settle()));
     });
   },
   remove(keys) {
     if (keys.length === 0) return Promise.resolve();
-    return new Promise((resolve, reject) => {
-      cloudStorage!.removeItems(keys, (err) => (err ? reject(new Error(err)) : resolve()));
+    return withTimeout<void>('removeItems', (settle, fail) => {
+      cloudStorage!.removeItems(keys, (err) => (err ? fail(new Error(err)) : settle()));
     });
   },
   keys() {
-    return new Promise((resolve, reject) => {
-      cloudStorage!.getKeys((err, keys) => (err ? reject(new Error(err)) : resolve(keys ?? [])));
+    return withTimeout<string[]>('getKeys', (settle, fail) => {
+      cloudStorage!.getKeys((err, list) => (err ? fail(new Error(err)) : settle(list ?? [])));
     });
   },
 };
@@ -157,3 +191,9 @@ function mirrored(primary: KeyValueStore): KeyValueStore {
 }
 
 export const store: KeyValueStore = cloudStorage ? mirrored(cloudStore) : localStore;
+
+/**
+ * Прямой доступ к локальной копии в обход облака. Нужен ровно на один случай:
+ * клиент завис и ждать его больше нельзя, а показать что-то надо.
+ */
+export const localMirror: KeyValueStore = localStore;

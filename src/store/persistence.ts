@@ -10,7 +10,7 @@
  * приоритета переписало бы задним числом всю историю.
  */
 
-import { store, VALUE_LIMIT } from '../telegram/cloudStorage';
+import { localMirror, store, VALUE_LIMIT } from '../telegram/cloudStorage';
 import { composeDayKey, dayOfMonth, monthKey, recentMonths } from '../domain/date';
 import { DEFAULT_PRIORITIES } from '../domain/presets';
 import type {
@@ -188,17 +188,37 @@ function parseClicksMonth(month: string, raw: string, into: Journal): void {
   }
 }
 
+/**
+ * Приводит переходы заряда к валидному виду.
+ *
+ * Третий элемент — id приоритета, который посадил батарею, — необязателен:
+ * записи, сделанные до появления этого вопроса, читаются без миграции.
+ */
+function sanitizeShifts(raw: unknown): BatteryShift[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter(
+      (s): s is [number, BatteryLevel] | [number, BatteryLevel, unknown] =>
+        Array.isArray(s) &&
+        s.length >= 2 &&
+        Number.isFinite(s[0]) &&
+        [1, 2, 3, 4].includes(s[1] as number),
+    )
+    .map((s): BatteryShift => {
+      const minute = Math.max(0, Math.min(1440, Math.floor(s[0])));
+      const level = s[1] as BatteryLevel;
+      const drainedBy = s[2];
+      return typeof drainedBy === 'string' && drainedBy.length > 0
+        ? [minute, level, drainedBy]
+        : [minute, level];
+    })
+    .sort((a, b) => a[0] - b[0]);
+}
+
 function parseBatteryMonth(month: string, raw: string, into: Journal): void {
   const parsed = JSON.parse(raw) as BatteryMonth;
   for (const [day, shifts] of Object.entries(parsed)) {
-    if (!Array.isArray(shifts)) continue;
-    const clean = shifts
-      .filter(
-        (s): s is BatteryShift =>
-          Array.isArray(s) && s.length === 2 && Number.isFinite(s[0]) && [1, 2, 3, 4].includes(s[1]),
-      )
-      .map((s): BatteryShift => [Math.max(0, Math.min(1440, Math.floor(s[0]))), s[1] as BatteryLevel])
-      .sort((a, b) => a[0] - b[0]);
+    const clean = sanitizeShifts(shifts);
     if (clean.length > 0) into.battery[composeDayKey(month, day)] = clean;
   }
 }
@@ -347,14 +367,8 @@ export function parseSnapshot(json: string): { settings: Settings; journal: Jour
   }
 
   for (const [day, shifts] of Object.entries(source.battery ?? {})) {
-    if (!DAY_KEY.test(day) || !Array.isArray(shifts)) continue;
-    const clean = shifts
-      .filter(
-        (s): s is BatteryShift =>
-          Array.isArray(s) && s.length === 2 && Number.isFinite(s[0]) && [1, 2, 3, 4].includes(s[1]),
-      )
-      .map((s): BatteryShift => [Math.max(0, Math.min(1440, Math.floor(s[0]))), s[1] as BatteryLevel])
-      .sort((a, b) => a[0] - b[0]);
+    if (!DAY_KEY.test(day)) continue;
+    const clean = sanitizeShifts(shifts);
     if (clean.length > 0) journal.battery[day] = clean;
   }
 
@@ -377,6 +391,38 @@ export async function writeAll(settings: Settings, journal: Journal): Promise<vo
 /** Месяцы, которые нужно держать в памяти: горизонт хранения целиком. */
 export function monthsToLoad(now: Date = new Date()): string[] {
   return recentMonths(RETENTION_MONTHS, now);
+}
+
+/**
+ * Чтение мимо облака, только из локальной копии. Нужно, когда клиент завис и
+ * ждать его больше нельзя: показать вчерашние данные с этого устройства лучше,
+ * чем не показать ничего.
+ */
+export async function readLocalOnly(
+  now: Date = new Date(),
+): Promise<{ settings: Settings | undefined; journal: Journal }> {
+  const journal = emptyJournal();
+  let settings: Settings | undefined;
+
+  try {
+    const months = monthsToLoad(now);
+    const keys = [KEY_SETTINGS, ...months.flatMap((m) => [keyClicks(m), keyBattery(m)])];
+    const values = await localMirror.get(keys);
+
+    const rawSettings = values[KEY_SETTINGS];
+    if (rawSettings) settings = sanitizeSettings(JSON.parse(rawSettings));
+
+    for (const month of months) {
+      const clicks = values[keyClicks(month)];
+      const battery = values[keyBattery(month)];
+      if (clicks) parseClicksMonth(month, clicks, journal);
+      if (battery) parseBatteryMonth(month, battery, journal);
+    }
+  } catch (error) {
+    console.warn('[persistence] локальная копия тоже не прочиталась', error);
+  }
+
+  return { settings, journal };
 }
 
 export type { DayKey };

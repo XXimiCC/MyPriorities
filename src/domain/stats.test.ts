@@ -3,11 +3,14 @@
 import { lastNDays } from './date';
 import {
   MIN_FILL,
+  chargeLevel,
   clickStreak,
   computeBatteryStats,
   computeStats,
   dailyBreakdown,
+  drainCounts,
   fillFraction,
+  nearestChargeLevel,
   periodDays,
 } from './stats';
 import {
@@ -215,6 +218,38 @@ describe('разбивка по дням', () => {
   });
 });
 
+describe('что сажает батарею', () => {
+  it('считает ответы по дням периода', () => {
+    const journal = journalOf(
+      {},
+      {
+        '2026-07-30': [[540, 1, 'w'], [900, 3]],
+        '2026-07-31': [[600, 1, 'w'], [800, 1, 'f']],
+      },
+    );
+    const counts = drainCounts(journal, ['2026-07-30', '2026-07-31']);
+    expect(counts.get('w')).toBe(2);
+    expect(counts.get('f')).toBe(1);
+  });
+
+  it('«не знаю» тоже считается — это ответ, а не его отсутствие', () => {
+    const journal = journalOf({}, { '2026-07-30': [[540, 1, '']] });
+    // Пустая строка в третьем элементе не сохраняется как ответ: её отсекает
+    // разбор, поэтому ответ «не знаю» приходит только из живого стора.
+    expect(drainCounts(journal, ['2026-07-30']).size).toBe(1);
+  });
+
+  it('переходы без ответа не попадают в подсчёт', () => {
+    const journal = journalOf({}, { '2026-07-30': [[540, 1], [900, 2]] });
+    expect(drainCounts(journal, ['2026-07-30']).size).toBe(0);
+  });
+
+  it('дни вне периода не учитываются', () => {
+    const journal = journalOf({}, { '2026-07-29': [[540, 1, 'w']] });
+    expect(drainCounts(journal, ['2026-07-30']).size).toBe(0);
+  });
+});
+
 describe('серия дней', () => {
   it('считает подряд идущие дни с кликами', () => {
     const journal = journalOf({
@@ -292,5 +327,50 @@ describe('длительности состояний батареи', () => {
     const stats = computeBatteryStats(journalOf({}), ['2026-07-30'], NOW);
     expect(stats.perDay['2026-07-30']).toBeNull();
     expect(stats.totalMinutes).toBe(0);
+  });
+
+  it('минуты раскладываются по каждому дню отдельно — из них строится график', () => {
+    const journal = journalOf({}, { '2026-07-29': [[0, 3]], '2026-07-30': [[720, 1]] });
+    const stats = computeBatteryStats(journal, ['2026-07-29', '2026-07-30'], NOW);
+
+    expect(stats.perDayMinutes['2026-07-29']).toEqual({ 1: 0, 2: 0, 3: 1440, 4: 0 });
+    // Полный заряд дотянулся до полудня следующего дня, дальше — «на нуле».
+    expect(stats.perDayMinutes['2026-07-30']).toEqual({ 1: 720, 2: 0, 3: 720, 4: 0 });
+  });
+
+  it('будущие дни периода «всё время» остаются пустыми, а не наследуют состояние', () => {
+    const journal = journalOf({}, { '2026-07-30': [[600, 2]] });
+    const stats = computeBatteryStats(journal, ['2026-08-01'], NOW);
+    expect(stats.perDayMinutes['2026-08-01']).toEqual({ 1: 0, 2: 0, 3: 0, 4: 0 });
+  });
+});
+
+describe('уровень заряда для графика', () => {
+  it('шкала: «на нуле» — 0, «средний» — половина, «полный» — 1', () => {
+    expect(chargeLevel({ 1: 60, 2: 0, 3: 0, 4: 0 })).toBe(0);
+    expect(chargeLevel({ 1: 0, 2: 60, 3: 0, 4: 0 })).toBe(0.5);
+    expect(chargeLevel({ 1: 0, 2: 0, 3: 60, 4: 0 })).toBe(1);
+  });
+
+  it('день взвешивается по времени, а не по числу переключений', () => {
+    // Три часа на нуле и час на полном — это ближе ко дну, чем к середине.
+    expect(chargeLevel({ 1: 180, 2: 0, 3: 60, 4: 0 })).toBe(0.25);
+  });
+
+  it('восстановление не поднимает и не опускает уровень', () => {
+    expect(chargeLevel({ 1: 0, 2: 60, 3: 0, 4: 600 })).toBe(0.5);
+  });
+
+  it('день целиком в восстановлении оставляет разрыв, а не ноль', () => {
+    expect(chargeLevel({ 1: 0, 2: 0, 3: 0, 4: 1440 })).toBeNull();
+    expect(chargeLevel({ 1: 0, 2: 0, 3: 0, 4: 0 })).toBeNull();
+  });
+
+  it('точка на графике красится ближайшим уровнем', () => {
+    expect(nearestChargeLevel(1)).toBe(3);
+    expect(nearestChargeLevel(0.8)).toBe(3);
+    expect(nearestChargeLevel(0.5)).toBe(2);
+    expect(nearestChargeLevel(0.3)).toBe(2);
+    expect(nearestChargeLevel(0.1)).toBe(1);
   });
 });

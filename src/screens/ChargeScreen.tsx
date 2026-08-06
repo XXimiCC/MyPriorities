@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 
 import { BatteryCaption, BatteryIcon } from '../components/BatteryIcon';
+import { DrainSheet } from '../components/DrainSheet';
 import { WallpaperSheet } from '../components/WallpaperSheet';
 import { formatMinutes, formatPercent } from '../domain/date';
 import { batteryMeaning, batteryTheme, batteryTitle } from '../domain/palette';
@@ -14,8 +15,9 @@ import './ChargeScreen.css';
 const TODAY = PERIODS.find((p) => p.id === 'today')!;
 
 export function ChargeScreen(): JSX.Element {
-  const { journal, actions } = useStore();
+  const { settings, journal, actions } = useStore();
   const [wallpaperOpen, setWallpaperOpen] = useState(false);
+  const [askDrain, setAskDrain] = useState(false);
 
   const level = useMemo(() => currentBatteryLevel(journal), [journal]);
   const todayStats = useMemo(
@@ -74,6 +76,9 @@ export function ChargeScreen(): JSX.Element {
                     if (active) return;
                     haptics.bump();
                     actions.setBattery(option);
+                    // Спрашиваем только на переходе «на нуле» и только если есть
+                    // из чего выбирать — иначе вопрос превращается в пустую модалку.
+                    if (option === 1 && settings.priorities.length > 0) setAskDrain(true);
                   }}
                 >
                   <BatteryIcon level={option} width={48} dimmed={!active} glow={active} />
@@ -127,6 +132,16 @@ export function ChargeScreen(): JSX.Element {
         open={wallpaperOpen}
         initialLevel={level ?? 3}
         onClose={() => setWallpaperOpen(false)}
+      />
+
+      <DrainSheet
+        open={askDrain}
+        priorities={settings.priorities}
+        onAnswer={(drainedBy) => {
+          actions.setDrain(drainedBy);
+          setAskDrain(false);
+        }}
+        onSkip={() => setAskDrain(false)}
       />
     </>
   );

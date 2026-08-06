@@ -11,6 +11,7 @@
  */
 
 import { t } from '../i18n';
+import { isTelegram } from '../telegram/sdk';
 
 export type SaveOutcome = 'shared' | 'downloaded' | 'manual';
 
@@ -55,6 +56,17 @@ export async function saveFile(
       if (error instanceof DOMException && error.name === 'AbortError') return 'shared';
     }
   }
+
+  /**
+   * Внутри клиента Telegram ссылку со скачиванием дальше не пробуем.
+   *
+   * В его вебвью атрибут download присутствует в DOM, но нажатие не приводит
+   * ни к чему: файл не сохраняется и ошибки нет. Раньше мы в этом месте
+   * возвращали «скачано» и молчали — кнопка выглядела сломанной именно поэтому.
+   * Долгое нажатие на картинку работает всегда, поэтому честнее сразу отдать
+   * управление ручному пути.
+   */
+  if (isTelegram) return 'manual';
 
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');

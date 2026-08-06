@@ -52,6 +52,16 @@
   padding-top: 2px;
 }
 
+.home__gaps {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 7px;
+  border-radius: var(--r-sm);
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
 .home__hint {
   margin: 18px 2px 0;
   font-size: 11px;

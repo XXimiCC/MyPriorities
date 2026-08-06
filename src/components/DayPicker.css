@@ -1,0 +1,107 @@
+/* Лента дней. Прокручивается сама, вправо — сегодня. */
+.dpick {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  padding-bottom: 4px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  /* Сегодняшний день должен быть виден сразу, поэтому лента начинается справа. */
+  flex-direction: row-reverse;
+  justify-content: flex-start;
+}
+
+.dpick::-webkit-scrollbar {
+  display: none;
+}
+
+.dpick__day {
+  flex: none;
+  width: 42px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 7px 0 6px;
+  border-radius: var(--r-sm);
+  color: var(--text-faint);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  transition: color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+}
+
+.dpick__day[aria-selected='true'] {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.09);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+}
+
+.dpick__weekday {
+  font-size: 9px;
+  line-height: 1;
+  text-transform: lowercase;
+}
+
+.dpick__num {
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+/* Точка под числом отмечает дни, в которые уже что-то записано: сразу видно,
+   какие пропуски осталось закрыть. */
+.dpick__dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.dpick__day--marked .dpick__dot {
+  background: var(--text-faint);
+}
+
+.dpick__day--marked[aria-selected='true'] .dpick__dot {
+  background: var(--text);
+}
+
+/* Полная дата нужна только скринридеру — на кнопке она бы не поместилась. */
+.dpick__full {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+/* --- Предупреждение, что пишем не в сегодня --- */
+
+.dpast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 9px 12px;
+  border-radius: var(--r-sm);
+  font-size: 12px;
+  color: var(--battery-mid);
+  background: color-mix(in srgb, var(--battery-mid) 10%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--battery-mid) 35%, transparent);
+}
+
+.dpast span {
+  flex: 1;
+  min-width: 0;
+}
+
+.dpast button {
+  flex: none;
+  padding: 5px 10px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #000;
+  background: var(--battery-mid);
+}

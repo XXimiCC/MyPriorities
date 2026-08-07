@@ -35,6 +35,8 @@ export const ruStrings = {
   'home.total': '{scope} — ',
   'home.scopeToday': 'Сегодня',
   'home.scopePeriod': 'За {period}',
+  'home.scopeDay': 'За {day}',
+  'home.hidePicker': 'Свернуть',
   'home.leader': '. Лидер: ',
   'home.holdHint': 'Удерживайте приоритет, чтобы изменить список',
   'home.addBlock': 'Добавить {minutes} минут: {title}',
@@ -139,6 +141,19 @@ export const ruStrings = {
   'stats.energyUnknown': 'Не отмечено',
   'stats.energyOnlyCharge': 'Только восстановление',
   'stats.energyLevel': 'Средний заряд',
+
+  // --- Наблюдения ---
+  // Каждая строка — факт из отметок пользователя. Ни одна не говорит, что
+  // с этим делать: приложение обещало показывать жизнь, а не исправлять её.
+  'ins.title': 'Что видно',
+  'ins.note': 'Наблюдения из ваших же отметок. Это не советы и не оценки — только то, что видно в цифрах.',
+  'ins.charge': 'Когда заряд низкий, {title} забирает {low} в день. Когда полный — {high}.',
+  'ins.grew': 'На {title} за неделю ушло {now} — больше, чем {before} неделей раньше.',
+  'ins.fell': 'На {title} за неделю ушло {now} — меньше, чем {before} неделей раньше.',
+  'ins.quiet': '{title} не отмечался {n} {nUnit}, хотя за месяц набрал {before}.',
+  'ins.concentration': '80% месяца сложились из {n} {nUnit}. Всего с отметками — {active} {activeUnit}.',
+  'ins.weekend': 'В будни выходит {weekday} в день, в выходные — {weekend}.',
+  'ins.lowOnset': 'Заряд обычно садится «на нуле» около {time}.',
 
   // --- Навыки: ранги и лестница ---
   'rank.none': 'Обучение не начато',
@@ -365,6 +380,8 @@ export const ruStrings = {
   'settings.moduleSkillsNote': 'Лестница из семнадцати ступеней: сколько часов вложено в мастерство',
   'settings.moduleAchievements': 'Достижения',
   'settings.moduleAchievementsNote': 'Отметки за сделанное — часть выдаётся сама, часть отмечается руками',
+  'settings.moduleInsights': 'Наблюдения',
+  'settings.moduleInsightsNote': 'Что видно в ваших отметках, если сравнить их между собой: неделю с прошлой, будни с выходными, занятия с зарядом',
   'settings.moduleOff': 'Выключенный модуль исчезает из приложения, но своих данных не теряет — включите обратно, и всё будет на месте.',
   'settings.achievementsRow': 'Достижения',
   'settings.achievementsCount': 'Открыто {done} из {total}',

@@ -1,15 +1,20 @@
 ﻿import { describe, expect, it } from 'vitest';
 
 import { VALUE_LIMIT } from '../telegram/cloudStorage';
-import { MAX_PRIORITIES, type ClicksMap, type Journal } from '../domain/types';
+import { DRAIN_UNKNOWN, MAX_PRIORITIES, type ClicksMap, type Journal } from '../domain/types';
 import { MAX_ARCHIVED_SKILLS, MAX_SKILLS, MAX_SKILL_TITLE, type Skill } from '../skills/types';
 import {
   MONTH_KEY_PATTERN,
   exportSnapshot,
   materialize,
+  mergeAwards,
+  mergeBatteryPayload,
+  mergeClicksPayload,
   newShortId,
   parseSnapshot,
+  payloadSize,
   parseStoredSkills,
+  sanitizeSettings,
   sanitizeSkills,
   serializeBatteryMonth,
   serializeClicksMap,
@@ -114,13 +119,24 @@ describe('запас по лимиту CloudStorage', () => {
       startedOn: '2004-06-01',
     });
 
-    const size = serializeSkills({
-      skills: Array.from({ length: MAX_SKILLS }, (_, i) => skill(i)),
-      archived: Array.from({ length: MAX_ARCHIVED_SKILLS }, (_, i) => skill(100 + i)),
-      foldedThrough: '2025-06',
-    }).length;
+    const size = payloadSize(
+      serializeSkills({
+        skills: Array.from({ length: MAX_SKILLS }, (_, i) => skill(i)),
+        archived: Array.from({ length: MAX_ARCHIVED_SKILLS }, (_, i) => skill(100 + i)),
+        foldedThrough: '2025-06',
+      }),
+    );
 
     expect(size).toBeLessThan(VALUE_LIMIT);
+  });
+
+  it('размер меряется байтами UTF-8, а не длиной строки', () => {
+    // Кириллица весит два байта, и мерить длиной означало считать запас вдвое
+    // больше настоящего — ровно там, где кириллица и живёт: в названиях.
+    const cyrillic = 'Я'.repeat(100);
+    expect(cyrillic.length).toBe(100);
+    expect(payloadSize(cyrillic)).toBe(200);
+    expect(payloadSize('ab')).toBe(2);
   });
 });
 
@@ -209,6 +225,116 @@ describe('каталог навыков', () => {
   });
 });
 
+describe('разбор настроек', () => {
+  const raw = (count: number): unknown => ({
+    version: 1,
+    priorities: Array.from({ length: count }, (_, i) => ({ id: `p${i}`, title: `П${i}`, colorId: 0 })),
+    archived: [{ id: 'old', title: 'Старый', colorId: 1 }],
+    onboarded: true,
+    blockMinutes: 30,
+    modules: { skills: true, achievements: true, insights: true },
+  });
+
+  it('вытесненные лимитом приоритеты уходят в архив, а не пропадают', () => {
+    // Раньше они попадали в общий seen до среза и потому выбрасывались ещё и из
+    // архива — исчезали целиком, а их история оставалась без подписи.
+    const settings = sanitizeSettings(raw(13))!;
+    expect(settings.priorities).toHaveLength(MAX_PRIORITIES);
+    const archivedIds = settings.archived.map((p) => p.id);
+    expect(archivedIds).toContain('p10');
+    expect(archivedIds).toContain('p12');
+    expect(archivedIds).toContain('old');
+  });
+
+  it('приоритет не может оказаться и активным, и архивным', () => {
+    const settings = sanitizeSettings(raw(3))!;
+    const active = new Set(settings.priorities.map((p) => p.id));
+    expect(settings.archived.every((p) => !active.has(p.id))).toBe(true);
+  });
+
+  it('отрицательный индекс цвета приводится к нулю', () => {
+    // -1 % 10 === -1, и обращение по такому индексу не даёт цвета вовсе.
+    const settings = sanitizeSettings({
+      ...(raw(1) as object),
+      priorities: [{ id: 'a', title: 'A', colorId: -3 }],
+    })!;
+    expect(settings.priorities[0]!.colorId).toBe(0);
+  });
+});
+
+describe('слияние двух копий месяца', () => {
+  const clicks = (value: Record<string, Record<string, number>>): string => JSON.stringify(value);
+
+  it('складывает дни, которые есть только на одной стороне', () => {
+    const merged = mergeClicksPayload(
+      clicks({ '01': { ab: 2 } }),
+      clicks({ '02': { cd: 3 } }),
+    );
+    expect(JSON.parse(merged!)).toEqual({ '01': { ab: 2 }, '02': { cd: 3 } });
+  });
+
+  it('в общей ячейке берёт большее, а не сумму', () => {
+    // Сумма удвоила бы то, что оба устройства уже видели после синхронизации.
+    const merged = mergeClicksPayload(clicks({ '01': { ab: 4 } }), clicks({ '01': { ab: 6 } }));
+    expect(JSON.parse(merged!)).toEqual({ '01': { ab: 6 } });
+  });
+
+  it('приоритеты одного дня с разных устройств не теряются', () => {
+    const merged = mergeClicksPayload(
+      clicks({ '01': { ab: 4 } }),
+      clicks({ '01': { cd: 1 } }),
+    );
+    expect(JSON.parse(merged!)).toEqual({ '01': { ab: 4, cd: 1 } });
+  });
+
+  it('сторона с испорченным JSON не затирает целую', () => {
+    expect(mergeClicksPayload('{не json', clicks({ '01': { ab: 1 } }))).toBe(
+      clicks({ '01': { ab: 1 } }),
+    );
+    expect(mergeClicksPayload(clicks({ '01': { ab: 1 } }), undefined)).toBe(
+      clicks({ '01': { ab: 1 } }),
+    );
+  });
+
+  it('мусорный номер дня в блок не попадает', () => {
+    const merged = mergeClicksPayload(clicks({ '1': { ab: 2 }, '45': { cd: 1 } }), undefined);
+    // Односторонний вход возвращается как есть, а вот при слиянии он чистится.
+    const both = mergeClicksPayload(clicks({ '1': { ab: 2 } }), clicks({ '02': { cd: 1 } }));
+    expect(merged).toBeDefined();
+    expect(JSON.parse(both!)).toEqual({ '02': { cd: 1 } });
+  });
+
+  it('переходы батареи объединяются по минутам', () => {
+    const merged = mergeBatteryPayload(
+      JSON.stringify({ '01': [[540, 2]] }),
+      JSON.stringify({ '01': [[900, 1]] }),
+    );
+    expect(JSON.parse(merged!)).toEqual({ '01': [[540, 2], [900, 1]] });
+  });
+
+  it('при совпадении минуты выигрывает переход с ответом о расходе', () => {
+    const merged = mergeBatteryPayload(
+      JSON.stringify({ '01': [[540, 1]] }),
+      JSON.stringify({ '01': [[540, 1, 'ab']] }),
+    );
+    expect(JSON.parse(merged!)).toEqual({ '01': [[540, 1, 'ab']] });
+  });
+});
+
+describe('слияние достижений', () => {
+  it('берёт всё, что есть хоть на одной стороне', () => {
+    expect(mergeAwards({ s1: '2026-07-01' }, { h1: '2026-07-02' })).toEqual({
+      s1: '2026-07-01',
+      h1: '2026-07-02',
+    });
+  });
+
+  it('при совпадении оставляет более раннюю дату', () => {
+    // Выдача необратима: достижение не должно «переполучаться» позже.
+    expect(mergeAwards({ s1: '2026-07-09' }, { s1: '2026-07-01' })).toEqual({ s1: '2026-07-01' });
+  });
+});
+
 describe('копия данных', () => {
   const settings = {
     version: 1 as const,
@@ -216,7 +342,7 @@ describe('копия данных', () => {
     archived: [],
     onboarded: true,
     blockMinutes: 45,
-    modules: { skills: true, achievements: true },
+    modules: { skills: true, achievements: true, insights: true },
   };
   const journal: Journal = {
     clicks: { '2026-07-31': { ab: 3 } },
@@ -253,6 +379,30 @@ describe('копия данных', () => {
     expect(restored.skills).toEqual(skills);
     expect(restored.skillClicks).toEqual(skillClicks);
     expect(restored.awards).toEqual(awards);
+  });
+
+  it('ответ «не знаю» о расходе переживает круговой прогон', () => {
+    // Пустая строка на этом месте отсекалась санитайзером как «ответа не было»:
+    // ответ доживал до перезагрузки и исчезал, а счётчик ответов расходился
+    // со статистикой причин.
+    const withDrain: Journal = {
+      clicks: {},
+      battery: { '2026-07-31': [[540, 2], [600, 1, DRAIN_UNKNOWN]] },
+    };
+    const restored = parseSnapshot(exportSnapshot({ ...contents, journal: withDrain }));
+    expect(restored.journal.battery['2026-07-31']).toEqual([
+      [540, 2],
+      [600, 1, DRAIN_UNKNOWN],
+    ]);
+  });
+
+  it('названный причиной приоритет тоже переживает круговой прогон', () => {
+    const withDrain: Journal = {
+      clicks: {},
+      battery: { '2026-07-31': [[600, 1, 'ab']] },
+    };
+    const restored = parseSnapshot(exportSnapshot({ ...contents, journal: withDrain }));
+    expect(restored.journal.battery['2026-07-31']).toEqual([[600, 1, 'ab']]);
   });
 
   it('копия, сделанная до навыков, читается без ошибки', () => {

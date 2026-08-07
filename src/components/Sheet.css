@@ -1,6 +1,17 @@
+/*
+ * Высота считается от --app-height, а не от вьюпорта.
+ *
+ * Telegram иногда сообщает высоту больше реально видимой области — каркас в
+ * global.css поэтому и ограничен min(--app-height, 100dvh). Шторка эту защиту
+ * не использовала: inset: 0 прибивал её низ к 100vh, и в таком клиенте нижняя
+ * часть панели вместе с кнопками уезжала за кромку.
+ */
 .sheet {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: min(var(--app-height, 100dvh), 100dvh);
   z-index: 60;
   display: flex;
   flex-direction: column;
@@ -18,7 +29,7 @@
 
 .sheet__panel {
   position: relative;
-  max-height: 88vh;
+  max-height: 88%;
   overflow-y: auto;
   overscroll-behavior: contain;
   background: var(--surface);

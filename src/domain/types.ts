@@ -32,9 +32,10 @@ export interface Priority {
 export interface Modules {
   skills: boolean;
   achievements: boolean;
+  insights: boolean;
 }
 
-export const DEFAULT_MODULES: Modules = { skills: true, achievements: true };
+export const DEFAULT_MODULES: Modules = { skills: true, achievements: true, insights: true };
 
 export interface Settings {
   version: 1;
@@ -74,6 +75,7 @@ export function sanitizeModules(raw: unknown): Modules {
     skills: typeof value.skills === 'boolean' ? value.skills : DEFAULT_MODULES.skills,
     achievements:
       typeof value.achievements === 'boolean' ? value.achievements : DEFAULT_MODULES.achievements,
+    insights: typeof value.insights === 'boolean' ? value.insights : DEFAULT_MODULES.insights,
   };
 }
 
@@ -97,6 +99,16 @@ export type ClicksMap = Record<DayKey, DayClicks>;
 export type BatteryShift =
   | [minuteOfDay: number, level: BatteryLevel]
   | [minuteOfDay: number, level: BatteryLevel, drainedBy: string];
+
+/**
+ * Ответ «не знаю» на вопрос о расходе.
+ *
+ * Непустая строка, а не `''`, намеренно: пустую сериализация не отличала от
+ * «ответа не было» и выбрасывала при чтении. Ответ доживал до перезагрузки и
+ * исчезал, а счётчик ответов расходился со статистикой причин.
+ * Знак не может совпасть с id приоритета — те состоят из букв и цифр.
+ */
+export const DRAIN_UNKNOWN = '?';
 
 /** Ключ дня — локальная дата `YYYY-MM-DD`. */
 export type DayKey = string;

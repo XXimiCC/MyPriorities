@@ -80,6 +80,11 @@
   white-space: nowrap;
 }
 
-.charge__wallpaper {
+/*
+ * Специфичность поднята намеренно: .edit__add задаёт margin-top: 16px и лежит в
+ * файле, который грузится позже, поэтому при равном весе побеждал он, а не это
+ * правило. Тот же приём уже применён у .achs .edit__add и .ppreview .pform__submit.
+ */
+.app__body .charge__wallpaper {
   margin-top: 0;
 }

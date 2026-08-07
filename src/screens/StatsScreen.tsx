@@ -15,7 +15,9 @@ import {
   periodDays,
   type PriorityStat,
 } from '../domain/stats';
-import { BATTERY_LEVELS, PERIODS, blockMinutesOf, type PeriodId } from '../domain/types';
+import { MAX_INSIGHTS, insightText, insights } from '../domain/insights';
+import { BATTERY_LEVELS, PERIODS, blockMinutesOf, modulesOf, type PeriodId } from '../domain/types';
+import { derive } from '../achievements/derive';
 import { plural, t } from '../i18n';
 import { useStore } from '../store/useStore';
 import './StatsScreen.css';
@@ -61,6 +63,15 @@ export function StatsScreen(): JSX.Element {
 
   const averagePerDay = days.length > 0 ? stats.totalMinutes / days.length : 0;
 
+  // Наблюдения намеренно не зависят от days: у них свои окна, и они не должны
+  // меняться вместе с переключателем периода — иначе «неделя против прошлой»
+  // означало бы разное в зависимости от того, что выбрано выше.
+  const modules = modulesOf(settings);
+  const notes = useMemo(
+    () => (modules.insights ? insights(settings, derive(settings, journal)) : []),
+    [modules.insights, settings, journal],
+  );
+
   return (
     <>
       <header className="header">
@@ -76,6 +87,22 @@ export function StatsScreen(): JSX.Element {
           <Tile value={formatHoursCompact(averagePerDay)} label={t('stats.perDay')} />
           <Tile value={String(streak)} label={t('stats.streak', { unit: plural('day', streak) })} />
         </div>
+
+        {notes.length > 0 && (
+          <>
+            <div className="divider-label">
+              <span>{t('ins.title')}</span>
+            </div>
+            <p className="charge__note">{t('ins.note')}</p>
+            <ul className="ins">
+              {notes.slice(0, MAX_INSIGHTS).map((note) => (
+                <li className="ins__item" key={note.id}>
+                  {insightText(note)}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
 
         <div className="divider-label">
           <span>{t('stats.whereTime')}</span>
@@ -158,7 +185,8 @@ export function StatsScreen(): JSX.Element {
                     <span className="erow__swatch" />
                     <span className="blist__title">{row.title}</span>
                     <span className="blist__share">
-                      {t('drain.statsCount', { count: row.count, unit: plural('day', row.count) })}
+                      {/* Считаются переходы, а не дни: «3 раза», а не «3 дня». */}
+                      {t('drain.statsCount', { count: row.count, unit: plural('times', row.count) })}
                     </span>
                   </li>
                 ))}

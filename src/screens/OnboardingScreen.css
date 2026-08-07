@@ -5,11 +5,23 @@
   white-space: nowrap;
 }
 
+/*
+ * Блок центрируется автоматическими полями, а не justify-content: контейнер
+ * прокручиваемый, и при центрировании переполнение уходит в обе стороны — верх
+ * иллюстрации оказывался в отрицательной области скролла и был недостижим.
+ */
 .onb__body {
   display: flex;
   flex-direction: column;
-  justify-content: center;
   padding-bottom: 8px;
+}
+
+.onb__body > :first-child {
+  margin-top: auto;
+}
+
+.onb__body > :last-child {
+  margin-bottom: auto;
 }
 
 .onb__art {

@@ -6,14 +6,16 @@
  * подставляются здесь: в реестре их держать нельзя, он не знает про язык.
  */
 
-import { plural, t, type PluralKey, type Params, type StringKey } from '../i18n';
+import { t } from '../i18n';
+import { fillUnits, type UnitTable } from '../i18n/units';
+import { rankTitle, type RankId } from '../skills/levels';
 import type { Achievement } from './types';
 
 /**
  * Какие числовые подстановки шаблона склоняются и по какому слову.
  * Таблица привязана к шаблону, а не к достижению: у всех «серий» она одна.
  */
-const NOTE_UNITS: Partial<Record<StringKey, Record<string, PluralKey>>> = {
+const NOTE_UNITS: UnitTable = {
   'ach.n.dayBlocks': { n: 'block' },
   'ach.n.activeDays': { n: 'day' },
   'ach.n.span': { n: 'day' },
@@ -37,17 +39,16 @@ const NOTE_UNITS: Partial<Record<StringKey, Record<string, PluralKey>>> = {
 };
 
 export function noteOf(item: Achievement): string {
-  const params: Params = { ...item.noteParams };
-  const units = NOTE_UNITS[item.noteKey];
-
-  if (units) {
-    for (const [name, key] of Object.entries(units)) {
-      const value = params[name];
-      // Форма кладётся в «имяUnit»: шаблон пишется как «{n} {nUnit}».
-      if (typeof value === 'number') params[`${name}Unit`] = plural(key, value);
-    }
+  const params = item.noteParams;
+  // Реестр не знает про язык и кладёт ранг идентификатором, поэтому в тексте
+  // появлялось латинское «expert». Подпись резолвится здесь, как и формы слов.
+  if (typeof params?.rank === 'string') {
+    return fillUnits(NOTE_UNITS, item.noteKey, {
+      ...params,
+      rank: rankTitle(params.rank as RankId),
+    });
   }
-  return t(item.noteKey, params);
+  return fillUnits(NOTE_UNITS, item.noteKey, params);
 }
 
 export function titleOf(item: Achievement): string {

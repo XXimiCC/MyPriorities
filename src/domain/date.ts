@@ -75,6 +75,26 @@ export function minuteOfDay(date: Date): number {
   return date.getHours() * 60 + date.getMinutes();
 }
 
+/** Минуты от полуночи обратно в часы: «19:30». */
+export function formatClock(minutes: number): string {
+  const total = Math.max(0, Math.min(1439, Math.round(minutes)));
+  return `${pad2(Math.floor(total / 60))}:${pad2(total % 60)}`;
+}
+
+/**
+ * Сколько дней прошло, включая оба конца. Считается по календарю, а не делением
+ * миллисекунд: даты приводятся к UTC-полуночи, поэтому перевод часов не съедает сутки.
+ */
+export function daysBetween(from: DayKey, to: DayKey): number {
+  const start = parseDayKey(from);
+  const end = parseDayKey(to);
+  if (end < start) return 0;
+  const ms =
+    Date.UTC(end.getFullYear(), end.getMonth(), end.getDate()) -
+    Date.UTC(start.getFullYear(), start.getMonth(), start.getDate());
+  return Math.round(ms / 86_400_000) + 1;
+}
+
 const MONTHS_GENITIVE = [
   'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
   'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',

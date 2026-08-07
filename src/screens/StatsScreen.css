@@ -9,6 +9,12 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  /*
+   * Без этого грид-трек не сжимается уже своего содержимого (min-width: auto),
+   * и неразрывное значение вроде «1234,5 ч» растягивает колонку, а вместе с ней
+   * и весь прокручиваемый экран — появляется горизонтальная прокрутка.
+   */
+  min-width: 0;
   gap: 3px;
   padding: 13px 4px 11px;
   border-radius: var(--r-md);
@@ -17,10 +23,13 @@
 }
 
 .tile__value {
+  max-width: 100%;
   font-size: 17px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tile__label {
@@ -148,4 +157,26 @@
   margin-top: 7px;
   font-size: 10px;
   color: var(--text-faint);
+}
+
+/* --- Наблюдения ---
+
+   Карточки намеренно без акцентного цвета и без иконок: это не трофеи и не
+   призывы, а строчки текста. Любое выделение читалось бы как «вот это важно»,
+   то есть как оценка, которую наблюдения не дают. */
+
+.ins {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ins__item {
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-dim);
 }

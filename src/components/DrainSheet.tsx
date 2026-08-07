@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { Sheet } from './Sheet';
 import { colorOf } from '../domain/palette';
-import type { Priority } from '../domain/types';
+import { DRAIN_UNKNOWN, type Priority } from '../domain/types';
 import { t } from '../i18n';
 import { haptics } from '../telegram/sdk';
 import './DrainSheet.css';
@@ -10,7 +10,7 @@ import './DrainSheet.css';
 interface Props {
   open: boolean;
   priorities: Priority[];
-  /** id приоритета либо пустая строка, если ответ «не знаю». */
+  /** id приоритета либо DRAIN_UNKNOWN, если ответ «не знаю». */
   onAnswer(drainedBy: string): void;
   onSkip(): void;
 }
@@ -79,7 +79,7 @@ export function DrainSheet({ open, priorities, onAnswer, onSkip }: Props): JSX.E
             type="button"
             onClick={() => {
               haptics.tap();
-              onAnswer('');
+              onAnswer(DRAIN_UNKNOWN);
             }}
           >
             {t('drain.other')}

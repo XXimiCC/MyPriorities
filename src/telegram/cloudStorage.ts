@@ -10,9 +10,23 @@ import { cloudStorage } from './sdk';
 
 export const VALUE_LIMIT = 4096;
 
+/** Две копии одного ключа: облачная и локальная. Слияние — забота слоя выше. */
+export interface ValuePair {
+  local?: string;
+  remote?: string;
+}
+
 export interface KeyValueStore {
   readonly kind: 'cloud' | 'local';
   get(keys: string[]): Promise<Record<string, string>>;
+  /**
+   * То же чтение, но обе копии по отдельности.
+   *
+   * Нужно там, где «облако побеждает целиком» теряет данные: месяц истории —
+   * это один ключ, и запись со второго устройства затирала всё, что накопило
+   * первое. Кто и как сливает содержимое, знает persistence, а не транспорт.
+   */
+  getPair(keys: string[]): Promise<Record<string, ValuePair>>;
   set(key: string, value: string): Promise<void>;
   remove(keys: string[]): Promise<void>;
   keys(): Promise<string[]>;
@@ -38,6 +52,13 @@ const localStore: KeyValueStore = {
     for (const key of keys) {
       const value = localStorage.getItem(LOCAL_PREFIX + key);
       if (value !== null) out[key] = value;
+    }
+    return out;
+  },
+  async getPair(keys) {
+    const out: Record<string, ValuePair> = {};
+    for (const [key, value] of Object.entries(await localStore.get(keys))) {
+      out[key] = { local: value };
     }
     return out;
   },
@@ -111,9 +132,20 @@ const cloudStore: KeyValueStore = {
   isDegraded: () => false,
   async get(keys) {
     if (keys.length === 0) return {};
-    const out: Record<string, string> = {};
+    // Батчи идут параллельно: последовательно тринадцать месяцев упирались в предел
+    // ожидания гидратации раньше, чем успевали прочитаться, и ответ облака выбрасывался.
+    const batches: Array<Promise<Record<string, string>>> = [];
     for (let i = 0; i < keys.length; i += GET_BATCH) {
-      Object.assign(out, await getBatch(keys.slice(i, i + GET_BATCH)));
+      batches.push(getBatch(keys.slice(i, i + GET_BATCH)));
+    }
+    const out: Record<string, string> = {};
+    for (const part of await Promise.all(batches)) Object.assign(out, part);
+    return out;
+  },
+  async getPair(keys) {
+    const out: Record<string, ValuePair> = {};
+    for (const [key, value] of Object.entries(await cloudStore.get(keys))) {
+      out[key] = { remote: value };
     }
     return out;
   },
@@ -140,47 +172,94 @@ const cloudStore: KeyValueStore = {
  * задачи: мгновенная отрисовка на старте, пока облако ещё отвечает, и
  * сохранность данных, если CloudStorage откажет посреди сессии.
  */
+/**
+ * Сколько ждать до новой попытки после отказа облака.
+ *
+ * Раньше первый же таймаут выключал синхронизацию до перезапуска мини-аппа:
+ * одна заминка сети означала, что весь сеанс пишется только на это устройство,
+ * и человек об этом узнавал в лучшем случае из строки в настройках. Пауза нужна,
+ * чтобы не долбить зависший мост на каждой записи, но не навсегда.
+ */
+const CLOUD_RETRY_AFTER_MS = 30_000;
+
 function mirrored(primary: KeyValueStore): KeyValueStore {
-  let broken = false;
+  let brokenUntil = 0;
+  let everBroken = false;
 
   const fallback = async <T>(op: () => Promise<T>, alt: () => Promise<T>): Promise<T> => {
-    if (broken) return alt();
+    if (performance.now() < brokenUntil) return alt();
+    try {
+      const result = await op();
+      if (everBroken) {
+        console.warn('[storage] CloudStorage снова отвечает');
+        everBroken = false;
+      }
+      return result;
+    } catch (error) {
+      console.warn('[storage] CloudStorage отказал, переходим на localStorage', error);
+      brokenUntil = performance.now() + CLOUD_RETRY_AFTER_MS;
+      everBroken = true;
+      return alt();
+    }
+  };
+
+  /**
+   * Локальная копия — не источник истины, и её отказ не должен ронять облачный путь.
+   * Доступ к localStorage бросает в приватном режиме Safari и в вебвью с отключённым
+   * хранилищем, а запись — при переполнении квоты. Раньше это выбивало чтение целиком,
+   * приложение стартовало пустым и первой же записью затирало живое облако.
+   *
+   * Латч `broken` здесь не трогаем: сломалась копия, а не синхронизация.
+   */
+  const localSafe = async <T>(op: () => Promise<T>, alt: T): Promise<T> => {
     try {
       return await op();
     } catch (error) {
-      console.warn('[storage] CloudStorage отказал, переходим на localStorage', error);
-      broken = true;
-      return alt();
+      console.warn('[storage] локальная копия недоступна', error);
+      return alt;
     }
   };
 
   return {
     kind: 'cloud',
-    isDegraded: () => broken,
+    isDegraded: () => everBroken,
     async get(keys) {
-      const local = await localStore.get(keys);
+      const local = await localSafe(() => localStore.get(keys), {} as Record<string, string>);
       const remote = await fallback(
         () => primary.get(keys),
         () => Promise.resolve({} as Record<string, string>),
       );
       return { ...local, ...remote };
     },
+    async getPair(keys) {
+      const local = await localSafe(() => localStore.get(keys), {} as Record<string, string>);
+      const remote = await fallback(
+        () => primary.get(keys),
+        () => Promise.resolve({} as Record<string, string>),
+      );
+
+      const out: Record<string, ValuePair> = {};
+      for (const key of new Set([...Object.keys(local), ...Object.keys(remote)])) {
+        out[key] = { local: local[key], remote: remote[key] };
+      }
+      return out;
+    },
     async set(key, value) {
-      await localStore.set(key, value);
+      await localSafe(() => localStore.set(key, value), undefined);
       await fallback(
         () => primary.set(key, value),
         () => Promise.resolve(),
       );
     },
     async remove(keys) {
-      await localStore.remove(keys);
+      await localSafe(() => localStore.remove(keys), undefined);
       await fallback(
         () => primary.remove(keys),
         () => Promise.resolve(),
       );
     },
     async keys() {
-      const local = await localStore.keys();
+      const local = await localSafe(() => localStore.keys(), [] as string[]);
       const remote = await fallback(
         () => primary.keys(),
         () => Promise.resolve([] as string[]),

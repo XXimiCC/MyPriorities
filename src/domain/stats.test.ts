@@ -17,6 +17,7 @@ import {
 import {
   DEFAULT_BLOCK_MINUTES,
   DEFAULT_MODULES,
+  DRAIN_UNKNOWN,
   type Journal,
   type Priority,
   type Settings,
@@ -242,10 +243,22 @@ describe('что сажает батарею', () => {
   });
 
   it('«не знаю» тоже считается — это ответ, а не его отсутствие', () => {
-    const journal = journalOf({}, { '2026-07-30': [[540, 1, '']] });
-    // Пустая строка в третьем элементе не сохраняется как ответ: её отсекает
-    // разбор, поэтому ответ «не знаю» приходит только из живого стора.
-    expect(drainCounts(journal, ['2026-07-30']).size).toBe(1);
+    const journal = journalOf({}, { '2026-07-30': [[540, 1, DRAIN_UNKNOWN]] });
+    // Маркер непустой намеренно: пустую строку разбор отсекал как «ответа не
+    // было», и ответ не переживал перезагрузку.
+    const counts = drainCounts(journal, ['2026-07-30']);
+    expect(counts.size).toBe(1);
+    expect(counts.get(DRAIN_UNKNOWN)).toBe(1);
+  });
+
+  it('«не знаю» и названный приоритет считаются раздельно', () => {
+    const journal = journalOf(
+      {},
+      { '2026-07-30': [[540, 1, DRAIN_UNKNOWN], [900, 1, 'w']] },
+    );
+    const counts = drainCounts(journal, ['2026-07-30']);
+    expect(counts.get(DRAIN_UNKNOWN)).toBe(1);
+    expect(counts.get('w')).toBe(1);
   });
 
   it('переходы без ответа не попадают в подсчёт', () => {

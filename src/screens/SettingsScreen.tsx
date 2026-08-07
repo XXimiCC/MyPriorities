@@ -154,6 +154,12 @@ export function SettingsScreen({ onPresets, onAchievements }: Props): JSX.Elemen
           checked={modules.achievements}
           onChange={(next) => void actions.setModule('achievements', next)}
         />
+        <Toggle
+          label={t('settings.moduleInsights')}
+          note={t('settings.moduleInsightsNote')}
+          checked={modules.insights}
+          onChange={(next) => void actions.setModule('insights', next)}
+        />
 
         {modules.achievements && (
           <button className="sset__row press sset__gap" type="button" onClick={onAchievements}>

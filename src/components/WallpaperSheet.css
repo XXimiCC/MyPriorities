@@ -81,13 +81,21 @@
 
 /* --- Ручное сохранение: последний рубеж, когда ни share, ни download не сработали --- */
 
+/*
+ * Высота — от --app-height, как у шторки. Отступы учитывают safe-area: без них
+ * кнопка «Закрыть» внизу уходила под полосу жестов iPhone.
+ */
 .wp__manual {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: min(var(--app-height, 100dvh), 100dvh);
   z-index: 70;
   display: grid;
   place-items: center;
-  padding: 24px;
+  padding: calc(24px + var(--safe-top) + var(--tg-content-top)) 24px
+    calc(24px + var(--safe-bottom) + var(--tg-content-bottom));
 }
 
 .wp__manual-body {
@@ -96,7 +104,9 @@
   flex-direction: column;
   align-items: center;
   gap: 14px;
-  max-height: 86vh;
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .wp__manual-body p {
@@ -108,7 +118,8 @@
 .wp__manual-body img {
   max-width: 100%;
   min-height: 0;
-  max-height: 58vh;
+  /* Процент здесь не годится: высота родителя задана контентом, а не числом. */
+  max-height: calc(min(var(--app-height, 100dvh), 100dvh) * 0.58);
   border-radius: var(--r-md);
   object-fit: contain;
   /* Без этого iOS не показывает меню сохранения по долгому нажатию. */

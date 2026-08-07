@@ -42,6 +42,17 @@ export const RETENTION_MONTHS = 13;
 /** Архив нужен только ради подписей в статистике, поэтому он ограничен. */
 const MAX_ARCHIVED = 40;
 
+/**
+ * Размер значения в байтах UTF-8, а не в символах строки.
+ *
+ * `payload.length` считает units UTF-16: кириллическая буква там весит единицу, а в
+ * транспорте занимает два байта. Мерить длиной означало считать запас вдвое больше
+ * настоящего — ровно на названиях приоритетов и навыков, где кириллица и живёт.
+ */
+export function payloadSize(payload: string): number {
+  return new TextEncoder().encode(payload).length;
+}
+
 // --- Идентификаторы ----------------------------------------------------------
 
 const ID_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -99,12 +110,11 @@ export function defaultSettings(): Settings {
   return { ...base, priorities: materialize(DEFAULT_PRIORITIES, []) };
 }
 
-function sanitizeSettings(raw: unknown): Settings | undefined {
+export function sanitizeSettings(raw: unknown): Settings | undefined {
   if (typeof raw !== 'object' || raw === null) return undefined;
   const value = raw as Partial<Settings>;
   if (!Array.isArray(value.priorities)) return undefined;
 
-  const seen = new Set<string>();
   const clean = (list: unknown): Priority[] =>
     (Array.isArray(list) ? list : [])
       .filter((p): p is Priority =>
@@ -113,19 +123,46 @@ function sanitizeSettings(raw: unknown): Settings | undefined {
         typeof (p as Priority).id === 'string' &&
         typeof (p as Priority).title === 'string',
       )
-      .filter((p) => {
-        if (seen.has(p.id)) return false;
-        seen.add(p.id);
-        return true;
-      })
-      .map((p) => ({ id: p.id, title: p.title, colorId: Number(p.colorId) || 0 }));
+      .map((p) => {
+        // Отрицательный индекс цвета ломает выбор из палитры: -1 % 10 === -1,
+        // и обращение по такому индексу не даёт ничего.
+        const colorId = Number(p.colorId);
+        return {
+          id: p.id,
+          title: p.title,
+          colorId: Number.isFinite(colorId) && colorId >= 0 ? Math.floor(colorId) : 0,
+        };
+      });
 
-  const priorities = clean(value.priorities).slice(0, MAX_PRIORITIES);
+  /** Оставляет первое вхождение каждого id и помечает его как занятое. */
+  const dedupe = (list: Priority[], seen: Set<string>): Priority[] =>
+    list.filter((p) => {
+      if (seen.has(p.id)) return false;
+      seen.add(p.id);
+      return true;
+    });
+
+  /*
+   * Срез по потолку идёт до того, как id попадут в общий `seen`.
+   *
+   * Раньше множество заполнялось всем списком сразу, поэтому приоритет,
+   * вытесненный лимитом, считался уже виденным и выбрасывался ещё и из архива —
+   * исчезал целиком, а его история в месяцах оставалась без подписи. Теперь
+   * лишние уходят в архив, ради которого он и существует.
+   */
+  const all = dedupe(clean(value.priorities), new Set<string>());
+  const priorities = all.slice(0, MAX_PRIORITIES);
+  const overflow = all.slice(MAX_PRIORITIES);
+
+  const seen = new Set(priorities.map((p) => p.id));
+  // Вытесненные дописываются в хвост: срез архива оставляет именно последние.
+  const archived = dedupe([...clean(value.archived), ...overflow], seen).slice(-MAX_ARCHIVED);
+
   const blockMinutes = Number(value.blockMinutes);
   return {
     version: 1,
     priorities,
-    archived: clean(value.archived).slice(-MAX_ARCHIVED),
+    archived,
     presetId: typeof value.presetId === 'string' ? value.presetId : undefined,
     onboarded: Boolean(value.onboarded) || priorities.length > 0,
     // Настройки, записанные до появления этого поля, читаются как значение по умолчанию.
@@ -149,7 +186,7 @@ export async function loadSettings(): Promise<Settings | undefined> {
 export async function saveSettings(settings: Settings): Promise<void> {
   const trimmed: Settings = { ...settings, archived: settings.archived.slice(-MAX_ARCHIVED) };
   const payload = JSON.stringify(trimmed);
-  if (payload.length > VALUE_LIMIT) {
+  if (payloadSize(payload) > VALUE_LIMIT) {
     // До этого можно дойти только очень длинными названиями — режем архив целиком.
     await store.set(KEY_SETTINGS, JSON.stringify({ ...trimmed, archived: [] }));
     return;
@@ -192,9 +229,20 @@ export function serializeBatteryMonth(journal: Journal, month: string): string {
   return JSON.stringify(out);
 }
 
+/**
+ * Номер дня внутри месячного блока.
+ *
+ * Проверяется, потому что ключ склеивается с месяцем без разбора: `"1"` давал
+ * `2026-08-1`, а такой ключ не совпадает с тем, что делает dayKey, неверно
+ * сортируется строковым сравнением и не проходит формат при выгрузке копии.
+ * Тридцать второго числа тоже не бывает.
+ */
+const DAY_OF_MONTH_PATTERN = /^(0[1-9]|[12]\d|3[01])$/;
+
 function parseClicksMap(month: string, raw: string, into: ClicksMap): void {
   const parsed = JSON.parse(raw) as ClicksMonth;
   for (const [day, entry] of Object.entries(parsed)) {
+    if (!DAY_OF_MONTH_PATTERN.test(day)) continue;
     if (!entry || typeof entry !== 'object') continue;
     const clean: DayClicks = {};
     for (const [id, count] of Object.entries(entry)) {
@@ -239,6 +287,7 @@ function sanitizeShifts(raw: unknown): BatteryShift[] {
 function parseBatteryMonth(month: string, raw: string, into: Journal): void {
   const parsed = JSON.parse(raw) as BatteryMonth;
   for (const [day, shifts] of Object.entries(parsed)) {
+    if (!DAY_OF_MONTH_PATTERN.test(day)) continue;
     const clean = sanitizeShifts(shifts);
     if (clean.length > 0) into.battery[composeDayKey(month, day)] = clean;
   }
@@ -248,24 +297,107 @@ export function emptyJournal(): Journal {
   return { clicks: {}, battery: {} };
 }
 
+// --- Слияние двух копий одного месяца ----------------------------------------
+
+/*
+ * Месяц истории — один ключ, и «побеждает облако» означало, что запись со
+ * второго устройства затирает всё, что накопило первое: неделя работы на
+ * телефоне исчезала после того, как в тот же месяц что-то дописал компьютер.
+ *
+ * Сливаем по ячейкам. Для кликов ячейка — «день + приоритет», и берётся
+ * большее из двух значений: счётчики почти всегда растут, а сумма удвоила бы
+ * то, что оба устройства уже видели после синхронизации. Цена такого выбора —
+ * снятый блок может вернуться, если его снимали на одном устройстве, а второе
+ * ещё помнит старое число. Это несопоставимо дешевле потери месяца.
+ */
+
+/** Большее из двух значений по каждой ячейке «день → id → счётчик». */
+export function mergeClicksPayload(a: string | undefined, b: string | undefined): string | undefined {
+  const left = safeParseMonth(a);
+  const right = safeParseMonth(b);
+  if (!left) return b;
+  if (!right) return a;
+
+  const out: Record<string, Record<string, number>> = {};
+  for (const source of [left, right]) {
+    for (const [day, entry] of Object.entries(source)) {
+      if (!DAY_OF_MONTH_PATTERN.test(day) || !entry || typeof entry !== 'object') continue;
+      const target = (out[day] ??= {});
+      for (const [id, raw] of Object.entries(entry)) {
+        const count = Number(raw);
+        if (!Number.isFinite(count) || count <= 0) continue;
+        target[id] = Math.max(target[id] ?? 0, Math.floor(count));
+      }
+    }
+  }
+  return JSON.stringify(out);
+}
+
+/**
+ * Объединение переходов батареи по минутам.
+ *
+ * Ключ ячейки — минута суток: два устройства не могут переключить заряд в одну
+ * и ту же минуту по-разному чаще, чем раз в жизни. При совпадении выигрывает
+ * запись с ответом о расходе: она содержит строго больше сведений.
+ */
+export function mergeBatteryPayload(a: string | undefined, b: string | undefined): string | undefined {
+  const left = safeParseMonth(a);
+  const right = safeParseMonth(b);
+  if (!left) return b;
+  if (!right) return a;
+
+  const out: Record<string, BatteryShift[]> = {};
+  for (const source of [left, right]) {
+    for (const [day, raw] of Object.entries(source)) {
+      if (!DAY_OF_MONTH_PATTERN.test(day)) continue;
+      const byMinute = new Map<number, BatteryShift>(
+        (out[day] ?? []).map((shift) => [shift[0], shift]),
+      );
+      for (const shift of sanitizeShifts(raw)) {
+        const existing = byMinute.get(shift[0]);
+        if (existing === undefined || (existing[2] === undefined && shift[2] !== undefined)) {
+          byMinute.set(shift[0], shift);
+        }
+      }
+      const merged = [...byMinute.values()].sort((x, y) => x[0] - y[0]);
+      if (merged.length > 0) out[day] = merged;
+    }
+  }
+  return JSON.stringify(out);
+}
+
+function safeParseMonth(raw: string | undefined): Record<string, unknown> | undefined {
+  if (!raw) return undefined;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Читает указанные месяцы одним запросом — CloudStorage берёт список ключей разом. */
 export async function loadJournal(months: string[]): Promise<Journal> {
   const journal = emptyJournal();
   if (months.length === 0) return journal;
 
   const keys = months.flatMap((month) => [keyClicks(month), keyBattery(month)]);
-  const values = await store.get(keys);
+  const pairs = await store.getPair(keys);
 
   for (const month of months) {
-    const clicks = values[keyClicks(month)];
-    const battery = values[keyBattery(month)];
+    const clicks = pairs[keyClicks(month)];
+    const battery = pairs[keyBattery(month)];
     try {
-      if (clicks) parseClicksMonth(month, clicks, journal);
+      const merged = mergeClicksPayload(clicks?.local, clicks?.remote);
+      if (merged) parseClicksMonth(month, merged, journal);
     } catch {
       console.warn(`[persistence] испорчен блок кликов ${month}`);
     }
     try {
-      if (battery) parseBatteryMonth(month, battery, journal);
+      const merged = mergeBatteryPayload(battery?.local, battery?.remote);
+      if (merged) parseBatteryMonth(month, merged, journal);
     } catch {
       console.warn(`[persistence] испорчен блок батареи ${month}`);
     }
@@ -274,14 +406,17 @@ export async function loadJournal(months: string[]): Promise<Journal> {
 }
 
 /**
- * Значение сверх лимита CloudStorage не запишется, но и ошибку вернёт не всегда:
- * молчаливо потерянный месяц хуже, чем месяц, о потере которого сказано в консоли.
+ * Значение сверх лимита CloudStorage не запишется, но и ошибку вернёт не всегда.
+ *
+ * Бросаем, а не выходим молча: грязный флаг месяца снимается до записи, поэтому тихий
+ * выход оставлял месяц только в памяти — до перезагрузки, после которой он исчезал без
+ * следа. Исключение возвращает месяц в очередь, и там он хотя бы доживёт до конца сессии.
  * Наступить на это можно только синтетическими данными — реальный месяц вдвое меньше.
  */
 async function setChecked(key: string, payload: string): Promise<void> {
-  if (payload.length > VALUE_LIMIT) {
-    console.warn(`[persistence] ${key} не помещается в лимит (${payload.length}), запись пропущена`);
-    return;
+  const size = payloadSize(payload);
+  if (size > VALUE_LIMIT) {
+    throw new Error(`[persistence] ${key} не помещается в лимит (${size} байт из ${VALUE_LIMIT})`);
   }
   await store.set(key, payload);
 }
@@ -453,7 +588,7 @@ function readSkills(value: string | undefined): SkillsState {
 
 export async function saveSkills(state: SkillsState): Promise<void> {
   const payload = serializeSkills(state);
-  if (payload.length > VALUE_LIMIT) {
+  if (payloadSize(payload) > VALUE_LIMIT) {
     // Дойти сюда можно только очень длинными названиями — режем архив целиком,
     // ровно как в настройках: активные навыки важнее забытых.
     await store.set(KEY_SKILLS, serializeSkills({ ...state, archived: [] }));
@@ -466,11 +601,13 @@ export async function loadSkillClicks(months: string[]): Promise<ClicksMap> {
   const clicks: ClicksMap = {};
   if (months.length === 0) return clicks;
 
-  const values = await store.get(months.map(keySkillClicks));
+  const pairs = await store.getPair(months.map(keySkillClicks));
   for (const month of months) {
-    const raw = values[keySkillClicks(month)];
+    const pair = pairs[keySkillClicks(month)];
     try {
-      if (raw) parseClicksMap(month, raw, clicks);
+      // Форма та же, что у приоритетов, поэтому и слияние то же.
+      const merged = mergeClicksPayload(pair?.local, pair?.remote);
+      if (merged) parseClicksMap(month, merged, clicks);
     } catch {
       console.warn(`[persistence] испорчен блок навыков ${month}`);
     }
@@ -499,9 +636,23 @@ export function sanitizeAwards(raw: unknown): AwardMap {
   return out;
 }
 
+/**
+ * Объединение двух наборов достижений: выдача необратима, поэтому берётся всё,
+ * что есть хоть где-то, а при совпадении id — более ранняя дата. Иначе
+ * достижение, полученное на телефоне, пропадало после запуска на компьютере.
+ */
+export function mergeAwards(a: AwardMap, b: AwardMap): AwardMap {
+  const out: AwardMap = { ...a };
+  for (const [id, day] of Object.entries(b)) {
+    const existing = out[id];
+    if (existing === undefined || day < existing) out[id] = day;
+  }
+  return out;
+}
+
 export async function loadAwards(): Promise<AwardMap> {
-  const raw = await store.get([KEY_ACHIEVEMENTS]);
-  return readAwards(raw[KEY_ACHIEVEMENTS]);
+  const pair = (await store.getPair([KEY_ACHIEVEMENTS]))[KEY_ACHIEVEMENTS];
+  return mergeAwards(readAwards(pair?.local), readAwards(pair?.remote));
 }
 
 function readAwards(value: string | undefined): AwardMap {
@@ -535,10 +686,21 @@ export async function pruneOldMonths(now: Date = new Date()): Promise<void> {
   try {
     const keep = new Set(recentMonths(RETENTION_MONTHS, now));
     const all = await store.keys();
-    const stale = all.filter((key) => {
-      const match = MONTH_KEY_PATTERN.exec(key);
-      return match && !keep.has(match[1]!);
-    });
+    const months = all.filter((key) => MONTH_KEY_PATTERN.test(key));
+    const stale = months.filter((key) => !keep.has(MONTH_KEY_PATTERN.exec(key)![1]!));
+
+    /*
+     * Уборка, которая сносит вообще всё, — это не уборка, а сбитые часы.
+     *
+     * Здесь всё завязано на системное время устройства: ушедшие вперёд часы
+     * делают просроченной всю реальную историю, и она удаляется из облака —
+     * то есть у всех устройств сразу. Ни один месяц не попал в горизонт —
+     * значит, доверять этому «сегодня» нельзя.
+     */
+    if (stale.length === months.length && months.length > 0) {
+      console.warn('[persistence] под уборку попала вся история — похоже, часы неверны');
+      return;
+    }
     if (stale.length > 0) await store.remove(stale);
   } catch (error) {
     console.warn('[persistence] уборка старых месяцев не удалась', error);
@@ -556,6 +718,56 @@ export async function clearHistory(): Promise<void> {
   const all = await store.keys();
   const months = all.filter((key) => MONTH_KEY_PATTERN.test(key));
   if (months.length > 0) await store.remove(months);
+  await bumpGeneration();
+}
+
+/*
+ * Поколение истории: счётчик, который растёт при каждом стирании.
+ *
+ * Удаление ключа в облаке само по себе не доходит до второго устройства: там
+ * месяц остаётся в локальной копии, при чтении подхватывается и следующей же
+ * записью заливается обратно — «стереть историю» на телефоне откатывалось
+ * назад с компьютера. Номер поколения лежит в облаке, а последний виденный —
+ * рядом с локальной копией; их расхождение и означает «историю стёрли не здесь».
+ */
+const KEY_GENERATION = 'mp:v';
+const KEY_SEEN_GENERATION = 'mp:v:seen';
+
+function readGeneration(raw: string | undefined): number {
+  const value = Number(raw);
+  return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
+}
+
+async function bumpGeneration(): Promise<void> {
+  try {
+    const pair = (await store.getPair([KEY_GENERATION]))[KEY_GENERATION];
+    const next = Math.max(readGeneration(pair?.local), readGeneration(pair?.remote)) + 1;
+    await store.set(KEY_GENERATION, String(next));
+    await localMirror.set(KEY_SEEN_GENERATION, String(next));
+  } catch (error) {
+    console.warn('[persistence] номер поколения не записался', error);
+  }
+}
+
+/**
+ * Сверяет поколение и, если историю стёрли на другом устройстве, убирает её
+ * локальную копию — до того, как та попадёт в слияние и воскреснет.
+ */
+export async function dropStaleLocalHistory(): Promise<void> {
+  try {
+    const pair = (await store.getPair([KEY_GENERATION]))[KEY_GENERATION];
+    const cloud = readGeneration(pair?.remote);
+    if (cloud === 0) return;
+
+    const seen = readGeneration((await localMirror.get([KEY_SEEN_GENERATION]))[KEY_SEEN_GENERATION]);
+    if (seen >= cloud) return;
+
+    const stale = (await localMirror.keys()).filter((key) => MONTH_KEY_PATTERN.test(key));
+    if (stale.length > 0) await localMirror.remove(stale);
+    await localMirror.set(KEY_SEEN_GENERATION, String(cloud));
+  } catch (error) {
+    console.warn('[persistence] сверка поколения не удалась', error);
+  }
 }
 
 /** Полный сброс кабинета: история, приоритеты, навыки, достижения, настройки. */
@@ -681,6 +893,7 @@ export async function writeAll(contents: SnapshotContents): Promise<void> {
   await saveSkills(contents.skills);
   await saveAwards(contents.awards);
 
+  const written = new Set<string>();
   const months = new Set([
     ...Object.keys(contents.journal.clicks).map(monthKey),
     ...Object.keys(contents.journal.battery).map(monthKey),
@@ -688,11 +901,28 @@ export async function writeAll(contents: SnapshotContents): Promise<void> {
   for (const month of months) {
     await saveClicksMonth(contents.journal, month);
     await saveBatteryMonth(contents.journal, month);
+    written.add(keyClicks(month));
+    written.add(keyBattery(month));
   }
 
   for (const month of new Set(Object.keys(contents.skillClicks).map(monthKey))) {
     await saveSkillsMonth(contents.skillClicks, month);
+    written.add(keySkillClicks(month));
   }
+
+  /*
+   * Лишнее убирается последним, а не первым.
+   *
+   * Раньше импорт начинался с полного стирания истории, и любой отказ облака
+   * между ним и записью оставлял хранилище пустым: копия не восстановлена, а
+   * прежние данные уже снесены. Теперь до этой строки доходит только успешная
+   * запись, а до неё старые месяцы остаются на месте.
+   */
+  const stale = (await store.keys()).filter(
+    (key) => MONTH_KEY_PATTERN.test(key) && !written.has(key),
+  );
+  if (stale.length > 0) await store.remove(stale);
+  await bumpGeneration();
 }
 
 /** Месяцы, которые нужно держать в памяти: горизонт хранения целиком. */
@@ -711,12 +941,15 @@ export async function readLocalOnly(now: Date = new Date()): Promise<{
   skills: SkillsState;
   skillClicks: ClicksMap;
   awards: AwardMap;
+  /** Копия действительно прочиталась. Пустая копия — это `true`, недоступная — `false`. */
+  ok: boolean;
 }> {
   const journal = emptyJournal();
   const skillClicks: ClicksMap = {};
   let settings: Settings | undefined;
   let skills = emptySkills();
   let awards: AwardMap = {};
+  let ok = false;
 
   try {
     const months = monthsToLoad(now);
@@ -741,11 +974,12 @@ export async function readLocalOnly(now: Date = new Date()): Promise<{
       if (battery) parseBatteryMonth(month, battery, journal);
       if (skillMonth) parseClicksMap(month, skillMonth, skillClicks);
     }
+    ok = true;
   } catch (error) {
     console.warn('[persistence] локальная копия тоже не прочиталась', error);
   }
 
-  return { settings, journal, skills, skillClicks, awards };
+  return { settings, journal, skills, skillClicks, awards, ok };
 }
 
 // --- Свёртка выпавших месяцев ------------------------------------------------

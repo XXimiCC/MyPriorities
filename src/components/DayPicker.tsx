@@ -1,3 +1,5 @@
+import { useEffect, useRef } from 'react';
+
 import { addDays, dayKey, formatDayShort, todayKey, weekdayShort } from '../domain/date';
 import type { Journal, DayKey } from '../domain/types';
 import { t } from '../i18n';
@@ -22,8 +24,20 @@ export function DayPicker({ value, journal, onChange }: Props): JSX.Element {
   const days: DayKey[] = [];
   for (let back = BACK_DAYS - 1; back >= 0; back -= 1) days.push(dayKey(addDays(now, -back)));
 
+  /*
+   * Лента шире экрана вдвое, поэтому её надо домотать до конца: без этого видны
+   * две недели назад, а сегодняшний день — тот, ради которого её открывают, —
+   * остаётся за краем. Раньше это делал row-reverse в CSS, но он разворачивал и
+   * сам порядок дней.
+   */
+  const strip = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const node = strip.current;
+    if (node) node.scrollLeft = node.scrollWidth;
+  }, []);
+
   return (
-    <div className="dpick" role="tablist" aria-label={t('home.dayPicker')}>
+    <div className="dpick" role="tablist" aria-label={t('home.dayPicker')} ref={strip}>
       {days.map((day) => {
         const entry = journal.clicks[day];
         const marked = Boolean(entry && Object.values(entry).some((n) => n > 0));

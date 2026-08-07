@@ -14,6 +14,7 @@
 import { parseDayKey } from '../domain/date';
 import { blockMinutesOf } from '../domain/types';
 import { atLeastRank, type RankId } from '../skills/levels';
+import { MIN_SPREAD_PRIORITIES } from './derive';
 import type { Achievement, AchievementContext, AchievementId } from './types';
 
 const HOUR = 60;
@@ -199,9 +200,17 @@ function activeCount(stats: Stats): number {
   return stats.active.filter((item) => item.blocks > 0).length;
 }
 
-/** Каждый активный приоритет получил не меньше min блоков. Пустой список не считается. */
+/**
+ * Каждый активный приоритет получил не меньше min блоков.
+ *
+ * Короткий список не считается: с одним приоритетом условие выполнялось первым
+ * же кликом, и «Все на месте» выдавалось человеку, у которого «все» — это один.
+ */
 function everyActive(stats: Stats, min: number): boolean {
-  return stats.active.length > 0 && stats.active.every((item) => item.blocks >= min);
+  return (
+    stats.active.length >= MIN_SPREAD_PRIORITIES &&
+    stats.active.every((item) => item.blocks >= min)
+  );
 }
 
 /**

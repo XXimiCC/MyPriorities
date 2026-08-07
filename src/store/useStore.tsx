@@ -14,6 +14,7 @@ import {
   useMemo,
   useReducer,
   useRef,
+  useState,
   type ReactNode,
 } from 'react';
 
@@ -38,6 +39,7 @@ import { stripAuto } from '../achievements/evaluate';
 import {
   clearEverything,
   clearHistory,
+  dropStaleLocalHistory,
   emptyJournal,
   emptySettings,
   exportSnapshot,
@@ -67,7 +69,18 @@ import { MOCK_MODE, buildMockData } from './mock';
 
 const FLUSH_DELAY_MS = 700;
 
-/** Заведомо больше предела одного вызова к облаку, чтобы не срабатывать раньше него. */
+/**
+ * Откат при повторах записи: задержка удваивается на каждой неудаче подряд.
+ * Потолок нужен, чтобы отказавшее хранилище не съедало батарею повторами, а
+ * ограничение шагов — чтобы 2 ** n не убежало в бесконечность за долгую сессию.
+ */
+const FLUSH_RETRY_STEPS = 6;
+const FLUSH_RETRY_MAX_MS = 30_000;
+
+/**
+ * Предел ожидания гидратации. Батчи к облаку идут параллельно, поэтому запас
+ * считается от одного вызова (4 с), а не от их суммы.
+ */
 const HYDRATE_DEADLINE_MS = 9000;
 
 interface State {
@@ -171,7 +184,19 @@ function reduce(state: State, action: Action): State {
     case 'drain': {
       // Ответ приписывается последнему переходу дня — тому самому, который
       // только что перевёл заряд на «на нуле» и вызвал вопрос.
-      const shifts = state.journal.battery[action.day];
+      //
+      // Если в этом дне переходов нет, значит между переходом и ответом наступила
+      // полночь: вопрос задан вчера в 23:59, отвечают сегодня в 00:01. Ищем день
+      // последнего перехода, иначе ответ пропадал бы молча.
+      const day = state.journal.battery[action.day]?.length
+        ? action.day
+        : Object.keys(state.journal.battery)
+            .filter((key) => (state.journal.battery[key]?.length ?? 0) > 0)
+            .sort()
+            .pop();
+      if (day === undefined) return state;
+
+      const shifts = state.journal.battery[day];
       const last = shifts?.[shifts.length - 1];
       if (!shifts || !last) return state;
 
@@ -181,7 +206,7 @@ function reduce(state: State, action: Action): State {
       ];
       return {
         ...state,
-        journal: { ...state.journal, battery: { ...state.journal.battery, [action.day]: updated } },
+        journal: { ...state.journal, battery: { ...state.journal.battery, [day]: updated } },
       };
     }
 
@@ -201,7 +226,7 @@ export interface StoreActions {
   addBlock(priorityId: string, day?: DayKey): void;
   removeBlock(priorityId: string, day?: DayKey): void;
   setBattery(level: BatteryLevel): void;
-  /** Ответ на вопрос, что посадило заряд. Пустая строка — «не знаю». */
+  /** Ответ на вопрос, что посадило заряд. DRAIN_UNKNOWN — «не знаю». */
   setDrain(drainedBy: string): void;
   reorder(priorities: Priority[]): void;
   addPriority(title: string): Priority | undefined;
@@ -278,44 +303,77 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
   const dirtySettings = useRef(false);
   const flushTimer = useRef<number | undefined>(undefined);
 
-  const flush = useCallback(async () => {
-    if (MOCK_MODE) return;
+  /**
+   * Хранилище не прочиталось. Пустая память в этом случае не означает «данных нет» —
+   * она означает «их не отдали», и запись затёрла бы живое облако. Флаг снимается
+   * первым успешным чтением и до тех пор запрещает любую запись.
+   */
+  const loadFailed = useRef(false);
+  /** Идущая запись: сброс обязан её дождаться, иначе она допишет уже стёртое. */
+  const activeFlush = useRef<Promise<void>>(Promise.resolve());
+  /** Неудачи подряд — задержка повтора растёт, чтобы не долбить отказавшее хранилище. */
+  const flushFailures = useRef(0);
+  /** Ссылка на сам флаш: повтор планируется изнутри, а замыкаться на себя нельзя. */
+  const flushRef = useRef<() => Promise<void>>(async () => {});
+
+  const scheduleRetry = useCallback(() => {
+    const steps = Math.min(flushFailures.current, FLUSH_RETRY_STEPS);
+    const delay = Math.min(FLUSH_DELAY_MS * 2 ** steps, FLUSH_RETRY_MAX_MS);
     window.clearTimeout(flushTimer.current);
-    flushTimer.current = undefined;
-
-    const months = {
-      clicks: [...dirtyClicks.current],
-      battery: [...dirtyBattery.current],
-      skills: [...dirtySkillClicks.current],
-    };
-    const settingsDirty = dirtySettings.current;
-    dirtyClicks.current.clear();
-    dirtyBattery.current.clear();
-    dirtySkillClicks.current.clear();
-    dirtySettings.current = false;
-
-    const { settings, journal, skillClicks, skillsLoaded } = latest.current;
-    try {
-      if (settingsDirty) await saveSettings(settings);
-      for (const month of months.clicks) await saveClicksMonth(journal, month);
-      for (const month of months.battery) await saveBatteryMonth(journal, month);
-      // Пока история навыков не прочитана, в памяти пусто, и запись месяца
-      // затёрла бы облачные данные. Проверка страхует любой путь, а не только тумблер.
-      if (skillsLoaded) {
-        for (const month of months.skills) await saveSkillsMonth(skillClicks, month);
-      } else if (months.skills.length > 0) {
-        console.warn('[store] история навыков не прочитана, запись месяцев отложена');
-        months.skills.forEach((m) => dirtySkillClicks.current.add(m));
-      }
-    } catch (error) {
-      // Возвращаем метки, чтобы следующая попытка дописала то же самое.
-      console.warn('[store] запись не удалась, повторим позже', error);
-      months.clicks.forEach((m) => dirtyClicks.current.add(m));
-      months.battery.forEach((m) => dirtyBattery.current.add(m));
-      months.skills.forEach((m) => dirtySkillClicks.current.add(m));
-      if (settingsDirty) dirtySettings.current = true;
-    }
+    flushTimer.current = window.setTimeout(() => void flushRef.current(), delay);
   }, []);
+
+  const flush = useCallback(async () => {
+    const run = (async () => {
+      if (MOCK_MODE) return;
+      window.clearTimeout(flushTimer.current);
+      flushTimer.current = undefined;
+      if (loadFailed.current) return;
+
+      const months = {
+        clicks: [...dirtyClicks.current],
+        battery: [...dirtyBattery.current],
+        skills: [...dirtySkillClicks.current],
+      };
+      const settingsDirty = dirtySettings.current;
+      dirtyClicks.current.clear();
+      dirtyBattery.current.clear();
+      dirtySkillClicks.current.clear();
+      dirtySettings.current = false;
+
+      const { settings, journal, skillClicks, skillsLoaded } = latest.current;
+      try {
+        if (settingsDirty) await saveSettings(settings);
+        for (const month of months.clicks) await saveClicksMonth(journal, month);
+        for (const month of months.battery) await saveBatteryMonth(journal, month);
+        // Пока история навыков не прочитана, в памяти пусто, и запись месяца
+        // затёрла бы облачные данные. Проверка страхует любой путь, а не только тумблер.
+        if (skillsLoaded) {
+          for (const month of months.skills) await saveSkillsMonth(skillClicks, month);
+        } else if (months.skills.length > 0) {
+          console.warn('[store] история навыков не прочитана, запись месяцев отложена');
+          months.skills.forEach((m) => dirtySkillClicks.current.add(m));
+          scheduleRetry();
+        }
+        flushFailures.current = 0;
+      } catch (error) {
+        // Возвращаем метки и взводим повтор: без него «повторим позже» означало
+        // «повторим, если пользователь сам нажмёт что-нибудь ещё».
+        console.warn('[store] запись не удалась, повторим позже', error);
+        months.clicks.forEach((m) => dirtyClicks.current.add(m));
+        months.battery.forEach((m) => dirtyBattery.current.add(m));
+        months.skills.forEach((m) => dirtySkillClicks.current.add(m));
+        if (settingsDirty) dirtySettings.current = true;
+        flushFailures.current += 1;
+        scheduleRetry();
+      }
+    })();
+
+    activeFlush.current = run;
+    await run;
+  }, [scheduleRetry]);
+
+  flushRef.current = flush;
 
   const scheduleFlush = useCallback(() => {
     if (MOCK_MODE) return;
@@ -335,46 +393,71 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
    * сразу за dispatch, в том же такте, когда состояние ещё старое.
    */
   const pendingSettings = useRef<Promise<void>>(Promise.resolve());
-  /** Каталог навыков и достижения пишутся так же немедленно и по той же причине. */
-  const pendingCatalogs = useRef<Promise<void>>(Promise.resolve());
+  /**
+   * Каталог навыков и достижения пишутся так же немедленно и по той же причине.
+   * Цепочки у них раздельные: общая означала бы, что таймаут записи каталога
+   * задерживает выдачу достижения, хотя это разные ключи и разные данные.
+   */
+  const pendingSkills = useRef<Promise<void>>(Promise.resolve());
+  const pendingAwards = useRef<Promise<void>>(Promise.resolve());
 
   const writeSettings = useCallback(
     (settings: Settings) => {
-      if (MOCK_MODE) return;
-      pendingSettings.current = saveSettings(settings).catch((error) => {
-        console.warn('[store] настройки не записались, повторим общим флашем', error);
-        dirtySettings.current = true;
-        scheduleFlush();
-      });
+      if (MOCK_MODE || loadFailed.current) return;
+      // Через цепочку, а не поверх предыдущей записи: две параллельные могли
+      // завершиться в обратном порядке, и в облаке побеждал более старый список.
+      pendingSettings.current = pendingSettings.current
+        .then(() => saveSettings(settings))
+        .catch((error) => {
+          console.warn('[store] настройки не записались, повторим общим флашем', error);
+          dirtySettings.current = true;
+          scheduleFlush();
+        });
     },
     [scheduleFlush],
   );
 
-  const writeSkills = useCallback((skills: SkillsState) => {
-    if (MOCK_MODE) return;
-    pendingCatalogs.current = pendingCatalogs.current
-      .then(() => saveSkills(skills))
-      .catch((error) => console.warn('[store] каталог навыков не записался', error));
+  const writeSkills = useCallback((skills: SkillsState): Promise<void> => {
+    if (MOCK_MODE || loadFailed.current) return Promise.resolve();
+    pendingSkills.current = pendingSkills.current.then(() => saveSkills(skills));
+    // Наружу отдаём цепочку с проглоченной ошибкой, но саму ошибку не теряем:
+    // свёртка месяцев обязана знать, дошла запись или нет.
+    const written = pendingSkills.current;
+    pendingSkills.current = written.catch((error) =>
+      console.warn('[store] каталог навыков не записался', error),
+    );
+    return written;
   }, []);
 
   const writeAwards = useCallback((awards: AwardMap) => {
-    if (MOCK_MODE) return;
-    pendingCatalogs.current = pendingCatalogs.current
+    if (MOCK_MODE || loadFailed.current) return;
+    pendingAwards.current = pendingAwards.current
       .then(() => saveAwards(awards))
       .catch((error) => console.warn('[store] достижения не записались', error));
   }, []);
 
   /** Отменяет всё, что ещё не записано. Нужно перед сбросом, чтобы стёртое не вернулось. */
   const dropPendingWrites = useCallback(async () => {
+    // Сначала гасим таймер, чтобы за время ожидания не стартовал новый флаш.
     window.clearTimeout(flushTimer.current);
     flushTimer.current = undefined;
+
+    // Незавершённая запись иначе доедет уже после очистки и воскресит стёртое.
+    // Ждём и уже идущий флаш: гашения таймера мало — он мог стартовать секунду назад.
+    await activeFlush.current;
+    await pendingSettings.current;
+    await pendingSkills.current;
+    await pendingAwards.current;
+
+    // Метки чистим только теперь. Упавший флаш возвращает свои месяцы в очередь
+    // и взводит повтор — сделай мы это до ожидания, он переписал бы стёртое.
+    window.clearTimeout(flushTimer.current);
+    flushTimer.current = undefined;
+    flushFailures.current = 0;
     dirtyClicks.current.clear();
     dirtyBattery.current.clear();
     dirtySkillClicks.current.clear();
     dirtySettings.current = false;
-    // Незавершённая запись иначе доедет уже после очистки и воскресит стёртое.
-    await pendingSettings.current;
-    await pendingCatalogs.current;
   }, []);
 
   const markClicks = useCallback(
@@ -430,7 +513,13 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     const deadline = window.setTimeout(() => {
       if (settled) return;
       console.warn('[store] загрузка затянулась, показываем то, что успели прочитать');
-      void readLocalOnly().then((local) => finish({ ...local, skillsLoaded: true }));
+      void readLocalOnly().then((local) => {
+        // skillsLoaded только если копия действительно прочиталась: безусловное
+        // «прочитано» снимало защиту флаша и разрешало записать пустой месяц
+        // навыков поверх облачного.
+        if (!local.ok) loadFailed.current = true;
+        finish({ ...local, skillsLoaded: local.ok });
+      });
     }, HYDRATE_DEADLINE_MS);
 
     void (async () => {
@@ -447,25 +536,51 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       let awards: AwardMap = {};
       let skillsLoaded = false;
 
-      try {
-        settings = await loadSettings();
-        /*
-         * Каталог навыков и достижения читаются всегда, даже при выключенном
-         * модуле: иначе выключенный и снова включённый модуль показал бы пустой
-         * список, а первая же запись стёрла бы облачные данные. Гейтится только
-         * история по месяцам — она и стоит запросов.
-         */
-        skills = await loadSkills();
-        awards = await loadAwards();
-        journal = await loadJournal(monthsToLoad());
-
-        if (modulesOf(settings ?? emptySettings()).skills) {
-          skillClicks = await loadSkillClicks(monthsToLoad());
-          skillsLoaded = true;
+      /*
+       * Каждое чтение под своим try. Общий означал бы, что отказ первого обнуляет
+       * остальные: без настроек приложение уходит в онбординг, а выбор набора
+       * записывает пустой список поверх живого облака.
+       */
+      let failed = false;
+      const read = async <T,>(what: string, load: () => Promise<T>, fallback: T): Promise<T> => {
+        try {
+          return await load();
+        } catch (error) {
+          console.warn(`[store] не прочитано: ${what}`, error);
+          failed = true;
+          return fallback;
         }
-      } catch (error) {
-        console.warn('[store] загрузка не удалась, стартуем с пустого состояния', error);
+      };
+
+      /*
+       * До чтения истории: если её стёрли на другом устройстве, локальная копия
+       * здесь ещё цела и при слиянии воскресила бы стёртое. Ошибки внутри
+       * заглушены — сверка не должна мешать старту.
+       */
+      await dropStaleLocalHistory();
+
+      settings = await read('настройки', loadSettings, undefined);
+      /*
+       * Каталог навыков и достижения читаются всегда, даже при выключенном
+       * модуле: иначе выключенный и снова включённый модуль показал бы пустой
+       * список, а первая же запись стёрла бы облачные данные. Гейтится только
+       * история по месяцам — она и стоит запросов.
+       */
+      skills = await read('каталог навыков', loadSkills, emptySkills());
+      awards = await read('достижения', loadAwards, {});
+      journal = await read('журнал', () => loadJournal(monthsToLoad()), emptyJournal());
+
+      const skillsModuleOn = modulesOf(settings ?? emptySettings()).skills;
+      if (skillsModuleOn) {
+        const before = failed;
+        skillClicks = await read('история навыков', () => loadSkillClicks(monthsToLoad()), {});
+        skillsLoaded = failed === before;
       }
+
+      // Пока хоть что-то не прочиталось, писать нельзя: пустая память здесь
+      // означает «не отдали», а не «нет данных».
+      if (failed) loadFailed.current = true;
+
       window.clearTimeout(deadline);
       if (cancelled) return;
 
@@ -473,10 +588,20 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
 
       // Свёртка строго до уборки: она читает те самые месяцы, что уборка удалит.
       void (async () => {
+        if (failed) return;
         const folded = await foldExpiredMonths(skills);
-        if (!cancelled && folded) {
+        if (cancelled) return;
+
+        if (folded) {
           dispatch({ type: 'skills', skills: folded });
-          writeSkills(folded);
+          try {
+            // Уборка сносит исходные месяцы, поэтому запускать её можно только
+            // после подтверждённой записи свёртки — иначе carryBlocks теряется.
+            await writeSkills(folded);
+          } catch (error) {
+            console.warn('[store] свёртка не записалась, уборку откладываем', error);
+            return;
+          }
         }
         await pruneOldMonths();
       })();
@@ -493,14 +618,34 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     const onHide = (): void => {
       if (document.visibilityState === 'hidden') void flush();
     };
+    // Именованная, а не инлайновая: анонимную снять нельзя, и при каждой смене
+    // flush поверх старого слушателя вешался ещё один — с устаревшим замыканием.
+    const onPageHide = (): void => void flush();
     document.addEventListener('visibilitychange', onHide);
-    window.addEventListener('pagehide', () => void flush());
+    window.addEventListener('pagehide', onPageHide);
     return () => {
       document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('pagehide', onPageHide);
     };
   }, [flush]);
 
-  const today = todayKey();
+  /**
+   * Сегодняшний день как состояние, а не как вычисление на каждый рендер.
+   *
+   * Раньше он пересчитывался только при случайном ре-рендере, поэтому открытое
+   * в полночь приложение могло часами считать «сегодня» вчерашним днём. Таймер
+   * ставится ровно на ближайшую полночь и перевзводится сам.
+   */
+  const [today, setToday] = useState(todayKey);
+
+  useEffect(() => {
+    const now = new Date();
+    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    // Секунда сверху: таймер, сработавший на миллисекунду раньше полуночи,
+    // прочитал бы прежнюю дату и взвёлся бы на нулевую задержку.
+    const timer = window.setTimeout(() => setToday(todayKey()), midnight.getTime() - now.getTime() + 1000);
+    return () => window.clearTimeout(timer);
+  }, [today]);
 
   const actions = useMemo<StoreActions>(() => {
     const commitSettings = (settings: Settings): void => {
@@ -545,7 +690,18 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       },
 
       setDrain(drainedBy) {
-        const day = todayKey();
+        // День берём у самого перехода, а не у «сейчас»: между вопросом в 23:59 и
+        // ответом в 00:01 сутки успевают смениться, и пометка ушла бы не в тот месяц.
+        const battery = latest.current.journal.battery;
+        const today = todayKey();
+        const day = battery[today]?.length
+          ? today
+          : Object.keys(battery)
+              .filter((key) => (battery[key]?.length ?? 0) > 0)
+              .sort()
+              .pop();
+        if (day === undefined) return;
+
         dispatch({ type: 'drain', day, drainedBy });
         markBattery(day);
       },
@@ -699,8 +855,14 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           ...skill,
           ...(patch.title !== undefined ? { title: patch.title.trim() || skill.title } : {}),
           ...(patch.colorId !== undefined ? { colorId: patch.colorId } : {}),
+          // Math.max(0, NaN) — это NaN, а не ноль: нечисло отравляло всю сумму
+          // часов, а при записи превращалось в null и обнуляло стартовый капитал.
           ...(patch.baseMinutes !== undefined
-            ? { baseMinutes: Math.max(0, Math.round(patch.baseMinutes)) }
+            ? {
+                baseMinutes: Number.isFinite(patch.baseMinutes)
+                  ? Math.max(0, Math.round(patch.baseMinutes))
+                  : skill.baseMinutes,
+              }
             : {}),
           ...(patch.startedOn !== undefined ? { startedOn: patch.startedOn } : {}),
         }));
@@ -827,10 +989,11 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       async importData(json) {
         const restored = parseSnapshot(json);
         await dropPendingWrites();
-        dispatch({ type: 'hydrate', ...restored, skillsLoaded: true });
-        // Старые месяцы сносятся целиком: иначе то, чего нет в копии, осталось бы в облаке.
-        await clearHistory();
+        // Запись идёт до удаления лишнего — writeAll сносит месяцы, которых нет
+        // в копии, только после того, как записал её саму. Отказ облака посреди
+        // импорта теперь оставляет прежние данные, а не пустое хранилище.
         await writeAll(restored);
+        dispatch({ type: 'hydrate', ...restored, skillsLoaded: true });
         return restored;
       },
     };

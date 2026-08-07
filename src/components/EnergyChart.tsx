@@ -73,6 +73,7 @@ export function EnergyChart({ days, battery }: Props): JSX.Element {
 
   return (
     <div className="energy">
+      <div className="energy__canvas">
       <svg
         className="energy__plot"
         viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
@@ -110,19 +111,6 @@ export function EnergyChart({ days, battery }: Props): JSX.Element {
             vectorEffect="non-scaling-stroke"
           />
         ))}
-
-        {points.map((point, index) =>
-          point.charge === null ? null : (
-            <circle
-              key={point.day}
-              cx={x(index)}
-              cy={y(point.charge)}
-              r={picked === point.day ? 4 : 2.6}
-              className="energy__dot"
-              style={{ fill: batteryTheme(nearestChargeLevel(point.charge)).hex }}
-            />
-          ),
-        )}
 
         {/* Столбики под линией: из каких состояний сложились сутки. */}
         {points.map((point, index) => {
@@ -170,6 +158,32 @@ export function EnergyChart({ days, battery }: Props): JSX.Element {
           />
         ))}
       </svg>
+
+        {/*
+          Точки живут слоем поверх графика, а не внутри него.
+
+          preserveAspectRatio="none" растягивает систему координат только по
+          ширине, и <circle> в ней неизбежно превращался в эллипс: vector-effect
+          спасает толщину обводки, но не форму. Проценты от размеров контейнера
+          дают ту же позицию, а размер точки задаётся в пикселях и потому
+          остаётся круглым при любой ширине экрана.
+        */}
+        <div className="energy__dots" aria-hidden="true">
+          {points.map((point, index) =>
+            point.charge === null ? null : (
+              <span
+                key={point.day}
+                className={picked === point.day ? 'energy__dot energy__dot--on' : 'energy__dot'}
+                style={{
+                  left: `${(x(index) / VIEW_W) * 100}%`,
+                  top: `${(y(point.charge) / VIEW_H) * 100}%`,
+                  background: batteryTheme(nearestChargeLevel(point.charge)).hex,
+                }}
+              />
+            ),
+          )}
+        </div>
+      </div>
 
       {!dense && (
         <div className="energy__ticks">

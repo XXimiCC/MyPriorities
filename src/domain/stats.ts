@@ -82,9 +82,6 @@ export function computeStats(settings: Settings, journal: Journal, days: DayKey[
   const blocksById = sumBlocks(journal, days);
   const blockMinutes = blockMinutesOf(settings);
 
-  const totalBlocks = Object.values(blocksById).reduce((sum, n) => sum + n, 0);
-  const totalMinutes = totalBlocks * blockMinutes;
-
   // Лидер считается по всему, что будет показано, включая архив: иначе архивный
   // приоритет с большим временем вылезал бы за 100% ширины полосы.
   const shownIds = new Set(settings.priorities.map((p) => p.id));
@@ -92,6 +89,17 @@ export function computeStats(settings: Settings, journal: Journal, days: DayKey[
     if ((blocksById[p.id] ?? 0) > 0) shownIds.add(p.id);
   }
   const leader = Math.max(0, ...[...shownIds].map((id) => blocksById[id] ?? 0));
+
+  /*
+   * Итог считается по тому же набору, что и лидер, — по показанному.
+   *
+   * В истории остаются id, которых нет ни среди активных, ни в архиве: архив
+   * ограничен, а месяцы живут дольше. Такие блоки попадали в сумму, но не имели
+   * своей строки, поэтому доли не сходились к сотне, а итог расходился со
+   * столбиками в статистике, которые безымянные id как раз отбрасывают.
+   */
+  const totalBlocks = [...shownIds].reduce((sum, id) => sum + (blocksById[id] ?? 0), 0);
+  const totalMinutes = totalBlocks * blockMinutes;
 
   const toStat = (priority: Priority, archived: boolean): PriorityStat => {
     const blocks = blocksById[priority.id] ?? 0;
@@ -263,16 +271,31 @@ function batteryDaysSorted(journal: Journal): DayKey[] {
  * Состояние на начало дня — последний переход самых свежих суток до него.
  * Без этого каждый день терялся бы кусок от полуночи до первого переключения,
  * а состояние, выставленное вечером и не менявшееся неделю, не считалось бы вовсе.
+ *
+ * Поиск двоичный, а не перебором: линейный проход повторялся для каждого дня
+ * окна, и на периоде «всё время» это давало квадрат — около четырёхсот дней
+ * истории превращались в полтораста тысяч шагов на каждый пересчёт.
  */
-function levelEnteringDay(sortedDays: DayKey[], journal: Journal, day: DayKey): BatteryLevel | null {
-  let result: BatteryLevel | null = null;
-  for (const candidate of sortedDays) {
-    if (candidate >= day) break;
-    const shifts = journal.battery[candidate];
-    const last = shifts?.[shifts.length - 1];
-    if (last) result = last[1];
+function levelEnteringDay(
+  sortedDays: DayKey[],
+  lastLevels: BatteryLevel[],
+  day: DayKey,
+): BatteryLevel | null {
+  let lo = 0;
+  let hi = sortedDays.length - 1;
+  let found = -1;
+
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (sortedDays[mid]! < day) {
+      found = mid;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
   }
-  return result;
+
+  return found === -1 ? null : lastLevels[found]!;
 }
 
 export function computeBatteryStats(
@@ -281,6 +304,12 @@ export function computeBatteryStats(
   now: Date = new Date(),
 ): BatteryStats {
   const sortedDays = batteryDaysSorted(journal);
+  // Последний уровень каждого дня с переходами: снимается один раз, дальше
+  // наследование состояния — это только поиск по отсортированному списку.
+  const lastLevels = sortedDays.map((day) => {
+    const shifts = journal.battery[day]!;
+    return shifts[shifts.length - 1]![1];
+  });
   const minutes = EMPTY_LEVELS();
   const perDay: Record<DayKey, BatteryLevel | null> = {};
   const perDayMinutes: Record<DayKey, Record<BatteryLevel, number>> = {};
@@ -294,7 +323,7 @@ export function computeBatteryStats(
     }
 
     const shifts = [...(journal.battery[day] ?? [])].sort((a, b) => a[0] - b[0]);
-    const carried = levelEnteringDay(sortedDays, journal, day);
+    const carried = levelEnteringDay(sortedDays, lastLevels, day);
 
     const timeline: Array<[number, BatteryLevel]> = [];
     if (carried !== null) timeline.push([0, carried]);
@@ -362,7 +391,7 @@ export function chargeLevel(minutes: Record<BatteryLevel, number>): number | nul
 
 /**
  * Сколько раз каждый приоритет называли причиной севшей батареи.
- * Ключ пустой строки — ответ «не знаю»: он тоже информация, поэтому не теряется.
+ * Ключ DRAIN_UNKNOWN — ответ «не знаю»: он тоже информация, поэтому не теряется.
  */
 export function drainCounts(journal: Journal, days: DayKey[]): Map<string, number> {
   const counts = new Map<string, number>();

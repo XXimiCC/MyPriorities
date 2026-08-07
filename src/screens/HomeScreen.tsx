@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { BatteryIcon } from '../components/BatteryIcon';
 import { BatterySheet } from '../components/BatterySheet';
@@ -35,17 +35,44 @@ export function HomeScreen({ onEdit }: Props): JSX.Element {
   const [writeDay, setWriteDay] = useState<DayKey>(today);
   const [pickerOpen, setPickerOpen] = useState(false);
 
-  // Наступила полночь при открытом приложении — переводим запись на новые сутки.
+  /*
+   * Наступила полночь при открытом приложении — переводим запись на новые сутки.
+   *
+   * Триггер именно смена даты, а не сравнение writeDay с today: в режиме прошлого
+   * дня они расходятся намеренно, и сравнение сбрасывало бы выбор сразу же. Прежнее
+   * условие `writeDay > today` не срабатывало никогда — лента предлагает только
+   * прошедшие дни, — и после полуночи клики молча продолжали уходить во вчера.
+   *
+   * Забытое «пишу во вчера» сбрасывается здесь по той же причине, по какой режим
+   * не переживает перезапуск: иначе он съел бы следующие сутки целиком.
+   */
+  const lastToday = useRef(today);
   useEffect(() => {
-    if (writeDay > today) setWriteDay(today);
-  }, [today, writeDay]);
+    if (lastToday.current === today) return;
+    lastToday.current = today;
+    setWriteDay(today);
+    setPickerOpen(false);
+  }, [today]);
 
   const inPast = writeDay !== today;
 
   const period = HOME_PERIODS.find((p) => p.id === periodId) ?? HOME_PERIODS[0]!;
+
+  /*
+   * В режиме прошлого дня «сегодня» означает выбранный день, а не текущие сутки.
+   *
+   * Без этого экран показывал итоги сегодняшнего дня, пока клики уходили во
+   * вчерашний: нажимаешь «+», а строка не меняется — и выглядит это как будто
+   * клик не засчитался. Недельное и месячное окна остаются скользящими: они тут
+   * как контекст, и привязывать их к выбранному дню незачем.
+   */
+  const days = useMemo(
+    () => (inPast && periodId === 'today' ? [writeDay] : periodDays(period, journal)),
+    [inPast, periodId, writeDay, period, journal],
+  );
   const stats = useMemo(
-    () => computeStats(settings, journal, periodDays(period, journal)),
-    [settings, journal, period],
+    () => computeStats(settings, journal, days),
+    [settings, journal, days],
   );
   const battery = useMemo(() => currentBatteryLevel(journal), [journal]);
   // Точки у кнопки «+» показывают тот день, в который идёт запись, а не сегодня:
@@ -53,15 +80,27 @@ export function HomeScreen({ onEdit }: Props): JSX.Element {
   const dayClicks = journal.clicks[writeDay] ?? {};
   const blockMinutes = blockMinutesOf(settings);
 
+  /**
+   * Выбор дня в ленте. Переключатель периода уводится на «сегодня», потому что
+   * выбранный день виден только там: остаться на недельном окне значило бы
+   * выбрать день и не увидеть его.
+   */
+  const pickDay = (day: DayKey): void => {
+    setWriteDay(day);
+    if (day !== today) setPeriodId('today');
+  };
+
   const leader = stats.active.reduce<typeof stats.active[number] | null>(
     (best, stat) => (!best || stat.blocks > best.blocks ? stat : best),
     null,
   );
 
   const scope =
-    periodId === 'today'
-      ? t('home.scopeToday')
-      : t('home.scopePeriod', { period: t(period.labelKey).toLowerCase() });
+    periodId !== 'today'
+      ? t('home.scopePeriod', { period: t(period.labelKey).toLowerCase() })
+      : inPast
+        ? t('home.scopeDay', { day: formatDayShort(writeDay) })
+        : t('home.scopeToday');
 
   return (
     <>
@@ -120,7 +159,16 @@ export function HomeScreen({ onEdit }: Props): JSX.Element {
         )}
 
         {pickerOpen || inPast ? (
-          <DayPicker value={writeDay} journal={journal} onChange={setWriteDay} />
+          <>
+            <DayPicker value={writeDay} journal={journal} onChange={pickDay} />
+            {/* Пока выбран сегодняшний день, «К сегодня» ниже не показывается, и
+                лента оставалась открытой без единого способа её убрать. */}
+            {!inPast && (
+              <button className="home__gaps" type="button" onClick={() => setPickerOpen(false)}>
+                {t('home.hidePicker')}
+              </button>
+            )}
+          </>
         ) : (
           <button className="home__gaps" type="button" onClick={() => setPickerOpen(true)}>
             {t('home.fillGaps')}

@@ -3,6 +3,7 @@
 import { lastNDays } from './date';
 import {
   MIN_FILL,
+  bestStreak,
   chargeLevel,
   clickStreak,
   computeBatteryStats,
@@ -15,6 +16,7 @@ import {
 } from './stats';
 import {
   DEFAULT_BLOCK_MINUTES,
+  DEFAULT_MODULES,
   type Journal,
   type Priority,
   type Settings,
@@ -25,7 +27,14 @@ const NOW = new Date(2026, 6, 31, 12, 0); // 31 июля 2026, 12:00 локал�
 const priority = (id: string, title: string): Priority => ({ id, title, colorId: 0 });
 
 function settingsOf(active: Priority[], archived: Priority[] = [], blockMinutes = DEFAULT_BLOCK_MINUTES): Settings {
-  return { version: 1, priorities: active, archived, onboarded: true, blockMinutes };
+  return {
+    version: 1,
+    priorities: active,
+    archived,
+    onboarded: true,
+    blockMinutes,
+    modules: DEFAULT_MODULES,
+  };
 }
 
 function journalOf(clicks: Journal['clicks'], battery: Journal['battery'] = {}): Journal {
@@ -268,6 +277,45 @@ describe('серия дней', () => {
 
   it('без кликов серия нулевая', () => {
     expect(clickStreak(journalOf({}), NOW)).toBe(0);
+  });
+});
+
+describe('рекордная серия', () => {
+  it('находит самую длинную серию, а не текущую', () => {
+    const journal = journalOf({
+      // Пять дней подряд в мае, потом разрыв, потом два дня в июле.
+      '2026-05-01': { w: 1 },
+      '2026-05-02': { w: 1 },
+      '2026-05-03': { w: 1 },
+      '2026-05-04': { w: 1 },
+      '2026-05-05': { w: 1 },
+      '2026-07-30': { w: 1 },
+      '2026-07-31': { w: 1 },
+    });
+    expect(bestStreak(journal)).toBe(5);
+    expect(clickStreak(journal, NOW)).toBe(2);
+  });
+
+  it('серия считается через границу месяца', () => {
+    const journal = journalOf({
+      '2026-06-29': { w: 1 },
+      '2026-06-30': { w: 1 },
+      '2026-07-01': { w: 1 },
+    });
+    expect(bestStreak(journal)).toBe(3);
+  });
+
+  it('день без единого клика серию рвёт', () => {
+    const journal = journalOf({
+      '2026-07-01': { w: 1 },
+      '2026-07-02': { w: 0 },
+      '2026-07-03': { w: 1 },
+    });
+    expect(bestStreak(journal)).toBe(1);
+  });
+
+  it('без кликов рекорд нулевой', () => {
+    expect(bestStreak(journalOf({}))).toBe(0);
   });
 });
 

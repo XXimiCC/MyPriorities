@@ -16,27 +16,26 @@ interface Props {
 }
 
 /**
- * Столько секунд вопрос ждёт ответа, прежде чем закрыться сам.
+ * Сколько секунд вопрос нельзя пропустить.
  *
- * Он всплывает в худший момент: человек только что признался, что выжат.
- * Модалка, которую надо закрывать руками, в такой момент раздражает больше,
- * чем помогает, поэтому бездействие — это тоже ответ, и он засчитывается
- * как пропуск.
+ * Само окно не закрывается — оно ждёт ответа. Пауза нужна, чтобы «пропустить»
+ * не нажималось рефлекторно, вместе с тем же тапом, которым только что выбрали
+ * «на нуле»: кнопка появляется там, где палец уже находится.
+ * Ответить можно сразу, задержка касается только пропуска.
  */
-const AUTO_SKIP_SECONDS = 3;
+const SKIP_DELAY_SECONDS = 3;
 
 export function DrainSheet({ open, priorities, onAnswer, onSkip }: Props): JSX.Element {
-  const [left, setLeft] = useState(AUTO_SKIP_SECONDS);
+  const [left, setLeft] = useState(SKIP_DELAY_SECONDS);
 
   useEffect(() => {
     if (!open) return undefined;
-    setLeft(AUTO_SKIP_SECONDS);
+    setLeft(SKIP_DELAY_SECONDS);
 
     const tick = window.setInterval(() => {
       setLeft((value) => {
         if (value <= 1) {
           window.clearInterval(tick);
-          onSkip();
           return 0;
         }
         return value - 1;
@@ -44,16 +43,20 @@ export function DrainSheet({ open, priorities, onAnswer, onSkip }: Props): JSX.E
     }, 1000);
 
     return () => window.clearInterval(tick);
-  }, [open, onSkip]);
+  }, [open]);
 
-  // Любое касание списка снимает автозакрытие: человек начал отвечать.
-  const stopCountdown = (): void => setLeft(0);
+  const canSkip = left === 0;
+  // Пока отсчёт идёт, закрыть шторку нечем: ни фоном, ни системной «назад».
+  // Иначе задержка на кнопке ничего не значила бы.
+  const handleClose = (): void => {
+    if (canSkip) onSkip();
+  };
 
   return (
-    <Sheet open={open} title={t('drain.title')} onClose={onSkip}>
+    <Sheet open={open} title={t('drain.title')} onClose={handleClose}>
       <p className="drain__hint">{t('drain.hint')}</p>
 
-      <ul className="drain__list" onPointerDown={stopCountdown}>
+      <ul className="drain__list">
         {priorities.map((priority) => (
           <li key={priority.id}>
             <button
@@ -84,9 +87,9 @@ export function DrainSheet({ open, priorities, onAnswer, onSkip }: Props): JSX.E
         </li>
       </ul>
 
-      <button className="drain__skip" type="button" onClick={onSkip}>
+      <button className="drain__skip" type="button" disabled={!canSkip} onClick={onSkip}>
         {t('drain.skip')}
-        {left > 0 && <span className="drain__count">{left}</span>}
+        {!canSkip && <span className="drain__count">{left}</span>}
       </button>
     </Sheet>
   );

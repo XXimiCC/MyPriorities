@@ -202,6 +202,42 @@ export function clickStreak(journal: Journal, now: Date = new Date()): number {
   return streak;
 }
 
+/** Самая длинная цепочка идущих подряд дат в списке. Порядок входа не важен. */
+export function longestRun(days: DayKey[]): number {
+  const sorted = [...days].sort();
+  let best = 0;
+  let run = 0;
+  let previous: DayKey | undefined;
+
+  for (const day of sorted) {
+    const continues = previous !== undefined && dayKey(addDays(parseDayKey(previous), 1)) === day;
+    run = continues ? run + 1 : 1;
+    previous = day;
+    if (run > best) best = run;
+  }
+  return best;
+}
+
+/** Дни, в которые набралось не меньше указанного числа блоков. */
+export function daysWithBlocks(journal: Journal, min = 1): DayKey[] {
+  return Object.keys(journal.clicks).filter((day) => {
+    const entry = journal.clicks[day];
+    if (!entry) return false;
+    const blocks = Object.values(entry).reduce((sum, n) => sum + (n > 0 ? n : 0), 0);
+    return blocks >= min;
+  });
+}
+
+/**
+ * Самая длинная серия за всю историю, а не текущая.
+ *
+ * Нужна достижениям: трофей за тридцать дней подряд не должен исчезать в тот
+ * день, когда серия прервалась. Пропущенный день рвёт серию — в этом и смысл.
+ */
+export function bestStreak(journal: Journal): number {
+  return longestRun(daysWithBlocks(journal));
+}
+
 // --- Батарея -----------------------------------------------------------------
 
 export interface BatteryStats {

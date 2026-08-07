@@ -183,18 +183,50 @@ export const haptics = {
 
 // --- Кнопка «назад» ----------------------------------------------------------
 
+/**
+ * Кнопка «назад» — стек, а не одиночный обработчик.
+ *
+ * Экраны вкладываются: поверх вложенного экрана открывается шторка, поверх неё
+ * может открыться ещё одна. Если просто вешать обработчики один на другой, то
+ * нажатие «назад» срабатывает сразу на всех, а закрытие верхнего слоя прячет
+ * кнопку, хотя нижний ещё открыт. Поэтому активен всегда ровно один обработчик —
+ * верхний, — а кнопка прячется только когда стек опустел.
+ */
+const backStack: Array<() => void> = [];
+let boundHandler: (() => void) | undefined;
+
+function syncBackButton(): void {
+  if (!webApp) return;
+  const top = backStack[backStack.length - 1];
+
+  if (boundHandler && boundHandler !== top) {
+    webApp.BackButton.offClick(boundHandler);
+    boundHandler = undefined;
+  }
+  if (top && boundHandler !== top) {
+    webApp.BackButton.onClick(top);
+    boundHandler = top;
+  }
+
+  if (top) webApp.BackButton.show();
+  else webApp.BackButton.hide();
+}
+
 export const backButton = {
   show(handler: () => void): () => void {
     if (!webApp) return () => {};
-    webApp.BackButton.onClick(handler);
-    webApp.BackButton.show();
+    backStack.push(handler);
+    syncBackButton();
+
     return () => {
-      webApp.BackButton.offClick(handler);
-      webApp.BackButton.hide();
+      const index = backStack.lastIndexOf(handler);
+      if (index >= 0) backStack.splice(index, 1);
+      syncBackButton();
     };
   },
   hide(): void {
-    webApp?.BackButton.hide();
+    backStack.length = 0;
+    syncBackButton();
   },
 };
 

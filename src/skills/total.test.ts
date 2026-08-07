@@ -1,0 +1,120 @@
+import { describe, expect, it } from 'vitest';
+
+import type { ClicksMap } from '../domain/types';
+import { skillBlocksOn, skillMinutes, skillTotals, targetOf, totalMinutes } from './total';
+import type { Skill } from './types';
+
+const skill = (patch: Partial<Skill> = {}): Skill => ({
+  id: 'g1',
+  title: 'Гитара',
+  colorId: 0,
+  baseMinutes: 0,
+  carryBlocks: 0,
+  ...patch,
+});
+
+const ctx = (patch: { skillClicks?: ClicksMap; clicks?: ClicksMap; blockMinutes?: number } = {}) => ({
+  skillClicks: patch.skillClicks ?? {},
+  clicks: patch.clicks ?? {},
+  blockMinutes: patch.blockMinutes ?? 30,
+});
+
+describe('часы навыка', () => {
+  it('складывает стартовый капитал, свёрнутые месяцы и блоки истории', () => {
+    const minutes = skillMinutes(
+      skill({ baseMinutes: 600, carryBlocks: 4 }),
+      ctx({ skillClicks: { '2026-07-01': { g1: 2 }, '2026-07-02': { g1: 1 } } }),
+    );
+    // 600 + (4 + 3) × 30
+    expect(minutes).toBe(810);
+  });
+
+  it('стартовый капитал ценой блока не переоценивается, а блоки — да', () => {
+    const target = skill({ baseMinutes: 600, carryBlocks: 2 });
+    const clicks = { skillClicks: { '2026-07-01': { g1: 2 } } };
+
+    expect(skillMinutes(target, ctx({ ...clicks, blockMinutes: 30 }))).toBe(600 + 4 * 30);
+    expect(skillMinutes(target, ctx({ ...clicks, blockMinutes: 60 }))).toBe(600 + 4 * 60);
+  });
+
+  it('чужие id в журнале не засчитываются', () => {
+    const minutes = skillMinutes(skill(), ctx({ skillClicks: { '2026-07-01': { g1: 1, g2: 9 } } }));
+    expect(minutes).toBe(30);
+  });
+});
+
+describe('привязка к приоритету', () => {
+  const own: ClicksMap = { '2026-07-01': { g1: 3 } };
+  const priority: ClicksMap = { '2026-06-01': { ab: 10 }, '2026-07-01': { ab: 5, cd: 7 } };
+
+  it('добавляет часы приоритета к собственным, а не заменяет их', () => {
+    const linked = skill({ linkedPriorityId: 'ab' });
+    // Свои 3 блока плюс 15 блоков приоритета.
+    expect(skillMinutes(linked, ctx({ skillClicks: own, clicks: priority }))).toBe(18 * 30);
+  });
+
+  it('отвязка возвращает ровно то, что было до привязки', () => {
+    const before = skillMinutes(skill(), ctx({ skillClicks: own, clicks: priority }));
+    const linked = skillMinutes(
+      skill({ linkedPriorityId: 'ab' }),
+      ctx({ skillClicks: own, clicks: priority }),
+    );
+    const after = skillMinutes(skill(), ctx({ skillClicks: own, clicks: priority }));
+
+    expect(linked).toBeGreaterThan(before);
+    expect(after).toBe(before);
+  });
+
+  it('засчитывает историю приоритета целиком, а не с момента привязки', () => {
+    // Июньские блоки приоритета попадают в навык так же, как июльские:
+    // «Работа» и «Программирование» — это одно и то же время, и оно всё считается.
+    const linked = skill({ linkedPriorityId: 'ab' });
+    expect(skillMinutes(linked, ctx({ clicks: priority }))).toBe(15 * 30);
+  });
+
+  it('часы архивного приоритета продолжают считаться', () => {
+    // Приоритет удалён и лежит в архиве, но его журнал никуда не делся.
+    const linked = skill({ linkedPriorityId: 'ab' });
+    expect(skillMinutes(linked, ctx({ clicks: priority }))).toBeGreaterThan(0);
+    expect(targetOf(linked, new Set())).toEqual({ kind: 'skill' });
+  });
+
+  it('«плюс» живой привязки уходит приоритету, чтобы время не считалось дважды', () => {
+    expect(targetOf(skill({ linkedPriorityId: 'ab' }), new Set(['ab']))).toEqual({
+      kind: 'priority',
+      id: 'ab',
+    });
+    expect(targetOf(skill(), new Set(['ab']))).toEqual({ kind: 'skill' });
+  });
+});
+
+describe('блоки за день', () => {
+  it('считает свои и привязанные вместе', () => {
+    const linked = skill({ linkedPriorityId: 'ab' });
+    const context = ctx({
+      skillClicks: { '2026-07-01': { g1: 2 } },
+      clicks: { '2026-07-01': { ab: 3 } },
+    });
+    expect(skillBlocksOn(linked, context, '2026-07-01')).toBe(5);
+    expect(skillBlocksOn(linked, context, '2026-07-02')).toBe(0);
+  });
+});
+
+describe('сводка', () => {
+  it('ступень берётся из накопленных минут', () => {
+    const totals = skillTotals(
+      [skill({ id: 'g1', baseMinutes: 100 * 60 }), skill({ id: 'g2', baseMinutes: 0 })],
+      ctx(),
+    );
+    expect(totals[0]!.progress.level.rank).toBe('skilled');
+    expect(totals[1]!.progress.level.rank).toBe('none');
+  });
+
+  it('сумма по всем навыкам складывается из их минут', () => {
+    const totals = skillTotals(
+      [skill({ id: 'g1', baseMinutes: 600 }), skill({ id: 'g2', baseMinutes: 900 })],
+      ctx(),
+    );
+    expect(totalMinutes(totals)).toBe(1500);
+  });
+});

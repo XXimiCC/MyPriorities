@@ -43,12 +43,16 @@ h1,
 h2,
 h3,
 p,
-ul {
+ul,
+ol {
   margin: 0;
   padding: 0;
 }
 
-ul {
+/* ol обязателен наравне с ul: у нумерованного списка свой отступ слева в 40px,
+   и без сброса он оставлял пустую полосу рядом со списком приоритетов в наборе. */
+ul,
+ol {
   list-style: none;
 }
 
@@ -192,7 +196,12 @@ ul {
   z-index: 20;
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: 1fr;
+  /*
+   * Именно minmax(0, 1fr), а не 1fr: последнее означает minmax(auto, 1fr), то
+   * есть колонка не сжимается уже своего содержимого. Внутри — неразрывное
+   * «СТАТИСТИКА», и при пяти вкладках на узком экране бар вылезал бы за край.
+   */
+  grid-auto-columns: minmax(0, 1fr);
   height: calc(var(--tabbar-h) + var(--safe-bottom) + var(--tg-content-bottom));
   padding-bottom: calc(var(--safe-bottom) + var(--tg-content-bottom));
   background: rgba(0, 0, 0, 0.94);
@@ -202,6 +211,8 @@ ul {
 }
 
 .tabbar__item {
+  min-width: 0;
+  padding: 0 2px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -212,6 +223,25 @@ ul {
   text-transform: uppercase;
   color: var(--text-faint);
   transition: color 0.16s ease;
+}
+
+.tabbar__label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Пятая вкладка забирает пятую часть ширины — подписи и значки ужимаются. */
+.tabbar--five .tabbar__item {
+  font-size: 9px;
+  letter-spacing: 0.02em;
+  gap: 3px;
+}
+
+.tabbar--five .tabbar__item svg {
+  width: 20px;
+  height: 20px;
 }
 
 .tabbar__item svg {

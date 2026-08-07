@@ -22,6 +22,20 @@ export interface Priority {
   colorId: number;
 }
 
+/**
+ * Части приложения, которые включаются и выключаются целиком.
+ *
+ * Выключенный модуль исчезает из интерфейса, но своих данных не теряет:
+ * тумблер — это про внимание, а не про сброс. Поэтому каталог навыков и
+ * достижения читаются из хранилища всегда, независимо от флага.
+ */
+export interface Modules {
+  skills: boolean;
+  achievements: boolean;
+}
+
+export const DEFAULT_MODULES: Modules = { skills: true, achievements: true };
+
 export interface Settings {
   version: 1;
   priorities: Priority[];
@@ -36,6 +50,12 @@ export interface Settings {
    * «клик = столько-то минут» должно быть верно и для вчерашних записей.
    */
   blockMinutes: number;
+  /**
+   * Поле обязательное намеренно: тогда каждое место, где настройки собираются
+   * литералом, — ошибка компиляции, и забыть его нельзя. Толерантность к старым
+   * записям обеспечивает modulesOf, а не необязательность типа.
+   */
+  modules: Modules;
 }
 
 export function blockMinutesOf(settings: Settings): number {
@@ -43,8 +63,29 @@ export function blockMinutesOf(settings: Settings): number {
   return Number.isFinite(value) && value > 0 ? value : DEFAULT_BLOCK_MINUTES;
 }
 
+/**
+ * Приводит что угодно к набору флагов. Запись, сделанная до появления модулей,
+ * читается как «всё включено»: новая возможность должна показаться сама,
+ * а не ждать, пока её найдут в настройках.
+ */
+export function sanitizeModules(raw: unknown): Modules {
+  const value = (typeof raw === 'object' && raw !== null ? raw : {}) as Partial<Modules>;
+  return {
+    skills: typeof value.skills === 'boolean' ? value.skills : DEFAULT_MODULES.skills,
+    achievements:
+      typeof value.achievements === 'boolean' ? value.achievements : DEFAULT_MODULES.achievements,
+  };
+}
+
+export function modulesOf(settings: Settings): Modules {
+  return sanitizeModules(settings.modules);
+}
+
 /** Клики за один день: id приоритета → количество блоков. */
 export type DayClicks = Record<string, number>;
+
+/** Клики по дням. Форма общая: так лежат и приоритеты, и навыки. */
+export type ClicksMap = Record<DayKey, DayClicks>;
 
 /**
  * Смена состояния батареи: минуты от локальной полуночи, новый уровень и —
@@ -62,7 +103,7 @@ export type DayKey = string;
 
 export interface Journal {
   /** Клики по дням за все загруженные месяцы. */
-  clicks: Record<DayKey, DayClicks>;
+  clicks: ClicksMap;
   /** Переходы батареи по дням, внутри дня отсортированы по возрастанию минут. */
   battery: Record<DayKey, BatteryShift[]>;
 }

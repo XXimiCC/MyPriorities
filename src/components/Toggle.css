@@ -1,0 +1,81 @@
+/* Строка-переключатель. Внешне продолжает .sset__row, но живёт отдельно:
+   тумблеры нужны не только настройкам. */
+
+.tgl {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 8px;
+  padding: 14px 16px;
+  border-radius: var(--r-md);
+  text-align: left;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+.tgl:disabled {
+  opacity: 0.5;
+}
+
+.tgl__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.tgl__text b {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.tgl__text small {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--text-faint);
+}
+
+.tgl__track {
+  position: relative;
+  flex: none;
+  width: 46px;
+  height: 28px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  transition: background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.tgl__knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--text-faint);
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), background 0.18s ease;
+}
+
+/* Включённый тумблер — единственное зелёное пятно в настройках, поэтому берёт
+   цвет полного заряда: он уже означает «всё в порядке» на других экранах. */
+.tgl--on .tgl__track {
+  background: color-mix(in srgb, var(--battery-high) 26%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--battery-high) 55%, transparent);
+}
+
+.tgl--on .tgl__knob {
+  transform: translateX(18px);
+  background: var(--battery-high);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--battery-high) 70%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tgl__track,
+  .tgl__knob {
+    transition: none;
+  }
+}

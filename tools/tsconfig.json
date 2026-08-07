@@ -1,0 +1,16 @@
+{
+  "//": "Только для редактора: корневой tsconfig включает лишь src, поэтому tsc --noEmit сюда не заходит, а TS-сервер без этого файла считал бы docs.test.ts осиротевшим.",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022"],
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "types": ["node", "vitest/globals"]
+  },
+  "include": ["**/*.ts", "**/*.mjs"]
+}

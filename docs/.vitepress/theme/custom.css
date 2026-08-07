@@ -1,0 +1,110 @@
+/*
+ * Тема документации.
+ *
+ * Значения не выдуманы: все цвета и шрифт скопированы из src/styles/tokens.css,
+ * чтобы сайт и приложение читались как одна вещь. Если токен в приложении
+ * поменяется, поменять надо и здесь — автоматической связи нет и не должно быть:
+ * документация переживает рефакторинги приложения и не обязана падать вместе с ним.
+ */
+
+:root {
+  /* --- Поверхности: --bg / --surface / --surface-2 --- */
+  --vp-c-bg: #000000;
+  --vp-c-bg-alt: #0a0a0b;
+  --vp-c-bg-soft: #121214;
+  --vp-c-bg-elv: #0a0a0b;
+
+  --vp-c-divider: rgba(255, 255, 255, 0.09);
+  --vp-c-border: rgba(255, 255, 255, 0.09);
+  --vp-c-gutter: rgba(255, 255, 255, 0.09);
+
+  /* --- Текст: --text / --text-dim / --text-faint --- */
+  --vp-c-text-1: #f4f4f5;
+  --vp-c-text-2: rgba(244, 244, 245, 0.62);
+  --vp-c-text-3: rgba(244, 244, 245, 0.34);
+
+  /* --- Акцент: --p0, тот же зелёный, что у полного заряда --- */
+  --vp-c-brand-1: #22e356;
+  --vp-c-brand-2: #6bf58f;
+  --vp-c-brand-3: #22e356;
+  --vp-c-brand-soft: rgba(34, 227, 86, 0.14);
+
+  --vp-c-tip-1: var(--vp-c-brand-1);
+  --vp-c-tip-soft: var(--vp-c-brand-soft);
+
+  /* Предупреждение — жёлтый средней батареи, опасность — красный низкой. */
+  --vp-c-warning-1: #ffd400;
+  --vp-c-warning-soft: rgba(255, 212, 0, 0.14);
+  --vp-c-danger-1: #ff2b3d;
+  --vp-c-danger-soft: rgba(255, 43, 61, 0.14);
+
+  --vp-font-family-base: 'Inter Tight', Inter, system-ui, -apple-system, 'Segoe UI', Roboto,
+    sans-serif;
+
+  --vp-home-hero-name-color: #22e356;
+  --vp-button-brand-bg: #22e356;
+  --vp-button-brand-hover-bg: #6bf58f;
+  --vp-button-brand-text: #000000;
+  --vp-button-brand-active-bg: #22e356;
+}
+
+/*
+ * Неон живёт ровно на одном элементе — имени в hero. На сплошном тексте свечение
+ * съедает читаемость, ради которой документация и пишется.
+ */
+.VPHero .name {
+  text-shadow:
+    0 0 14px rgba(34, 227, 86, 0.45),
+    0 0 34px rgba(34, 227, 86, 0.22);
+}
+
+/*
+ * Скриншоты — вертикальные кадры 780×1688. Без ограничения по ширине они
+ * растягиваются на всю колонку и выглядят как постеры, а не как телефон.
+ */
+.vp-doc img[src^='/shots/'] {
+  display: block;
+  max-width: 300px;
+  width: 100%;
+  margin: 20px 0;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.6),
+    0 18px 48px rgba(0, 0, 0, 0.6);
+}
+
+/* Кропы (шапка, строка списка, блок настроек) шире и ниже — рамка телефона им не идёт. */
+.vp-doc img[src^='/shots/'][alt$='—кроп'],
+.vp-doc img[src*='-crop'] {
+  max-width: 420px;
+  border-radius: 12px;
+}
+
+/*
+ * Две картинки рядом — для сравнения состояний («до»/«после», включённый и
+ * выключенный модуль). Пишется как обычный абзац из двух изображений подряд.
+ */
+.vp-doc .shots-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.vp-doc .shots-row img {
+  margin: 0;
+  max-width: 240px;
+}
+
+/* Подпись под картинкой: тот же приглушённый тон, что у второстепенного текста. */
+.vp-doc .shot-caption {
+  margin-top: -8px;
+  font-size: 13px;
+  color: var(--vp-c-text-3);
+}
+
+/* Ссылки на файлы исходников внутри «Как это работает внутри» — моноширинные. */
+.vp-doc .details code {
+  font-size: 0.85em;
+}

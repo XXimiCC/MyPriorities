@@ -1,0 +1,9 @@
+{
+  "//": "Playwright живёт здесь, а не в корне: его install-скрипт качает ~150 МБ браузеров, и в корневом package.json это добавилось бы к каждой сборке приложения на Vercel.",
+  "name": "my-priorities-shots",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "playwright": "1.62.1"
+  }
+}

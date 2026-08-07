@@ -1,0 +1,15 @@
+{
+  "//": "Только чтобы редактор не считал config.mts осиротевшим файлом. На сборку не влияет: корневой tsconfig включает лишь src, а vitepress типы не проверяет.",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
+    "types": ["vite/client"]
+  },
+  "include": [".vitepress/**/*.ts", ".vitepress/**/*.mts", ".vitepress/**/*.vue"]
+}

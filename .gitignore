@@ -1,6 +1,10 @@
 node_modules/
 dist/
 
+# Кэш VitePress. dist/ выше без ведущего слэша, поэтому docs/.vitepress/dist
+# он уже покрывает, а cache/ — нет.
+docs/.vitepress/cache/
+
 # Снимки расширения VS Code Local History — дубликаты рабочих файлов.
 .history/
 

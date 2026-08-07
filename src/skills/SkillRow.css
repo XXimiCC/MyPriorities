@@ -67,8 +67,7 @@
 .srow__foot {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   font-size: 11.5px;
   font-variant-numeric: tabular-nums;
 }
@@ -78,7 +77,14 @@
   color: var(--text-dim);
 }
 
+/* Прибавка за выбранный период. Стоит рядом с накопленным, а не вместо него:
+   «1 640 ч» отвечает на «где я», «+2 ч» — на «двигаюсь ли». */
+.srow__period {
+  color: var(--accent);
+}
+
 .srow__next {
+  margin-left: auto;
   color: var(--text-faint);
 }
 

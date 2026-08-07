@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 
+import { awardProgress } from '../achievements/evaluate';
+import { Toggle } from '../components/Toggle';
 import { formatDayShort, formatMinutes } from '../domain/date';
 import { findPreset } from '../domain/presets';
 import { computeStats, earliestDay, periodDays } from '../domain/stats';
-import { BLOCK_OPTIONS, PERIODS, blockMinutesOf } from '../domain/types';
+import { BLOCK_OPTIONS, PERIODS, blockMinutesOf, modulesOf } from '../domain/types';
 import { plural, t } from '../i18n';
 import { MOCK_MODE } from '../store/mock';
 import { RETENTION_MONTHS, SnapshotError } from '../store/persistence';
@@ -17,14 +19,17 @@ const ALL_TIME = PERIODS.find((p) => p.id === 'all')!;
 
 interface Props {
   onPresets(): void;
+  onAchievements(): void;
 }
 
-export function SettingsScreen({ onPresets }: Props): JSX.Element {
-  const { settings, journal, actions } = useStore();
+export function SettingsScreen({ onPresets, onAchievements }: Props): JSX.Element {
+  const { settings, journal, awards, actions } = useStore();
   const [busy, setBusy] = useState(false);
   const [homeStatus, setHomeStatus] = useState<string>('unsupported');
 
   const blockMinutes = blockMinutesOf(settings);
+  const modules = modulesOf(settings);
+  const achievements = awardProgress(awards, modules.skills);
   const totals = useMemo(
     () => computeStats(settings, journal, periodDays(ALL_TIME, journal)),
     [settings, journal],
@@ -71,6 +76,7 @@ export function SettingsScreen({ onPresets }: Props): JSX.Element {
       const json = actions.exportData();
       const blob = new Blob([json], { type: 'application/json' });
       const outcome = await saveFile(blob, 'my-priorities-backup.json', 'application/json');
+      actions.award('r2');
       if (outcome !== 'manual') return;
 
       // Долгое нажатие спасает картинку, но не JSON. Буфер обмена — единственный
@@ -91,6 +97,7 @@ export function SettingsScreen({ onPresets }: Props): JSX.Element {
         if (!ok) return;
         const restored = await actions.importData(text);
         const days = Object.keys(restored.journal.clicks).length;
+        actions.award('r3');
         haptics.success();
         await alertDialog(
           t('settings.importDone', {
@@ -132,6 +139,46 @@ export function SettingsScreen({ onPresets }: Props): JSX.Element {
         </button>
 
         <div className="divider-label">
+          <span>{t('settings.modulesTitle')}</span>
+        </div>
+
+        <Toggle
+          label={t('settings.moduleSkills')}
+          note={t('settings.moduleSkillsNote')}
+          checked={modules.skills}
+          onChange={(next) => void actions.setModule('skills', next)}
+        />
+        <Toggle
+          label={t('settings.moduleAchievements')}
+          note={t('settings.moduleAchievementsNote')}
+          checked={modules.achievements}
+          onChange={(next) => void actions.setModule('achievements', next)}
+        />
+
+        {modules.achievements && (
+          <button className="sset__row press sset__gap" type="button" onClick={onAchievements}>
+            {/* Значок нужен, чтобы строка не терялась среди тумблеров: достижения
+                живут только здесь, и найти их должно быть легко. */}
+            <span className="sset__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M8 4h8v5a4 4 0 01-8 0z" />
+                <path d="M8 5H5v2a3 3 0 003 3M16 5h3v2a3 3 0 01-3 3" />
+                <path d="M12 13v4M9 20h6M10 17h4l1 3H9z" />
+              </svg>
+            </span>
+            <span className="sset__row-text">
+              <b>{t('settings.achievementsRow')}</b>
+              <small>{t('settings.achievementsCount', achievements)}</small>
+            </span>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true">
+              <path d="M9 5l7 7-7 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        )}
+
+        <p className="sset__note">{t('settings.moduleOff')}</p>
+
+        <div className="divider-label">
           <span>{t('settings.blockTitle')}</span>
         </div>
 
@@ -145,6 +192,7 @@ export function SettingsScreen({ onPresets }: Props): JSX.Element {
                 if (option === blockMinutes) return;
                 haptics.select();
                 actions.setBlockMinutes(option);
+                actions.award('r9');
               }}
             >
               {option} <small>{t('settings.blockUnit')}</small>
@@ -222,7 +270,12 @@ export function SettingsScreen({ onPresets }: Props): JSX.Element {
             onClick={() => {
               haptics.tap();
               homeScreen.add();
-              window.setTimeout(() => void homeScreen.status().then(setHomeStatus), 3000);
+              window.setTimeout(() => {
+                void homeScreen.status().then((status) => {
+                  setHomeStatus(status);
+                  if (status === 'added') actions.award('r4');
+                });
+              }, 3000);
             }}
           >
             {t('settings.homeScreen')}

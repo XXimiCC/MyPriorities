@@ -1,0 +1,38 @@
+import { NEON_PALETTE, type NeonColor } from '../domain/palette';
+import type { GroupId } from './types';
+
+/**
+ * По одному значку на группу, а не на каждое достижение.
+ *
+ * Семьдесят пять нарисованных значков — это неделя работы и визуальный шум:
+ * в списке они сливаются в рябь, и отличить трофей от трофея всё равно можно
+ * только по подписи. Группа же читается с одного взгляда.
+ */
+export const GROUP_ICONS: Record<GroupId, string[]> = {
+  start: ['M12 4v16M4 12h16'],
+  hours: ['M12 21a9 9 0 100-18 9 9 0 000 18', 'M12 7v5l3.5 2'],
+  streak: ['M12 3c3 4 5 6 5 9a5 5 0 01-10 0c0-3 2-5 5-9', 'M12 21a3 3 0 003-3c0-2-1.5-3-3-5-1.5 2-3 3-3 5a3 3 0 003 3'],
+  discipline: ['M5 12l4.5 4.5L19 7'],
+  balance: ['M12 4v16', 'M4 9h16', 'M4 9l-2 5a3 3 0 006 0zM20 9l2 5a3 3 0 01-6 0z'],
+  charge: ['M3 8h13v8H3zM16 10.5h3v3h-3', 'M7 10.5h4v3H7'],
+  skills: ['M12 4l9 4.5-9 4.5-9-4.5z', 'M6 11v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5'],
+  ritual: ['M12 15a3 3 0 100-6 3 3 0 000 6', 'M12 2.8l1.5 2.3 2.7-.5.6 2.7 2.4 1.3-1.4 2.4 1.4 2.4-2.4 1.3-.6 2.7-2.7-.5L12 21.2l-1.5-2.3-2.7.5-.6-2.7-2.4-1.3L6.2 13l-1.4-2.4 2.4-1.3.6-2.7 2.7.5z'],
+  life: ['M12 20s-7-4.6-7-9.4A4 4 0 0112 8a4 4 0 017 2.6C19 15.4 12 20 12 20z'],
+};
+
+/** Цвет группы из общей палитры: отдельных токенов ради девяти строк заводить не за что. */
+const GROUP_COLOR_ID: Record<GroupId, number> = {
+  start: 1,
+  hours: 2,
+  streak: 6,
+  discipline: 0,
+  balance: 8,
+  charge: 7,
+  skills: 3,
+  ritual: 4,
+  life: 9,
+};
+
+export function accentOf(group: GroupId): NeonColor {
+  return NEON_PALETTE[GROUP_COLOR_ID[group]] ?? NEON_PALETTE[0]!;
+}

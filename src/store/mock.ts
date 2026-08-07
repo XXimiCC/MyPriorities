@@ -8,8 +8,9 @@
 
 import { addDays, dayKey } from '../domain/date';
 import { BASIC_PRESET_ID } from '../domain/presets';
-import type { BatteryLevel, BatteryShift, Journal, Settings } from '../domain/types';
-import { defaultSettings } from './persistence';
+import type { BatteryLevel, BatteryShift, ClicksMap, Journal, Settings } from '../domain/types';
+import type { SkillsState } from '../skills/types';
+import { defaultSettings, type AwardMap } from './persistence';
 
 export const MOCK_MODE = new URLSearchParams(window.location.search).has('mock');
 
@@ -22,7 +23,13 @@ function makeRandom(seed: number): () => number {
   };
 }
 
-export function buildMockData(now: Date = new Date()): { settings: Settings; journal: Journal } {
+export function buildMockData(now: Date = new Date()): {
+  settings: Settings;
+  journal: Journal;
+  skills: SkillsState;
+  skillClicks: ClicksMap;
+  awards: AwardMap;
+} {
   const settings = defaultSettings();
   settings.onboarded = true;
   settings.presetId = BASIC_PRESET_ID;
@@ -61,5 +68,47 @@ export function buildMockData(now: Date = new Date()): { settings: Settings; jou
     if (shifts.length > 0) journal.battery[day] = shifts;
   }
 
-  return { settings, journal };
+  /*
+   * Навыки подобраны так, чтобы на экране были видны все состояния лестницы:
+   * привязанный к приоритету, самостоятельный с большим стартовым капиталом и
+   * едва начатый. Первый приоритет набора — «Работа», к нему и привязываемся.
+   */
+  const workId = settings.priorities[0]?.id;
+  const skills: SkillsState = {
+    skills: [
+      {
+        id: 'g1',
+        title: 'Гитара',
+        colorId: 3,
+        baseMinutes: 1640 * 60,
+        carryBlocks: 0,
+        startedOn: '2014-06-01',
+      },
+      {
+        id: 'g2',
+        title: 'Программирование',
+        colorId: 1,
+        baseMinutes: 4800 * 60,
+        carryBlocks: 0,
+        ...(workId ? { linkedPriorityId: workId } : {}),
+      },
+      { id: 'g3', title: 'Английский', colorId: 8, baseMinutes: 12 * 60, carryBlocks: 0 },
+    ],
+    archived: [],
+  };
+
+  const skillClicks: ClicksMap = {};
+  for (let back = 20; back >= 0; back -= 1) {
+    if (random() < 0.4) continue;
+    const day = dayKey(addDays(now, -back));
+    const entry: Record<string, number> = { g1: 1 + Math.floor(random() * 3) };
+    if (random() < 0.5) entry.g3 = 1;
+    skillClicks[day] = entry;
+  }
+
+  // Достижения оставляем на автоматическую выдачу — она отработает на этих же
+  // данных. Руками отмечаем только то, что из журнала не выводится.
+  const awards: AwardMap = { m1: dayKey(addDays(now, -120)), r1: dayKey(addDays(now, -30)) };
+
+  return { settings, journal, skills, skillClicks, awards };
 }

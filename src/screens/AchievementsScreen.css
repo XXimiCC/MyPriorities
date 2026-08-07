@@ -1,0 +1,150 @@
+/* Переключатель фильтров берёт готовые классы .pswitch из PeriodSwitch.css:
+   форма та же, а заводить второй набор правил ради трёх кнопок незачем. */
+
+.ach__counter {
+  flex: none;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--tracking-wide);
+  color: var(--text-faint);
+}
+
+/* Сетка карточек: две колонки — предел, при котором название ещё читается
+   целиком, а не превращается в столбик из переносов. */
+.ach__grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.ach__card {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 14px 13px;
+  border-radius: var(--r-md);
+  text-align: left;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+/* Закрытое достижение приглушено, но не спрятано: видеть, что впереди, — часть смысла. */
+.ach__card svg {
+  width: 22px;
+  height: 22px;
+  color: var(--text-faint);
+}
+
+.ach__card b {
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text-dim);
+}
+
+.ach__card small {
+  margin-top: auto;
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+
+.ach__card--on {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 38%, transparent);
+}
+
+.ach__card--on svg {
+  color: var(--accent);
+  filter: drop-shadow(0 0 6px currentColor);
+}
+
+.ach__card--on b {
+  color: var(--text);
+}
+
+.ach__card--on small {
+  color: var(--accent);
+}
+
+.ach__legend {
+  margin: 22px 2px 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-faint);
+}
+
+/* --- Шторка достижения --- */
+
+.achs {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.achs__badge {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  margin-bottom: 14px;
+  border-radius: 22px;
+  color: var(--text-faint);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+.achs__badge svg {
+  width: 34px;
+  height: 34px;
+}
+
+.achs__badge--on {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent),
+    0 0 26px color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+.achs__badge--on svg {
+  filter: drop-shadow(0 0 8px currentColor);
+}
+
+.achs__title {
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.achs__note {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+.achs__meta {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--accent);
+}
+
+.achs__kind {
+  margin: 4px 0 18px;
+  font-size: 11px;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.achs .edit__add {
+  width: 100%;
+}
+
+.achs__gap {
+  margin-top: 10px;
+}

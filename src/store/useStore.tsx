@@ -213,7 +213,12 @@ export interface StoreActions {
   /** Включает или выключает модуль. Включение навыков ждёт догрузки их истории. */
   setModule(id: keyof Modules, on: boolean): Promise<void>;
 
-  addSkill(input: { title: string; baseHours?: number; startedOn?: DayKey }): Skill | undefined;
+  addSkill(input: {
+    title: string;
+    baseHours?: number;
+    colorId?: number;
+    startedOn?: DayKey;
+  }): Skill | undefined;
   updateSkill(
     id: string,
     patch: Partial<Pick<Skill, 'title' | 'colorId' | 'baseMinutes' | 'startedOn'>>,
@@ -636,12 +641,11 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       },
 
       async setModule(id, on) {
-        const current = latest.current.settings;
-        const modules = { ...modulesOf(current), [id]: on };
-        commitSettings({ ...current, modules });
-
-        // Историю навыков могли не читать при старте — доносим её до того, как
-        // экран позволит нажать «+», иначе первая же запись затрёт облако.
+        /*
+         * История навыков доносится ДО того, как включится флаг: иначе вкладка
+         * появится раньше данных, и клик, сделанный в эту щель, потеряется —
+         * пришедшая следом карта заменит собой оптимистичную запись.
+         */
         if (id === 'skills' && on && !latest.current.skillsLoaded && !MOCK_MODE) {
           try {
             const clicks = await loadSkillClicks(monthsToLoad());
@@ -650,9 +654,12 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             console.warn('[store] история навыков не догрузилась', error);
           }
         }
+
+        const current = latest.current.settings;
+        commitSettings({ ...current, modules: { ...modulesOf(current), [id]: on } });
       },
 
-      addSkill({ title, baseHours, startedOn }) {
+      addSkill({ title, baseHours, colorId, startedOn }) {
         const current = latest.current.skills;
         if (current.skills.length >= MAX_SKILLS) return undefined;
         const trimmed = title.trim();
@@ -670,7 +677,10 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         const skill: Skill = revived ?? {
           id: newShortId(taken),
           title: trimmed,
-          colorId: nextFreeColorId(current.skills.map((s) => s.colorId)),
+          // Цвет приходит из формы; без него берётся первый незанятый.
+          colorId: Number.isFinite(colorId) && colorId! >= 0
+            ? colorId!
+            : nextFreeColorId(current.skills.map((s) => s.colorId)),
           baseMinutes: Number.isFinite(hours) && hours > 0 ? Math.round(hours * 60) : 0,
           carryBlocks: 0,
           ...(startedOn ? { startedOn } : {}),

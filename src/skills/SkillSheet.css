@@ -1,0 +1,197 @@
+/* Шторка навыка: где он сейчас, лестница и настройки. */
+
+/* Собственный вертикальный ритм: поля, палитра и списки идут подряд, и без
+   общего зазора кружки цветов упирались в поле ввода вплотную. */
+.sksheet {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Разделители задают отступ сами — свой зазор им только мешает. */
+.sksheet .divider-label {
+  margin: 10px 0 0;
+}
+
+/* Пояснение относится к полю над собой, поэтому липнет к нему. */
+.sksheet__note + .sksheet__field,
+.sksheet__field + .sksheet__note {
+  margin-top: -6px;
+}
+
+/* Кружку цвета есть куда расти при выборе: он масштабируется на 8%. */
+.sksheet .picker {
+  padding: 4px 0;
+}
+
+.sksheet__now {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 0 14px;
+  text-align: center;
+}
+
+.sksheet__rank {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+  color: var(--accent);
+  text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+.sksheet__hours {
+  font-size: 30px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.sksheet__now small {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+/* Лестница целиком: пройденное приглушено, текущая ступень подсвечена. */
+.sksheet__ladder {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.sksheet__step {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: var(--r-sm);
+  font-size: 12.5px;
+  color: var(--text-faint);
+}
+
+.sksheet__step-hours {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.sksheet__step--done {
+  color: var(--text-dim);
+}
+
+.sksheet__step--now {
+  color: var(--text);
+  font-weight: 600;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 42%, transparent);
+}
+
+.sksheet__more {
+  align-self: center;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-faint);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+.sksheet__field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.sksheet__field input {
+  flex: none;
+  width: 46%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--r-sm);
+  text-align: right;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
+  /* Стрелки числового поля на тёмном фоне выглядят инородно и мешают попадать пальцем. */
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.sksheet__field input::-webkit-outer-spin-button,
+.sksheet__field input::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.sksheet__note {
+  margin: 0 2px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-faint);
+}
+
+.sksheet__warn {
+  color: var(--battery-mid);
+}
+
+.sksheet__linked {
+  margin: 0 2px;
+  font-size: 12.5px;
+  color: var(--accent);
+}
+
+.sksheet__links {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sksheet__link {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  border-radius: var(--r-sm);
+  text-align: left;
+  font-size: 13px;
+  color: var(--text-dim);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+.sksheet__link small {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.sksheet__link--on {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+}
+
+.sksheet__delete {
+  width: 100%;
+  margin-top: 8px;
+  padding: 13px;
+  border-radius: var(--r-md);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--battery-low);
+  background: color-mix(in srgb, var(--battery-low) 7%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--battery-low) 34%, transparent);
+}

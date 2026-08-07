@@ -10,6 +10,8 @@ import './SkillRow.css';
 interface Props {
   total: SkillTotal;
   todayBlocks: number;
+  /** Сколько вложено за выбранный период — без стартового капитала. */
+  periodMinutes: number;
   blockMinutes: number;
   onAdd(): void;
   onOpen(): void;
@@ -23,6 +25,7 @@ interface Props {
 export const SkillRow = memo(function SkillRow({
   total,
   todayBlocks,
+  periodMinutes,
   blockMinutes,
   onAdd,
   onOpen,
@@ -45,6 +48,9 @@ export const SkillRow = memo(function SkillRow({
 
         <span className="srow__foot">
           <span className="srow__hours">{formatHoursCompact(progress.minutes)}</span>
+          {periodMinutes > 0 && (
+            <span className="srow__period">+{formatHoursCompact(periodMinutes)}</span>
+          )}
           {progress.next && (
             <span className="srow__next">
               {t('level.threshold', {

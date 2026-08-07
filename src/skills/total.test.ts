@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { ClicksMap } from '../domain/types';
-import { skillBlocksOn, skillMinutes, skillTotals, targetOf, totalMinutes } from './total';
+import { skillBlocksIn, skillBlocksOn, skillMinutes, skillTotals, targetOf, totalMinutes } from './total';
 import type { Skill } from './types';
 
 const skill = (patch: Partial<Skill> = {}): Skill => ({
@@ -97,6 +97,32 @@ describe('блоки за день', () => {
     });
     expect(skillBlocksOn(linked, context, '2026-07-01')).toBe(5);
     expect(skillBlocksOn(linked, context, '2026-07-02')).toBe(0);
+  });
+});
+
+describe('блоки за период', () => {
+  const context = ctx({
+    skillClicks: { '2026-07-01': { g1: 2 }, '2026-07-05': { g1: 1 }, '2026-06-20': { g1: 9 } },
+    clicks: { '2026-07-05': { ab: 4 } },
+  });
+
+  it('складывает только дни окна', () => {
+    expect(skillBlocksIn(skill(), context, ['2026-07-01', '2026-07-05'])).toBe(3);
+  });
+
+  it('привязанные блоки входят в период наравне со своими', () => {
+    const linked = skill({ linkedPriorityId: 'ab' });
+    expect(skillBlocksIn(linked, context, ['2026-07-05'])).toBe(5);
+  });
+
+  it('стартовый капитал и свёрнутые месяцы в период не попадают', () => {
+    // У них нет даты, приписать их к неделе или месяцу нельзя.
+    const rich = skill({ baseMinutes: 90_000, carryBlocks: 500 });
+    expect(skillBlocksIn(rich, context, ['2026-07-01'])).toBe(2);
+  });
+
+  it('пустое окно даёт ноль', () => {
+    expect(skillBlocksIn(skill(), context, [])).toBe(0);
   });
 });
 

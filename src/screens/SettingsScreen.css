@@ -11,6 +11,26 @@
   box-shadow: inset 0 0 0 1px var(--hairline);
 }
 
+/* Значок слева от строки-перехода. Подсвечен, чтобы строку было видно среди
+   одинаковых по форме тумблеров. */
+.sset__icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-sm);
+  color: var(--battery-mid);
+  background: color-mix(in srgb, var(--battery-mid) 12%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--battery-mid) 34%, transparent);
+}
+
+.sset__icon svg {
+  width: 19px;
+  height: 19px;
+  filter: drop-shadow(0 0 5px currentColor);
+}
+
 .sset__row-text {
   flex: 1;
   min-width: 0;

@@ -1,0 +1,26 @@
+/* Палитра выбора цвета. Каждый кружок красится через инлайновый --accent,
+   поэтому одного правила хватает на все десять оттенков. */
+
+.picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  /* Выбранный кружок растёт на 8% — без запаса он упирается в соседний блок. */
+  padding: 4px 0;
+}
+
+.picker__dot {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent);
+  transition: transform 0.14s ease, box-shadow 0.14s ease;
+}
+
+.picker__dot--on {
+  background: var(--accent);
+  transform: scale(1.08);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 70%, transparent);
+}

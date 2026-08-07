@@ -1,8 +1,9 @@
 import { useState } from 'react';
 
+import { ColorPicker } from '../components/ColorPicker';
 import { Sheet } from '../components/Sheet';
 import { formatHoursCompact, formatMinutes, parseDayKey } from '../domain/date';
-import { NEON_PALETTE, colorOf } from '../domain/palette';
+import { colorOf } from '../domain/palette';
 import type { Priority } from '../domain/types';
 import { count, plural, t } from '../i18n';
 import { LEVELS, levelTitle, rankTitle } from './levels';
@@ -46,6 +47,7 @@ export function SkillSheet(props: Props): JSX.Element {
 
 function SkillDetails({
   total,
+  blockMinutes,
   targets,
   linkedTitle,
   linkArchived,
@@ -61,7 +63,18 @@ function SkillDetails({
   const [baseHours, setBaseHours] = useState(
     skill.baseMinutes > 0 ? String(Math.round(skill.baseMinutes / 60)) : '',
   );
+  const [fullLadder, setFullLadder] = useState(false);
   const accent = colorOf(skill.colorId).hex;
+
+  /*
+   * Семнадцать ступеней разом — это экран, который надо пролистать, чтобы
+   * добраться до настроек навыка. По умолчанию показываем окрестность текущей
+   * ступени: назад одну, вперёд две — этого хватает, чтобы понять, где ты и
+   * что дальше. Вся лестница разворачивается по кнопке.
+   */
+  const ladder = fullLadder
+    ? LEVELS
+    : LEVELS.slice(Math.max(0, progress.level.index - 1), progress.level.index + 3);
 
   const years = skill.startedOn
     ? Math.floor((Date.now() - parseDayKey(skill.startedOn).getTime()) / (365.25 * 864e5))
@@ -102,7 +115,7 @@ function SkillDetails({
       </div>
 
       <ol className="sksheet__ladder">
-        {LEVELS.map((level) => {
+        {ladder.map((level) => {
           const reached = level.index <= progress.level.index;
           const current = level.index === progress.level.index;
           return (
@@ -118,6 +131,10 @@ function SkillDetails({
           );
         })}
       </ol>
+
+      <button className="sksheet__more" type="button" onClick={() => setFullLadder(!fullLadder)}>
+        {fullLadder ? t('level.collapse') : t('level.expand', { count: LEVELS.length })}
+      </button>
 
       <div className="divider-label">
         <span>{t('skills.formTitle')}</span>
@@ -136,19 +153,7 @@ function SkillDetails({
         }}
       />
 
-      <div className="picker">
-        {NEON_PALETTE.map((color, index) => (
-          <button
-            key={color.hex}
-            type="button"
-            className={`picker__dot${index === skill.colorId ? ' picker__dot--on' : ''}`}
-            style={{ '--accent': color.hex } as React.CSSProperties}
-            aria-label={color.name}
-            aria-pressed={index === skill.colorId}
-            onClick={() => onRecolor(index)}
-          />
-        ))}
-      </div>
+      <ColorPicker value={skill.colorId} onChange={onRecolor} />
 
       <label className="sksheet__field">
         <span>{t('skills.baseLabel')}</span>

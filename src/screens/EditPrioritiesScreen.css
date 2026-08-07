@@ -193,24 +193,4 @@
   box-shadow: inset 0 0 0 1px var(--hairline);
 }
 
-.picker {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content: center;
-}
-
-.picker__dot {
-  width: 34px;
-  height: 34px;
-  border-radius: var(--r-sm);
-  background: color-mix(in srgb, var(--accent) 22%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent);
-  transition: transform 0.14s ease, box-shadow 0.14s ease;
-}
-
-.picker__dot--on {
-  background: var(--accent);
-  transform: scale(1.08);
-  box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 70%, transparent);
-}
+/* Палитра переехала в components/ColorPicker.css — её делят приоритеты и навыки. */

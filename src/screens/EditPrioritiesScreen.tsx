@@ -1,8 +1,9 @@
 import { useState } from 'react';
 
+import { ColorPicker } from '../components/ColorPicker';
 import { Sheet } from '../components/Sheet';
 import { useReorder } from '../components/useReorder';
-import { NEON_PALETTE, colorOf } from '../domain/palette';
+import { colorOf } from '../domain/palette';
 import { MAX_PRIORITIES, MIN_PRIORITIES, type Priority } from '../domain/types';
 import { plural, t } from '../i18n';
 import { useStore } from '../store/useStore';
@@ -14,7 +15,10 @@ export function EditPrioritiesScreen(): JSX.Element {
   const [editing, setEditing] = useState<Priority | null>(null);
   const [adding, setAdding] = useState(false);
 
-  const list = useReorder(settings.priorities, actions.reorder);
+  const list = useReorder(settings.priorities, (priorities) => {
+    actions.reorder(priorities);
+    actions.award('r7');
+  });
   const atLimit = settings.priorities.length >= MAX_PRIORITIES;
   const atMinimum = settings.priorities.length <= MIN_PRIORITIES;
 
@@ -143,6 +147,7 @@ export function EditPrioritiesScreen(): JSX.Element {
         priority={editing}
         onClose={() => setEditing(null)}
         onSave={(title, colorId) => {
+          if (colorId !== editing!.colorId) actions.award('r6');
           actions.updatePriority(editing!.id, { title, colorId });
           setEditing(null);
         }}
@@ -158,27 +163,6 @@ export function EditPrioritiesScreen(): JSX.Element {
         }}
       />
     </>
-  );
-}
-
-function ColorPicker({ value, onChange }: { value: number; onChange(id: number): void }): JSX.Element {
-  return (
-    <div className="picker">
-      {NEON_PALETTE.map((color, index) => (
-        <button
-          key={color.hex}
-          type="button"
-          className={`picker__dot${index === value ? ' picker__dot--on' : ''}`}
-          style={{ '--accent': color.hex } as React.CSSProperties}
-          aria-label={color.name}
-          aria-pressed={index === value}
-          onClick={() => {
-            haptics.select();
-            onChange(index);
-          }}
-        />
-      ))}
-    </div>
   );
 }
 

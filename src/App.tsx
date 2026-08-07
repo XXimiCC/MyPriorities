@@ -1,22 +1,33 @@
 import { useEffect, useState } from 'react';
 
+import { AchievementToast } from './achievements/AchievementToast';
+import { Watcher } from './achievements/Watcher';
+import { AchievementsScreen } from './screens/AchievementsScreen';
 import { ChargeScreen } from './screens/ChargeScreen';
 import { EditPrioritiesScreen } from './screens/EditPrioritiesScreen';
 import { HomeScreen } from './screens/HomeScreen';
 import { OnboardingScreen } from './screens/OnboardingScreen';
 import { PresetsScreen } from './screens/PresetsScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
+import { SkillsScreen } from './screens/SkillsScreen';
 import { StatsScreen } from './screens/StatsScreen';
+import { modulesOf } from './domain/types';
 import { t, type StringKey } from './i18n';
 import { useStore } from './store/useStore';
 import { backButton, haptics } from './telegram/sdk';
 
-type Tab = 'home' | 'stats' | 'charge' | 'settings';
+type Tab = 'home' | 'stats' | 'charge' | 'skills' | 'settings';
 
+/** Порядок вкладок — порядок внимания: сначала то, что отмечают каждый день. */
 const TABS: Array<{ id: Tab; labelKey: StringKey; icon: string[] }> = [
-  { id: 'home', labelKey: 'tab.home', icon: ['M4 10.5L12 4l8 6.5V20a1 1 0 01-1 1h-4v-6H9v6H5a1 1 0 01-1-1z'] },
-  { id: 'stats', labelKey: 'tab.stats', icon: ['M4 20V9M10 20V4M16 20v-7M22 20H2'] },
+  { id: 'home', labelKey: 'tab.home', icon: ['M4 6h16M4 12h16M4 18h9'] },
   { id: 'charge', labelKey: 'tab.charge', icon: ['M3 8h13v8H3zM16 10.5h3v3h-3', 'M7 10.5h4v3H7'] },
+  {
+    id: 'skills',
+    labelKey: 'tab.skills',
+    icon: ['M12 4l9 4.5-9 4.5-9-4.5z', 'M6 11v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5'],
+  },
+  { id: 'stats', labelKey: 'tab.stats', icon: ['M4 20V9M10 20V4M16 20v-7M22 20H2'] },
   {
     id: 'settings',
     labelKey: 'tab.settings',
@@ -28,11 +39,12 @@ const TABS: Array<{ id: Tab; labelKey: StringKey; icon: string[] }> = [
 ];
 
 /** Вложенные экраны поверх вкладок. */
-type Overlay = 'edit' | 'presets' | null;
+type Overlay = 'edit' | 'presets' | 'achievements' | null;
 
 const OVERLAY_ACTION: Record<Exclude<Overlay, null>, StringKey> = {
   edit: 'common.done',
   presets: 'common.back',
+  achievements: 'common.back',
 };
 
 export function App(): JSX.Element {
@@ -47,11 +59,22 @@ export function App(): JSX.Element {
   }, [overlay]);
 
   const onboarding = !settings.onboarded && settings.priorities.length === 0;
+  const modules = modulesOf(settings);
+  const tabs = TABS.filter((item) => item.id !== 'skills' || modules.skills);
 
   // Полный сброс возвращает к онбордингу — вложенный экран поверх него не нужен.
   useEffect(() => {
     if (onboarding) setOverlay(null);
   }, [onboarding]);
+
+  // Выключенный модуль не должен оставить пользователя на исчезнувшей вкладке.
+  useEffect(() => {
+    if (!modules.skills && tab === 'skills') setTab('home');
+  }, [modules.skills, tab]);
+
+  useEffect(() => {
+    if (!modules.achievements && overlay === 'achievements') setOverlay(null);
+  }, [modules.achievements, overlay]);
 
   if (!ready) {
     return (
@@ -74,11 +97,13 @@ export function App(): JSX.Element {
       <div className="app">
         {overlay === 'edit' && <EditPrioritiesScreen />}
         {overlay === 'presets' && <PresetsScreen onApplied={() => setOverlay(null)} />}
+        {overlay === 'achievements' && <AchievementsScreen />}
         <div className="app__footer">
           <button type="button" onClick={() => setOverlay(null)}>
             {t(OVERLAY_ACTION[overlay])}
           </button>
         </div>
+        {modules.achievements && <Watcher />}
       </div>
     );
   }
@@ -88,10 +113,20 @@ export function App(): JSX.Element {
       {tab === 'home' && <HomeScreen onEdit={() => setOverlay('edit')} />}
       {tab === 'stats' && <StatsScreen />}
       {tab === 'charge' && <ChargeScreen />}
-      {tab === 'settings' && <SettingsScreen onPresets={() => setOverlay('presets')} />}
+      {tab === 'skills' && <SkillsScreen />}
+      {tab === 'settings' && (
+        <SettingsScreen
+          onPresets={() => setOverlay('presets')}
+          onAchievements={() => setOverlay('achievements')}
+        />
+      )}
 
-      <nav className="tabbar" role="tablist" aria-label={t('app.title')}>
-        {TABS.map((item) => (
+      <nav
+        className={`tabbar${tabs.length >= 5 ? ' tabbar--five' : ''}`}
+        role="tablist"
+        aria-label={t('app.title')}
+      >
+        {tabs.map((item) => (
           <button
             key={item.id}
             className="tabbar__item"
@@ -109,10 +144,17 @@ export function App(): JSX.Element {
                 <path key={d} d={d} />
               ))}
             </svg>
-            {t(item.labelKey)}
+            <span className="tabbar__label">{t(item.labelKey)}</span>
           </button>
         ))}
       </nav>
+
+      {modules.achievements && (
+        <>
+          <Watcher />
+          <AchievementToast onOpen={() => setOverlay('achievements')} />
+        </>
+      )}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { Sheet } from './Sheet';
 import { batteryTheme, batteryTitle } from '../domain/palette';
 import { BATTERY_LEVELS, type BatteryLevel } from '../domain/types';
 import { t } from '../i18n';
+import { useStore } from '../store/useStore';
 import { alertDialog, haptics } from '../telegram/sdk';
 import { renderWallpaper } from '../wallpaper/render';
 import {
@@ -34,6 +35,7 @@ export function WallpaperSheet({ open, initialLevel, onClose }: Props): JSX.Elem
 }
 
 function WallpaperMaker({ initialLevel }: { initialLevel: BatteryLevel }): JSX.Element {
+  const { actions } = useStore();
   const sizes = useMemo<ScreenSize[]>(() => [deviceSize(), ...sizePresets()], []);
   const [level, setLevel] = useState<BatteryLevel>(initialLevel);
   const [sizeId, setSizeId] = useState(sizes[0]!.id);
@@ -134,6 +136,7 @@ function WallpaperMaker({ initialLevel }: { initialLevel: BatteryLevel }): JSX.E
           haptics.bump();
           void (async () => {
             const outcome = await saveFile(preview.blob, `priorities-${theme.label.toLowerCase()}.png`);
+            actions.award('r1');
             if (outcome === 'manual') setManual(true);
           })();
         }}

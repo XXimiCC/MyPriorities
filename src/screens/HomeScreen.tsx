@@ -155,6 +155,9 @@ export function HomeScreen({ onEdit }: Props): JSX.Element {
               onAdd={() => {
                 haptics.tap();
                 actions.addBlock(stat.priority.id, writeDay);
+                // Запись в прошлый день из журнала не восстановить: клик за
+                // вчера выглядит там ровно как сделанный вчера.
+                if (inPast) actions.award('r8');
               }}
               onOpen={() => setTuning(stat.priority)}
               onHold={onEdit}

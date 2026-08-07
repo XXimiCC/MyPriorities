@@ -24,6 +24,7 @@ export function PresetsScreen({ onApplied, intro = false }: Props): JSX.Element 
       const ok = intro || (await confirmDialog(t('presets.applyConfirm', { name: preset.name })));
       if (!ok) return;
       actions.applyPreset(preset.id);
+      actions.award('r5');
       haptics.success();
       setPreview(null);
       onApplied();

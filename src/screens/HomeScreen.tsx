@@ -2,11 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { BatteryIcon } from '../components/BatteryIcon';
 import { BatterySheet } from '../components/BatterySheet';
+import { BlockTuner } from '../components/BlockTuner';
 import { PeriodSwitch } from '../components/PeriodSwitch';
 import { PriorityRow } from '../components/PriorityRow';
 import { Sheet } from '../components/Sheet';
 import { DayPicker } from '../components/DayPicker';
-import { formatDayShort, formatHoursCompact, formatMinutes, formatPercent } from '../domain/date';
+import { formatDayShort, formatMinutes, formatPercent } from '../domain/date';
 import { colorOf } from '../domain/palette';
 import { computeStats, currentBatteryLevel, periodDays } from '../domain/stats';
 import { PERIODS, blockMinutesOf, type DayKey, type PeriodId, type Priority } from '../domain/types';
@@ -249,48 +250,22 @@ function TuneSheet({
   return (
     <Sheet open={Boolean(priority)} title={priority?.title} onClose={onClose}>
       {priority && color && (
-        <div className="tune" style={{ '--accent': color.hex } as React.CSSProperties}>
-          <button
-            className="tune__btn press"
-            type="button"
-            disabled={blocks === 0}
-            aria-label={t('home.minus', { minutes: blockMinutes })}
-            onClick={() => {
-              haptics.tap();
-              actions.removeBlock(priority.id, day);
-            }}
-          >
-            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
-              <path d="M5.5 12h13" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-            </svg>
-          </button>
-
-          <div className="tune__value">
-            <span className="tune__time">{formatHoursCompact(blocks * blockMinutes)}</span>
-            <span className="tune__blocks">
-              {day === today
+        <div style={{ '--accent': color.hex } as React.CSSProperties}>
+          <BlockTuner
+            blocks={blocks}
+            blockMinutes={blockMinutes}
+            caption={
+              day === today
                 ? t('home.todayBlocks', { count: blocks, unit: plural('block', blocks) })
                 : t('home.dayBlocks', {
                     count: blocks,
                     unit: plural('block', blocks),
                     day: formatDayShort(day),
-                  })}
-            </span>
-          </div>
-
-          <button
-            className="tune__btn press"
-            type="button"
-            aria-label={t('home.plus', { minutes: blockMinutes })}
-            onClick={() => {
-              haptics.tap();
-              actions.addBlock(priority.id, day);
-            }}
-          >
-            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
-              <path d="M12 5.5v13M5.5 12h13" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-            </svg>
-          </button>
+                  })
+            }
+            onAdd={() => actions.addBlock(priority.id, day)}
+            onRemove={() => actions.removeBlock(priority.id, day)}
+          />
         </div>
       )}
     </Sheet>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import { BlockTuner } from '../components/BlockTuner';
 import { ColorPicker } from '../components/ColorPicker';
 import { Sheet } from '../components/Sheet';
 import { formatHoursCompact, formatMinutes, parseDayKey } from '../domain/date';
@@ -20,6 +21,8 @@ export interface LinkTarget {
 interface Props {
   total: SkillTotal | null;
   blockMinutes: number;
+  /** Блоки навыка за сегодня — их и правит счётчик наверху шторки. */
+  todayBlocks: number;
   /** Приоритеты, к которым можно привязаться, с пометкой уже занятых. */
   targets: LinkTarget[];
   /** Название привязанного приоритета; undefined — привязки нет. */
@@ -27,6 +30,8 @@ interface Props {
   /** Привязанный приоритет уехал в архив: новое время идёт только в навык. */
   linkArchived: boolean;
   onClose(): void;
+  onAdd(): void;
+  onRemove(): void;
   onRename(title: string): void;
   onRecolor(colorId: number): void;
   onBase(hours: number): void;
@@ -48,9 +53,12 @@ export function SkillSheet(props: Props): JSX.Element {
 function SkillDetails({
   total,
   blockMinutes,
+  todayBlocks,
   targets,
   linkedTitle,
   linkArchived,
+  onAdd,
+  onRemove,
   onRename,
   onRecolor,
   onBase,
@@ -109,6 +117,16 @@ function SkillDetails({
           <small>{t('skills.startedYears', { years, unit: plural('year', years) })}</small>
         )}
       </div>
+
+      {/* Тот же счётчик, что и у приоритета: промахнуться по «+» одинаково легко
+          и там, и там, и способ исправиться должен быть один и тот же. */}
+      <BlockTuner
+        blocks={todayBlocks}
+        blockMinutes={blockMinutes}
+        caption={t('home.todayBlocks', { count: todayBlocks, unit: plural('block', todayBlocks) })}
+        onAdd={onAdd}
+        onRemove={onRemove}
+      />
 
       <div className="divider-label">
         <span>{t('level.ladder')}</span>

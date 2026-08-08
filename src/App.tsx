@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { AchievementToast } from './achievements/AchievementToast';
 import { Watcher } from './achievements/Watcher';
+import { BatteryPromptProvider } from './components/BatteryPrompt';
 import { AchievementsScreen } from './screens/AchievementsScreen';
 import { ChargeScreen } from './screens/ChargeScreen';
 import { EditPrioritiesScreen } from './screens/EditPrioritiesScreen';
@@ -21,7 +22,22 @@ type Tab = 'home' | 'stats' | 'charge' | 'skills' | 'settings';
 /** Порядок вкладок — порядок внимания: сначала то, что отмечают каждый день. */
 const TABS: Array<{ id: Tab; labelKey: StringKey; icon: string[] }> = [
   { id: 'home', labelKey: 'tab.home', icon: ['M4 6h16M4 12h16M4 18h9'] },
-  { id: 'charge', labelKey: 'tab.charge', icon: ['M3 8h13v8H3zM16 10.5h3v3h-3', 'M7 10.5h4v3H7'] },
+  {
+    id: 'charge',
+    labelKey: 'tab.charge',
+    /*
+     * Корпус нарисован двумя скобками, а не рамкой: молния проходит сквозь него
+     * и потому влезает во всю высоту сетки. При обводке 1.6 замкнутый контур
+     * молнии внутри целого корпуса слипался в пятно на двадцати пикселях —
+     * именно столько остаётся иконке при пяти вкладках.
+     */
+    icon: [
+      'M14.6 7.2h1.9a2.2 2.2 0 0 1 2.2 2.2v5.2a2.2 2.2 0 0 1-2.2 2.2h-2.6',
+      'M7.4 7.2H5a2.2 2.2 0 0 0-2.2 2.2v5.2a2.2 2.2 0 0 0 2.2 2.2h1.6',
+      'M20.4 11.1v2',
+      'M11.6 6.2 L8.4 12 H12.4 L9.2 17.8',
+    ],
+  },
   {
     id: 'skills',
     labelKey: 'tab.skills',
@@ -109,52 +125,56 @@ export function App(): JSX.Element {
   }
 
   return (
-    <div className="app app--tabs">
-      {tab === 'home' && <HomeScreen onEdit={() => setOverlay('edit')} />}
-      {tab === 'stats' && <StatsScreen />}
-      {tab === 'charge' && <ChargeScreen />}
-      {tab === 'skills' && <SkillsScreen />}
-      {tab === 'settings' && (
-        <SettingsScreen
-          onPresets={() => setOverlay('presets')}
-          onAchievements={() => setOverlay('achievements')}
-        />
-      )}
+    /* Провайдер вокруг вкладок, а не вокруг всего приложения: батарейка в шапке
+       живёт только здесь, а шторка с вопросом про расход — одна на все вкладки. */
+    <BatteryPromptProvider>
+      <div className="app app--tabs">
+        {tab === 'home' && <HomeScreen onEdit={() => setOverlay('edit')} />}
+        {tab === 'stats' && <StatsScreen />}
+        {tab === 'charge' && <ChargeScreen />}
+        {tab === 'skills' && <SkillsScreen />}
+        {tab === 'settings' && (
+          <SettingsScreen
+            onPresets={() => setOverlay('presets')}
+            onAchievements={() => setOverlay('achievements')}
+          />
+        )}
 
-      <nav
-        className={`tabbar${tabs.length >= 5 ? ' tabbar--five' : ''}`}
-        role="tablist"
-        aria-label={t('app.title')}
-      >
-        {tabs.map((item) => (
-          <button
-            key={item.id}
-            className="tabbar__item"
-            role="tab"
-            type="button"
-            aria-selected={tab === item.id}
-            onClick={() => {
-              if (tab === item.id) return;
-              haptics.select();
-              setTab(item.id);
-            }}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              {item.icon.map((d) => (
-                <path key={d} d={d} />
-              ))}
-            </svg>
-            <span className="tabbar__label">{t(item.labelKey)}</span>
-          </button>
-        ))}
-      </nav>
+        <nav
+          className={`tabbar${tabs.length >= 5 ? ' tabbar--five' : ''}`}
+          role="tablist"
+          aria-label={t('app.title')}
+        >
+          {tabs.map((item) => (
+            <button
+              key={item.id}
+              className="tabbar__item"
+              role="tab"
+              type="button"
+              aria-selected={tab === item.id}
+              onClick={() => {
+                if (tab === item.id) return;
+                haptics.select();
+                setTab(item.id);
+              }}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                {item.icon.map((d) => (
+                  <path key={d} d={d} />
+                ))}
+              </svg>
+              <span className="tabbar__label">{t(item.labelKey)}</span>
+            </button>
+          ))}
+        </nav>
 
-      {modules.achievements && (
-        <>
-          <Watcher />
-          <AchievementToast onOpen={() => setOverlay('achievements')} />
-        </>
-      )}
-    </div>
+        {modules.achievements && (
+          <>
+            <Watcher />
+            <AchievementToast onOpen={() => setOverlay('achievements')} />
+          </>
+        )}
+      </div>
+    </BatteryPromptProvider>
   );
 }

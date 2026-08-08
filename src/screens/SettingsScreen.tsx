@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import { awardProgress } from '../achievements/evaluate';
+import { HeaderBattery } from '../components/HeaderBattery';
 import { Toggle } from '../components/Toggle';
 import { formatDayShort, formatMinutes } from '../domain/date';
 import { findPreset } from '../domain/presets';
@@ -119,6 +120,9 @@ export function SettingsScreen({ onPresets, onAchievements }: Props): JSX.Elemen
     <>
       <header className="header">
         <h1 className="header__title">{t('settings.title')}</h1>
+        <div className="header__actions">
+          <HeaderBattery />
+        </div>
       </header>
 
       <div className="app__body">

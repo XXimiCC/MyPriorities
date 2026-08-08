@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 
 import { ColorPicker } from '../components/ColorPicker';
+import { HeaderBattery } from '../components/HeaderBattery';
 import { PeriodSwitch } from '../components/PeriodSwitch';
 import { Sheet } from '../components/Sheet';
 import { formatMinutes, todayKey } from '../domain/date';
@@ -150,9 +151,12 @@ export function SkillsScreen(): JSX.Element {
     <>
       <header className="header">
         <h1 className="header__title">{t('skills.title')}</h1>
-        <span className="sks__counter">
-          {t('skills.counter', { count: skills.skills.length, max: MAX_SKILLS })}
-        </span>
+        <div className="header__actions">
+          <span className="sks__counter">
+            {t('skills.counter', { count: skills.skills.length, max: MAX_SKILLS })}
+          </span>
+          <HeaderBattery />
+        </div>
       </header>
 
       {totals.length > 0 && (

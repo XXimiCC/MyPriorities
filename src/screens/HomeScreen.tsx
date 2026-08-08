@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { BatteryIcon } from '../components/BatteryIcon';
-import { BatterySheet } from '../components/BatterySheet';
 import { BlockTuner } from '../components/BlockTuner';
+import { HeaderBattery } from '../components/HeaderBattery';
 import { PeriodSwitch } from '../components/PeriodSwitch';
 import { PriorityRow } from '../components/PriorityRow';
 import { Sheet } from '../components/Sheet';
 import { DayPicker } from '../components/DayPicker';
 import { formatDayShort, formatMinutes, formatPercent } from '../domain/date';
 import { colorOf } from '../domain/palette';
-import { computeStats, currentBatteryLevel, periodDays } from '../domain/stats';
+import { computeStats, periodDays } from '../domain/stats';
 import { PERIODS, blockMinutesOf, type DayKey, type PeriodId, type Priority } from '../domain/types';
 import { plural, t } from '../i18n';
 import { useStore } from '../store/useStore';
@@ -25,7 +24,6 @@ interface Props {
 export function HomeScreen({ onEdit }: Props): JSX.Element {
   const { settings, journal, today, actions } = useStore();
   const [periodId, setPeriodId] = useState<PeriodId>('today');
-  const [batteryOpen, setBatteryOpen] = useState(false);
   const [tuning, setTuning] = useState<Priority | null>(null);
   /**
    * День, в который идут клики. Живёт в состоянии экрана, а не в сторе, и
@@ -75,7 +73,6 @@ export function HomeScreen({ onEdit }: Props): JSX.Element {
     () => computeStats(settings, journal, days),
     [settings, journal, days],
   );
-  const battery = useMemo(() => currentBatteryLevel(journal), [journal]);
   // Точки у кнопки «+» показывают тот день, в который идёт запись, а не сегодня:
   // иначе в режиме прошлого дня счётчик врал бы о том, что вы только что нажали.
   const dayClicks = journal.clicks[writeDay] ?? {};
@@ -118,18 +115,7 @@ export function HomeScreen({ onEdit }: Props): JSX.Element {
               />
             </svg>
           </button>
-          <button
-            className="header__battery press"
-            onClick={() => setBatteryOpen(true)}
-            type="button"
-            aria-label={t('home.battery')}
-          >
-            {battery ? (
-              <BatteryIcon level={battery} width={36} />
-            ) : (
-              <span className="header__battery-empty">{t('home.batteryEmpty')}</span>
-            )}
-          </button>
+          <HeaderBattery />
         </div>
       </header>
 
@@ -223,16 +209,6 @@ export function HomeScreen({ onEdit }: Props): JSX.Element {
 
         {stats.active.length > 0 && <p className="home__hint">{t('home.holdHint')}</p>}
       </div>
-
-      <BatterySheet
-        open={batteryOpen}
-        current={battery}
-        onPick={(level) => {
-          actions.setBattery(level);
-          setBatteryOpen(false);
-        }}
-        onClose={() => setBatteryOpen(false)}
-      />
 
       <TuneSheet priority={tuning} day={writeDay} onClose={() => setTuning(null)} />
     </>

@@ -23,7 +23,14 @@ import type {
   Priority,
   Settings,
 } from '../domain/types';
-import { DEFAULT_BLOCK_MINUTES, DEFAULT_MODULES, MAX_PRIORITIES, sanitizeModules } from '../domain/types';
+import {
+  DEFAULT_BLOCK_MINUTES,
+  DEFAULT_MODULES,
+  DRAIN_TEXT_MAX,
+  DRAIN_TEXT_PREFIX,
+  MAX_PRIORITIES,
+  sanitizeModules,
+} from '../domain/types';
 import type { Skill, SkillsState } from '../skills/types';
 import { MAX_ARCHIVED_SKILLS, MAX_SKILLS, MAX_SKILL_TITLE, emptySkills } from '../skills/types';
 import type { StringKey } from '../i18n';
@@ -277,8 +284,10 @@ function sanitizeShifts(raw: unknown): BatteryShift[] {
       const minute = Math.max(0, Math.min(1440, Math.floor(s[0])));
       const level = s[1] as BatteryLevel;
       const drainedBy = s[2];
+      // Длина режется: ответ своими словами приходит из поля ввода, и чужой или
+      // повреждённый файл не должен раздувать месяц истории.
       return typeof drainedBy === 'string' && drainedBy.length > 0
-        ? [minute, level, drainedBy]
+        ? [minute, level, drainedBy.slice(0, DRAIN_TEXT_MAX + DRAIN_TEXT_PREFIX.length)]
         : [minute, level];
     })
     .sort((a, b) => a[0] - b[0]);

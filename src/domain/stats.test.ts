@@ -17,7 +17,10 @@ import {
 import {
   DEFAULT_BLOCK_MINUTES,
   DEFAULT_MODULES,
+  DRAIN_TEXT_MAX,
   DRAIN_UNKNOWN,
+  drainCustom,
+  drainTextOf,
   type Journal,
   type Priority,
   type Settings,
@@ -259,6 +262,36 @@ describe('что сажает батарею', () => {
     const counts = drainCounts(journal, ['2026-07-30']);
     expect(counts.get(DRAIN_UNKNOWN)).toBe(1);
     expect(counts.get('w')).toBe(1);
+  });
+
+  it('ответ своими словами хранится с префиксом и читается обратно', () => {
+    const own = drainCustom('  Дорога в офис  ');
+    expect(own).toBe('!Дорога в офис');
+    expect(drainTextOf(own!)).toBe('Дорога в офис');
+    // Префикс не может совпасть с id приоритета — те из букв и цифр.
+    expect(drainTextOf('w')).toBeUndefined();
+    expect(drainTextOf(DRAIN_UNKNOWN)).toBeUndefined();
+  });
+
+  it('пустой ответ своими словами не создаётся', () => {
+    expect(drainCustom('   ')).toBeUndefined();
+    expect(drainCustom('')).toBeUndefined();
+  });
+
+  it('длинный ответ обрезается до предела', () => {
+    const own = drainCustom('я'.repeat(DRAIN_TEXT_MAX + 20))!;
+    expect(drainTextOf(own)).toHaveLength(DRAIN_TEXT_MAX);
+  });
+
+  it('одинаковые ответы своими словами складываются в одну строку', () => {
+    const own = drainCustom('недосып')!;
+    const journal = journalOf(
+      {},
+      { '2026-07-30': [[540, 1, own], [900, 2], [1000, 1, own]] },
+    );
+    const counts = drainCounts(journal, ['2026-07-30']);
+    expect(counts.size).toBe(1);
+    expect(counts.get(own)).toBe(2);
   });
 
   it('переходы без ответа не попадают в подсчёт', () => {

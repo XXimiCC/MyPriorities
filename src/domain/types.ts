@@ -110,6 +110,35 @@ export type BatteryShift =
  */
 export const DRAIN_UNKNOWN = '?';
 
+/**
+ * Ответ своими словами: `!` плюс текст.
+ *
+ * Префикс по той же причине, что и знак у «не знаю»: id приоритетов состоят из
+ * букв и цифр, поэтому ни один из них не начинается с `!`, и статистика всегда
+ * знает, что перед ней — ссылка на приоритет или чужая причина.
+ */
+export const DRAIN_TEXT_PREFIX = '!';
+
+/**
+ * Предел длины ответа. Причина расхода — подпись в статистике, а не дневник:
+ * длинный текст и в строку не влезет, и раздует месяц истории, который целиком
+ * ездит в CloudStorage.
+ */
+export const DRAIN_TEXT_MAX = 40;
+
+/** Ответ своими словами → значение для журнала. undefined, если писать нечего. */
+export function drainCustom(text: string): string | undefined {
+  const trimmed = text.trim().slice(0, DRAIN_TEXT_MAX).trim();
+  return trimmed ? DRAIN_TEXT_PREFIX + trimmed : undefined;
+}
+
+/** Обратное преобразование: текст ответа либо undefined, если это не он. */
+export function drainTextOf(drainedBy: string): string | undefined {
+  if (!drainedBy.startsWith(DRAIN_TEXT_PREFIX)) return undefined;
+  const text = drainedBy.slice(DRAIN_TEXT_PREFIX.length).trim();
+  return text || undefined;
+}
+
 /** Ключ дня — локальная дата `YYYY-MM-DD`. */
 export type DayKey = string;
 

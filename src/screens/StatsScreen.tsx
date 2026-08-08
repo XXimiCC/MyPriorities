@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { BatteryIcon } from '../components/BatteryIcon';
 import { DayBars } from '../components/DayBars';
 import { EnergyChart } from '../components/EnergyChart';
+import { HeaderBattery } from '../components/HeaderBattery';
 import { PeriodSwitch } from '../components/PeriodSwitch';
 import { formatHoursCompact, formatMinutes, formatPercent } from '../domain/date';
 import { batteryTheme, batteryTitle, colorOf } from '../domain/palette';
@@ -16,7 +17,14 @@ import {
   type PriorityStat,
 } from '../domain/stats';
 import { MAX_INSIGHTS, insightText, insights } from '../domain/insights';
-import { BATTERY_LEVELS, PERIODS, blockMinutesOf, modulesOf, type PeriodId } from '../domain/types';
+import {
+  BATTERY_LEVELS,
+  PERIODS,
+  blockMinutesOf,
+  drainTextOf,
+  modulesOf,
+  type PeriodId,
+} from '../domain/types';
 import { derive } from '../achievements/derive';
 import { plural, t } from '../i18n';
 import { useStore } from '../store/useStore';
@@ -51,10 +59,13 @@ export function StatsScreen(): JSX.Element {
     return [...drainCounts(journal, days)]
       .map(([id, count]) => {
         const priority = known.get(id);
+        // Ответ своими словами показывается как есть: он и был подписью строки,
+        // когда его писали. Одинаковые тексты уже сложены в один ключ.
+        const own = drainTextOf(id);
         return {
           id: id || 'unknown',
           count,
-          title: priority ? priority.title : t('drain.unknown'),
+          title: priority ? priority.title : own ?? t('drain.unknown'),
           hex: priority ? colorOf(priority.colorId).hex : 'var(--text-faint)',
         };
       })
@@ -76,6 +87,9 @@ export function StatsScreen(): JSX.Element {
     <>
       <header className="header">
         <h1 className="header__title">{t('stats.title')}</h1>
+        <div className="header__actions">
+          <HeaderBattery />
+        </div>
       </header>
 
       <div className="app__body">

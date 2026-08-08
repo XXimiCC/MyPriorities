@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 
 import { BatteryCaption, BatteryIcon } from '../components/BatteryIcon';
+import { usePickBattery } from '../components/BatteryPrompt';
 import { BatteryShiftSheet, type EditedShift } from '../components/BatteryShiftSheet';
 import { DayPicker } from '../components/DayPicker';
-import { DrainSheet } from '../components/DrainSheet';
+import { HeaderBattery } from '../components/HeaderBattery';
 import { WallpaperSheet } from '../components/WallpaperSheet';
 import { formatTime } from '../domain/battery';
 import { formatDayShort, formatMinutes, formatPercent, minuteOfDay } from '../domain/date';
@@ -19,9 +20,9 @@ const TODAY = PERIODS.find((p) => p.id === 'today')!;
 const MINUTES_IN_DAY = 1440;
 
 export function ChargeScreen(): JSX.Element {
-  const { settings, journal, today, actions } = useStore();
+  const { journal, today, actions } = useStore();
+  const pick = usePickBattery();
   const [wallpaperOpen, setWallpaperOpen] = useState(false);
-  const [askDrain, setAskDrain] = useState(false);
   /** День, отметки которого правим. Всегда начинаем с сегодняшнего. */
   const [editDay, setEditDay] = useState(today);
   const [editing, setEditing] = useState<EditedShift | null>(null);
@@ -48,6 +49,9 @@ export function ChargeScreen(): JSX.Element {
     <>
       <header className="header">
         <h1 className="header__title">{t('charge.title')}</h1>
+        <div className="header__actions">
+          <HeaderBattery />
+        </div>
       </header>
 
       <div className="app__body" style={theme ? ({ '--accent': theme.hex } as React.CSSProperties) : undefined}>
@@ -92,10 +96,7 @@ export function ChargeScreen(): JSX.Element {
                   onClick={() => {
                     if (active) return;
                     haptics.bump();
-                    actions.setBattery(option);
-                    // Спрашиваем только на переходе «на нуле» и только если есть
-                    // из чего выбирать — иначе вопрос превращается в пустую модалку.
-                    if (option === 1 && settings.priorities.length > 0) setAskDrain(true);
+                    pick(option);
                   }}
                 >
                   <BatteryIcon level={option} width={48} dimmed={!active} glow={active} />
@@ -206,16 +207,6 @@ export function ChargeScreen(): JSX.Element {
         open={wallpaperOpen}
         initialLevel={level ?? 3}
         onClose={() => setWallpaperOpen(false)}
-      />
-
-      <DrainSheet
-        open={askDrain}
-        priorities={settings.priorities}
-        onAnswer={(drainedBy) => {
-          actions.setDrain(drainedBy);
-          setAskDrain(false);
-        }}
-        onSkip={() => setAskDrain(false)}
       />
 
       <BatteryShiftSheet

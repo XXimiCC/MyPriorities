@@ -1,30 +1,31 @@
 import { memo } from 'react';
 
-import { BlockStepper } from './BlockStepper';
 import { formatHoursCompact } from '../domain/date';
 import { colorOf } from '../domain/palette';
 import type { PriorityStat } from '../domain/stats';
+import { t } from '../i18n';
 import { useLongPress } from './useLongPress';
 import './PriorityRow.css';
 
 interface Props {
   stat: PriorityStat;
-  /** Сколько блоков отмечено в тот день, в который идёт запись. */
+  /** Сколько блоков отмечено сегодня — показывается точками у кнопки «+». */
   todayBlocks: number;
   blockMinutes: number;
   onAdd(): void;
-  onRemove(): void;
   onOpen(): void;
   /** Удержание на строке включает режим редактирования списка. */
   onHold(): void;
 }
+
+/** Больше пяти точек в ряд не читается — дальше показываем числом. */
+const MAX_DOTS = 5;
 
 export const PriorityRow = memo(function PriorityRow({
   stat,
   todayBlocks,
   blockMinutes,
   onAdd,
-  onRemove,
   onOpen,
   onHold,
 }: Props) {
@@ -55,13 +56,23 @@ export const PriorityRow = memo(function PriorityRow({
         </span>
       </button>
 
-      <BlockStepper
-        blocks={todayBlocks}
-        blockMinutes={blockMinutes}
-        title={stat.priority.title}
-        onAdd={onAdd}
-        onRemove={onRemove}
-      />
+      <button
+        className="prow__add press"
+        onClick={onAdd}
+        type="button"
+        aria-label={t('home.addBlock', { minutes: blockMinutes, title: stat.priority.title })}
+      >
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <path d="M12 5.5v13M5.5 12h13" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+        </svg>
+        {todayBlocks > 0 && (
+          <span className="prow__today">
+            {todayBlocks <= MAX_DOTS
+              ? Array.from({ length: todayBlocks }, (_, i) => <i key={i} />)
+              : `${todayBlocks}`}
+          </span>
+        )}
+      </button>
     </li>
   );
 });

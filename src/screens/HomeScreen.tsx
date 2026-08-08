@@ -207,10 +207,6 @@ export function HomeScreen({ onEdit }: Props): JSX.Element {
                 // вчера выглядит там ровно как сделанный вчера.
                 if (inPast) actions.award('r8');
               }}
-              onRemove={() => {
-                haptics.tap();
-                actions.removeBlock(stat.priority.id, writeDay);
-              }}
               onOpen={() => setTuning(stat.priority)}
               onHold={onEdit}
             />

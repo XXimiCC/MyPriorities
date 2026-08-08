@@ -80,7 +80,8 @@ title: Пределы и лимиты
 | Константа | Файл |
 |---|---|
 | `MAX_PRIORITIES`, `MIN_PRIORITIES`, `DEFAULT_PRIORITY_COUNT`, `BLOCK_OPTIONS`, `DEFAULT_BLOCK_MINUTES` | `src/domain/types.ts` |
-| `MAX_ARCHIVED`, `RETENTION_MONTHS` | `src/store/persistence.ts` |
+| `MAX_ARCHIVED` | `src/domain/settings.ts` |
+| `RETENTION_MONTHS` | `src/store/legacy/persistence.ts` |
 | `MAX_SKILLS`, `MAX_ARCHIVED_SKILLS`, `MAX_SKILL_TITLE` | `src/skills/types.ts` |
 | `VALUE_LIMIT`, `GET_BATCH`, `CLOUD_TIMEOUT_MS` | `src/telegram/cloudStorage.ts` |
 | `FLUSH_DELAY_MS`, `FLUSH_RETRY_MAX_MS`, `HYDRATE_DEADLINE_MS` | `src/store/useStore.tsx` |
@@ -94,7 +95,7 @@ title: Пределы и лимиты
 | `CHECK_DELAY_MS` | `src/achievements/Watcher.tsx` |
 | `VISIBLE_MS` | `src/achievements/AchievementToast.tsx` |
 
-Пределы хранилища проверяются `src/store/persistence.test.ts`: тест собирает
+Пределы хранилища проверяются `src/store/legacy/persistence.test.ts`: тест собирает
 худший месяц для каждого вида ключа и убеждается, что он влезает в 4096 байт.
 Именно этот тест и задал потолок в двенадцать навыков.
 

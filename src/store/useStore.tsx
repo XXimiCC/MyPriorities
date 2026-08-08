@@ -25,6 +25,7 @@ import { PRESETS } from '../domain/presets';
 import {
   MAX_PRIORITIES,
   MIN_PRIORITIES,
+  emptyJournal,
   modulesOf,
   type BatteryLevel,
   type BatteryShift,
@@ -37,23 +38,20 @@ import {
 } from '../domain/types';
 import { MAX_SKILLS, emptySkills, type Skill, type SkillsState } from '../skills/types';
 import { stripAuto } from '../achievements/evaluate';
+import { emptySettings, materialize, newShortId } from '../domain/settings';
+import { exportSnapshot, parseSnapshot, type SnapshotContents } from '../domain/snapshot';
+import type { AwardMap } from '../achievements/types';
 import {
   clearEverything,
   clearHistory,
   dropStaleLocalHistory,
-  emptyJournal,
-  emptySettings,
-  exportSnapshot,
   foldExpiredMonths,
   loadAwards,
   loadJournal,
   loadSettings,
   loadSkillClicks,
   loadSkills,
-  materialize,
   monthsToLoad,
-  newShortId,
-  parseSnapshot,
   pruneOldMonths,
   readLocalOnly,
   saveAwards,
@@ -63,9 +61,7 @@ import {
   saveSkills,
   saveSkillsMonth,
   writeAll,
-  type AwardMap,
-  type SnapshotContents,
-} from './persistence';
+} from './legacy/persistence';
 import { MOCK_MODE, buildMockData } from './mock';
 
 const FLUSH_DELAY_MS = 700;

@@ -149,6 +149,10 @@ export interface Journal {
   battery: Record<DayKey, BatteryShift[]>;
 }
 
+export function emptyJournal(): Journal {
+  return { clicks: {}, battery: {} };
+}
+
 export type PeriodId = 'today' | 'week' | 'month' | 'all';
 
 export interface Period {

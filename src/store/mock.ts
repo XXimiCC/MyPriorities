@@ -10,7 +10,8 @@ import { addDays, dayKey } from '../domain/date';
 import { BASIC_PRESET_ID } from '../domain/presets';
 import type { BatteryLevel, BatteryShift, ClicksMap, Journal, Settings } from '../domain/types';
 import type { SkillsState } from '../skills/types';
-import { defaultSettings, type AwardMap } from './persistence';
+import { defaultSettings } from '../domain/settings';
+import type { AwardMap } from '../achievements/types';
 
 export const MOCK_MODE = new URLSearchParams(window.location.search).has('mock');
 

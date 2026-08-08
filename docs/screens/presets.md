@@ -85,7 +85,7 @@ import { data as presets } from '../.vitepress/data/presets.data.mts';
 - Экран — `src/screens/PresetsScreen.tsx`, данные — `src/domain/presets.ts`.
   Список на этой странице собирается из того же файла через data loader
   `docs/.vitepress/data/presets.data.mts`, поэтому расходиться ему не с чем.
-- Разворачивает набор в приоритеты `materialize` (`src/store/persistence.ts`):
+- Разворачивает набор в приоритеты `materialize` (`src/domain/settings.ts`):
   она переиспользует идентификаторы, найденные по названию без учёта регистра
   и пробелов, и обрезает список до `MAX_PRIORITIES`.
 - Флаг `intro` меняет шапку и **гасит подтверждение** (`apply` в `PresetsScreen.tsx`).

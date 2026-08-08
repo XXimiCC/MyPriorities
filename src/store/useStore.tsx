@@ -18,7 +18,6 @@ import {
   type ReactNode,
 } from 'react';
 
-import { removeShift, setShift } from '../domain/battery';
 import { minuteOfDay, monthKey, todayKey } from '../domain/date';
 import { nextFreeColorId } from '../domain/palette';
 import { PRESETS } from '../domain/presets';
@@ -28,7 +27,6 @@ import {
   emptyJournal,
   modulesOf,
   type BatteryLevel,
-  type BatteryShift,
   type ClicksMap,
   type DayKey,
   type Journal,
@@ -62,6 +60,12 @@ import {
   saveSkillsMonth,
   writeAll,
 } from './legacy/persistence';
+import { isDeviceId, newDeviceId } from '../sync/device';
+import { createClock, emptyHlc, parseStamp, type Clock, type HlcState } from '../sync/hlc';
+import type { Stamper } from '../sync/ops';
+import { isRecordable, opsForClear, opsForContents, recordOps } from '../sync/record';
+import { opsLog } from './local/db';
+import { reduce, type Action, type Hydration, type State } from './reduce';
 import { MOCK_MODE, buildMockData } from './mock';
 
 const FLUSH_DELAY_MS = 700;
@@ -79,152 +83,6 @@ const FLUSH_RETRY_MAX_MS = 30_000;
  * считается от одного вызова (4 с), а не от их суммы.
  */
 const HYDRATE_DEADLINE_MS = 9000;
-
-interface State {
-  ready: boolean;
-  settings: Settings;
-  journal: Journal;
-  skills: SkillsState;
-  skillClicks: ClicksMap;
-  awards: AwardMap;
-  /** Только что открытые достижения — для всплывашки. В хранилище не едет. */
-  fresh: string[];
-  /**
-   * Месяцы навыков прочитаны. Пока false, писать их запрещено: иначе включение
-   * модуля тумблером записало бы пустую карту поверх облачной истории.
-   */
-  skillsLoaded: boolean;
-}
-
-type Hydration = Omit<State, 'ready' | 'fresh'>;
-
-type Action =
-  | ({ type: 'hydrate' } & Hydration)
-  | { type: 'blocks'; day: DayKey; priorityId: string; delta: number }
-  | { type: 'battery-set'; day: DayKey; minute: number; level: BatteryLevel; replace?: number }
-  | { type: 'battery-remove'; day: DayKey; minute: number }
-  | { type: 'drain'; day: DayKey; drainedBy: string }
-  | { type: 'settings'; settings: Settings }
-  | { type: 'journal'; journal: Journal }
-  | { type: 'skills'; skills: SkillsState }
-  | { type: 'skill-blocks'; day: DayKey; skillId: string; delta: number }
-  | { type: 'skill-journal'; skillClicks: ClicksMap; skillsLoaded: boolean }
-  | { type: 'awards'; awards: AwardMap; fresh: string[] }
-  | { type: 'dismiss-fresh' };
-
-/** Прибавляет блок в карту кликов. Форма общая у приоритетов и навыков. */
-function bump(clicks: ClicksMap, day: DayKey, id: string, delta: number): ClicksMap {
-  const entry = clicks[day] ?? {};
-  const next = Math.max(0, (entry[id] ?? 0) + delta);
-  const updatedDay = { ...entry };
-  if (next > 0) updatedDay[id] = next;
-  else delete updatedDay[id];
-
-  const out = { ...clicks };
-  if (Object.keys(updatedDay).length > 0) out[day] = updatedDay;
-  else delete out[day];
-  return out;
-}
-
-function reduce(state: State, action: Action): State {
-  switch (action.type) {
-    case 'hydrate':
-      return {
-        ready: true,
-        fresh: [],
-        settings: action.settings,
-        journal: action.journal,
-        skills: action.skills,
-        skillClicks: action.skillClicks,
-        awards: action.awards,
-        skillsLoaded: action.skillsLoaded,
-      };
-
-    case 'blocks': {
-      const clicks = bump(state.journal.clicks, action.day, action.priorityId, action.delta);
-      return { ...state, journal: { ...state.journal, clicks } };
-    }
-
-    case 'skill-blocks':
-      return {
-        ...state,
-        skillClicks: bump(state.skillClicks, action.day, action.skillId, action.delta),
-      };
-
-    case 'skills':
-      return { ...state, skills: action.skills };
-
-    case 'skill-journal':
-      return { ...state, skillClicks: action.skillClicks, skillsLoaded: action.skillsLoaded };
-
-    case 'awards':
-      return { ...state, awards: action.awards, fresh: action.fresh };
-
-    case 'dismiss-fresh':
-      return state.fresh.length === 0 ? state : { ...state, fresh: [] };
-
-    case 'battery-set': {
-      const existing = state.journal.battery[action.day] ?? [];
-      const shifts = setShift(existing, action.minute, action.level, action.replace);
-      return {
-        ...state,
-        journal: { ...state.journal, battery: { ...state.journal.battery, [action.day]: shifts } },
-      };
-    }
-
-    case 'battery-remove': {
-      const existing = state.journal.battery[action.day];
-      if (!existing) return state;
-      const shifts = removeShift(existing, action.minute);
-
-      const battery = { ...state.journal.battery };
-      // Опустевший день выкидываем целиком: иначе он остаётся в журнале пустым
-      // ключом и попадает в расчёты как день «с отметками».
-      if (shifts.length > 0) battery[action.day] = shifts;
-      else delete battery[action.day];
-
-      return { ...state, journal: { ...state.journal, battery } };
-    }
-
-    case 'drain': {
-      // Ответ приписывается последнему переходу дня — тому самому, который
-      // только что перевёл заряд на «на нуле» и вызвал вопрос.
-      //
-      // Если в этом дне переходов нет, значит между переходом и ответом наступила
-      // полночь: вопрос задан вчера в 23:59, отвечают сегодня в 00:01. Ищем день
-      // последнего перехода, иначе ответ пропадал бы молча.
-      const day = state.journal.battery[action.day]?.length
-        ? action.day
-        : Object.keys(state.journal.battery)
-            .filter((key) => (state.journal.battery[key]?.length ?? 0) > 0)
-            .sort()
-            .pop();
-      if (day === undefined) return state;
-
-      const shifts = state.journal.battery[day];
-      const last = shifts?.[shifts.length - 1];
-      if (!shifts || !last) return state;
-
-      const updated: BatteryShift[] = [
-        ...shifts.slice(0, -1),
-        [last[0], last[1], action.drainedBy],
-      ];
-      return {
-        ...state,
-        journal: { ...state.journal, battery: { ...state.journal.battery, [day]: updated } },
-      };
-    }
-
-    case 'settings':
-      return { ...state, settings: action.settings };
-
-    case 'journal':
-      return { ...state, journal: action.journal };
-
-    default:
-      return state;
-  }
-}
 
 export interface StoreActions {
   /** day по умолчанию — сегодня; передаётся явно только при заполнении пропусков. */
@@ -307,6 +165,85 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
   // Свежий снимок для флаша: он живёт вне рендера и не должен ловить устаревшее замыкание.
   const latest = useRef(state);
   latest.current = state;
+
+  /*
+   * Часы устройства для меток журнала.
+   *
+   * Создаются лениво и заменяются при гидратации на восстановленные: до неё
+   * приложение показывает заставку и правок не принимает, поэтому временные
+   * часы в настоящий журнал не попадают.
+   */
+  const clock = useRef<Clock | undefined>(undefined);
+  const stamp = useCallback<Stamper>(() => {
+    clock.current ??= createClock(newDeviceId());
+    return clock.current.stamp();
+  }, []);
+
+  /**
+   * Поднимает часы из журнала.
+   *
+   * Идентификатор устройства обязан пережить перезапуск: иначе сервер сочтёт
+   * каждый запуск новым устройством и никогда не сможет свернуть журнал —
+   * барьер свёртки считается по самому отставшему из живых.
+   *
+   * А вот состояние самих часов отдельно хранить незачем: метка каждой
+   * операции его и содержит, поэтому достаточно взять наибольшую из журнала.
+   */
+  const restoreClock = useCallback(async (): Promise<void> => {
+    try {
+      const stored = await opsLog.meta('deviceId');
+      let deviceId: string;
+      if (isDeviceId(stored)) {
+        deviceId = stored;
+      } else {
+        deviceId = newDeviceId();
+        await opsLog.setMeta('deviceId', deviceId);
+      }
+
+      let newest = '';
+      for (const op of await opsLog.all()) {
+        if (op.hlc > newest) newest = op.hlc;
+      }
+      const parsed = parseStamp(newest);
+      const state: HlcState = parsed ? { wall: parsed.wall, counter: parsed.counter } : emptyHlc();
+
+      clock.current = createClock(deviceId, state);
+    } catch (error) {
+      // Без журнала приложение работает по-прежнему — источником истины пока
+      // остаётся CloudStorage, — поэтому старт из-за этого ронять нельзя.
+      console.warn('[store] часы журнала не восстановились', error);
+    }
+  }, []);
+
+  /**
+   * Единственная точка записи в журнал операций.
+   *
+   * Действие сначала превращается в операции — по состоянию **до** него, — и
+   * только потом уходит в reducer. Перехват здесь, а не в полутора десятках
+   * методов: забытый вызов означал бы тихо потерянную правку, то есть ровно ту
+   * болезнь, от которой журнал и лечит.
+   */
+  const commit = useCallback(
+    (action: Action): void => {
+      const before = latest.current;
+      if (!MOCK_MODE && isRecordable(action)) {
+        const ops = recordOps(before, action, stamp);
+        if (ops.length > 0) void opsLog.append(ops);
+      }
+      /*
+       * Снимок обновляется сразу, не дожидаясь рендера.
+       *
+       * Две правки, попавшие в один такт, иначе увидели бы одно и то же «до»:
+       * второе снятие блока с ячейки, где остался один, записало бы ещё одно
+       * слагаемое, и журнал разошёлся бы с состоянием. Reducer чистый и
+       * дешёвый, так что посчитать его дважды надёжнее, чем гадать, успел ли
+       * React отрисоваться между двумя событиями.
+       */
+      latest.current = reduce(before, action);
+      dispatch(action);
+    },
+    [stamp],
+  );
 
   const dirtyClicks = useRef(new Set<string>());
   const dirtyBattery = useRef(new Set<string>());
@@ -504,7 +441,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     const finish = (loaded: Partial<Hydration> & { settings: Settings | undefined }): void => {
       if (cancelled || settled) return;
       settled = true;
-      dispatch({
+      commit({
         type: 'hydrate',
         settings: loaded.settings ?? emptySettings(),
         journal: loaded.journal ?? emptyJournal(),
@@ -563,6 +500,10 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         }
       };
 
+      // Часы поднимаются до первой возможной правки. Ошибка внутри заглушена:
+      // без журнала приложение работает по-прежнему, а вот без данных — нет.
+      await restoreClock();
+
       /*
        * До чтения истории: если её стёрли на другом устройстве, локальная копия
        * здесь ещё цела и при слиянии воскресила бы стёртое. Ошибки внутри
@@ -604,7 +545,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         if (cancelled) return;
 
         if (folded) {
-          dispatch({ type: 'skills', skills: folded });
+          commit({ type: 'skills', skills: folded });
           try {
             // Уборка сносит исходные месяцы, поэтому запускать её можно только
             // после подтверждённой записи свёртки — иначе carryBlocks теряется.
@@ -622,7 +563,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       cancelled = true;
       window.clearTimeout(deadline);
     };
-  }, [writeSkills]);
+  }, [commit, restoreClock, writeSkills]);
 
   // Сворачивание мини-аппа не даёт времени на отложенную запись — дожимаем немедленно.
   useEffect(() => {
@@ -660,17 +601,17 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
 
   const actions = useMemo<StoreActions>(() => {
     const commitSettings = (settings: Settings): void => {
-      dispatch({ type: 'settings', settings });
+      commit({ type: 'settings', settings });
       writeSettings(settings);
     };
 
     const commitSkills = (skills: SkillsState): void => {
-      dispatch({ type: 'skills', skills });
+      commit({ type: 'skills', skills });
       writeSkills(skills);
     };
 
     const commitAwards = (awards: AwardMap, fresh: string[] = []): void => {
-      dispatch({ type: 'awards', awards, fresh });
+      commit({ type: 'awards', awards, fresh });
       writeAwards(awards);
     };
 
@@ -684,12 +625,12 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
 
     return {
       addBlock(priorityId, day = todayKey()) {
-        dispatch({ type: 'blocks', day, priorityId, delta: 1 });
+        commit({ type: 'blocks', day, priorityId, delta: 1 });
         markClicks(day);
       },
 
       removeBlock(priorityId, day = todayKey()) {
-        dispatch({ type: 'blocks', day, priorityId, delta: -1 });
+        commit({ type: 'blocks', day, priorityId, delta: -1 });
         markClicks(day);
       },
 
@@ -705,12 +646,12 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         const last = existing[existing.length - 1];
         if (last && last[1] === level && last[0] <= minute) return;
 
-        dispatch({ type: 'battery-set', day, minute, level });
+        commit({ type: 'battery-set', day, minute, level });
         markBattery(day);
       },
 
       setBatteryAt(day, minute, level, replace) {
-        dispatch({
+        commit({
           type: 'battery-set',
           day,
           minute,
@@ -721,7 +662,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       },
 
       removeBatteryShift(day, minute) {
-        dispatch({ type: 'battery-remove', day, minute });
+        commit({ type: 'battery-remove', day, minute });
         markBattery(day);
       },
 
@@ -738,7 +679,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
               .pop();
         if (day === undefined) return;
 
-        dispatch({ type: 'drain', day, drainedBy });
+        commit({ type: 'drain', day, drainedBy });
         markBattery(day);
       },
 
@@ -841,7 +782,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         if (id === 'skills' && on && !latest.current.skillsLoaded && !MOCK_MODE) {
           try {
             const clicks = await loadSkillClicks(monthsToLoad());
-            dispatch({ type: 'skill-journal', skillClicks: clicks, skillsLoaded: true });
+            commit({ type: 'skill-journal', skillClicks: clicks, skillsLoaded: true });
           } catch (error) {
             console.warn('[store] история навыков не догрузилась', error);
           }
@@ -945,12 +886,12 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       },
 
       addSkillBlock(skillId, day = todayKey()) {
-        dispatch({ type: 'skill-blocks', day, skillId, delta: 1 });
+        commit({ type: 'skill-blocks', day, skillId, delta: 1 });
         markSkillClicks(day);
       },
 
       removeSkillBlock(skillId, day = todayKey()) {
-        dispatch({ type: 'skill-blocks', day, skillId, delta: -1 });
+        commit({ type: 'skill-blocks', day, skillId, delta: -1 });
         markSkillClicks(day);
       },
 
@@ -973,7 +914,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       },
 
       dismissFresh() {
-        dispatch({ type: 'dismiss-fresh' });
+        commit({ type: 'dismiss-fresh' });
       },
 
       async resetHistory() {
@@ -982,8 +923,19 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         await dropPendingWrites();
         const current = latest.current;
 
-        dispatch({ type: 'journal', journal: emptyJournal() });
-        dispatch({ type: 'skill-journal', skillClicks: {}, skillsLoaded: current.skillsLoaded });
+        /*
+         * Барьер в журнале — замена «поколению истории». Удаление ключа в
+         * облаке само по себе не доезжало до второго устройства, и стёртый
+         * месяц возвращался оттуда обратно; барьер едет вместе с остальными
+         * операциями и действует тем же порядком, что и они.
+         *
+         * Достижений он не касается: снятие автоматических приедет отдельными
+         * операциями из commitAwards ниже.
+         */
+        if (!MOCK_MODE) void opsLog.append(opsForClear(stamp));
+
+        commit({ type: 'journal', journal: emptyJournal() });
+        commit({ type: 'skill-journal', skillClicks: {}, skillsLoaded: current.skillsLoaded });
 
         /*
          * Навыки сохраняют то, что не выведено из кликов: стартовый капитал и
@@ -1005,7 +957,17 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
 
       async resetEverything() {
         await dropPendingWrites();
-        dispatch({
+
+        // Барьер плюс снятие всех отметок: барьер историю не трогает выборочно,
+        // а достижения он не отменяет вовсе — их надо снять поимённо.
+        if (!MOCK_MODE) {
+          void opsLog.append([
+            ...opsForClear(stamp),
+            ...recordOps(latest.current, { type: 'awards', awards: {} }, stamp),
+          ]);
+        }
+
+        commit({
           type: 'hydrate',
           settings: emptySettings(),
           journal: emptyJournal(),
@@ -1029,11 +991,27 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         // в копии, только после того, как записал её саму. Отказ облака посреди
         // импорта теперь оставляет прежние данные, а не пустое хранилище.
         await writeAll(restored);
-        dispatch({ type: 'hydrate', ...restored, skillsLoaded: true });
+
+        /*
+         * Копия заменяет историю целиком, поэтому в журнал уходит барьер и
+         * итоги по каждой ячейке — установкой, а не слагаемыми: прогнать
+         * восстановление дважды должно быть безопасно.
+         *
+         * Старый журнал перед этим стирается: его операции всё равно отсечёт
+         * барьер, а место они занимать продолжали бы.
+         */
+        if (!MOCK_MODE) {
+          await opsLog.clear();
+          void opsLog.append(opsForContents(restored, stamp));
+        }
+
+        commit({ type: 'hydrate', ...restored, skillsLoaded: true });
         return restored;
       },
     };
   }, [
+    commit,
+    stamp,
     markClicks,
     markBattery,
     markSkillClicks,

@@ -14,15 +14,23 @@
  * до конца сеанса вместо белого экрана.
  */
 
+import type { Op } from '../../sync/ops';
 import type { KeyValueStore, ValuePair } from '../kv';
 import { IdbUnavailable, openDb, req, txDone } from './idb';
 
 const DB_NAME = 'mypri';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 /** Данные пользователя: ключи те же `mp:*`, что и в CloudStorage. */
 const STORE_KV = 'kv';
 /** Служебное: сюда не попадают ключи данных, поэтому `keys()` не приходится фильтровать. */
 const STORE_META = 'meta';
+/** Журнал операций. Появился во второй версии схемы. */
+const STORE_OPS = 'ops';
+/**
+ * Индекс очереди отправки. Значение — 0 или 1, а не булево: булевы значения
+ * IndexedDB индексировать не умеет.
+ */
+const INDEX_SYNCED = 'by_synced';
 
 /** Свой префикс, чтобы локальная копия не путалась с чужими ключами на том же домене. */
 const LOCAL_PREFIX = 'mypri/';
@@ -264,9 +272,138 @@ function wasMigrated(): boolean {
   }
 }
 
+// --- Журнал операций ---------------------------------------------------------
+
+/**
+ * Операция, как она лежит в базе.
+ *
+ * `synced` — признак доставки на сервер. Индекс по нему и есть очередь
+ * отправки: «что накопилось, пока не было сети» — это выборка по нулю.
+ */
+interface StoredOp extends Op {
+  synced: 0 | 1;
+}
+
+export interface OpsLog {
+  append(ops: Op[]): Promise<void>;
+  /** Всё, что есть: из этого строится проекция при запуске. */
+  all(): Promise<Op[]>;
+  /** Ещё не доставленное серверу. */
+  pending(): Promise<Op[]>;
+  markSynced(opIds: string[]): Promise<void>;
+  /** Полная очистка журнала. Нужна после свёртки и при сбросе кабинета. */
+  clear(): Promise<void>;
+  meta(key: string): Promise<unknown>;
+  setMeta(key: string, value: unknown): Promise<void>;
+}
+
+function strip(row: StoredOp): Op {
+  const { synced: _drop, ...op } = row;
+  return op;
+}
+
+function idbOps(db: IDBDatabase): OpsLog {
+  return {
+    async append(ops) {
+      if (ops.length === 0) return;
+      const tx = db.transaction(STORE_OPS, 'readwrite');
+      const os = tx.objectStore(STORE_OPS);
+      // put, а не add: повторная запись той же операции должна быть безобидна,
+      // иначе повтор доставки ронял бы всю пачку целиком.
+      for (const op of ops) os.put({ ...op, synced: 0 } satisfies StoredOp);
+      await txDone(tx);
+    },
+
+    async all() {
+      const tx = db.transaction(STORE_OPS, 'readonly');
+      const rows = await req<StoredOp[]>(tx.objectStore(STORE_OPS).getAll());
+      return rows.map(strip);
+    },
+
+    async pending() {
+      const tx = db.transaction(STORE_OPS, 'readonly');
+      const rows = await req<StoredOp[]>(
+        tx.objectStore(STORE_OPS).index(INDEX_SYNCED).getAll(0),
+      );
+      return rows.map(strip);
+    },
+
+    async markSynced(opIds) {
+      if (opIds.length === 0) return;
+      const tx = db.transaction(STORE_OPS, 'readwrite');
+      const os = tx.objectStore(STORE_OPS);
+      // Сначала все чтения, потом все записи: между ними нет ожидания чего-то
+      // постороннего, поэтому транзакция доживает до конца.
+      const rows = await Promise.all(opIds.map((id) => req<StoredOp | undefined>(os.get(id))));
+      for (const row of rows) {
+        if (row) os.put({ ...row, synced: 1 });
+      }
+      await txDone(tx);
+    },
+
+    async clear() {
+      const tx = db.transaction(STORE_OPS, 'readwrite');
+      tx.objectStore(STORE_OPS).clear();
+      await txDone(tx);
+    },
+
+    async meta(key) {
+      const tx = db.transaction(STORE_META, 'readonly');
+      return req<unknown>(tx.objectStore(STORE_META).get(key));
+    },
+
+    async setMeta(key, value) {
+      const tx = db.transaction(STORE_META, 'readwrite');
+      tx.objectStore(STORE_META).put(value, key);
+      await txDone(tx);
+    },
+  };
+}
+
+/**
+ * Журнал в памяти. Между запусками не живёт, но позволяет работать до конца
+ * сеанса — а пока идёт двойная запись, источником истины остаётся CloudStorage,
+ * и потеря журнала не потеря данных.
+ */
+function memoryOps(): OpsLog {
+  const rows = new Map<string, StoredOp>();
+  const meta = new Map<string, unknown>();
+  return {
+    async append(ops) {
+      for (const op of ops) rows.set(op.opId, { ...op, synced: 0 });
+    },
+    async all() {
+      return [...rows.values()].map(strip);
+    },
+    async pending() {
+      return [...rows.values()].filter((row) => row.synced === 0).map(strip);
+    },
+    async markSynced(opIds) {
+      for (const id of opIds) {
+        const row = rows.get(id);
+        if (row) rows.set(id, { ...row, synced: 1 });
+      }
+    },
+    async clear() {
+      rows.clear();
+    },
+    async meta(key) {
+      return meta.get(key);
+    },
+    async setMeta(key, value) {
+      meta.set(key, value);
+    },
+  };
+}
+
 // --- Выбор реализации --------------------------------------------------------
 
-async function resolveBackend(): Promise<KeyValueStore> {
+interface Local {
+  kv: KeyValueStore;
+  ops: OpsLog;
+}
+
+async function resolveBackend(): Promise<Local> {
   try {
     const db = await openDb({
       name: DB_NAME,
@@ -274,29 +411,33 @@ async function resolveBackend(): Promise<KeyValueStore> {
       upgrade(database) {
         if (!database.objectStoreNames.contains(STORE_KV)) database.createObjectStore(STORE_KV);
         if (!database.objectStoreNames.contains(STORE_META)) database.createObjectStore(STORE_META);
+        if (!database.objectStoreNames.contains(STORE_OPS)) {
+          const ops = database.createObjectStore(STORE_OPS, { keyPath: 'opId' });
+          ops.createIndex(INDEX_SYNCED, 'synced');
+        }
       },
     });
     await migrateFromWebStorage(db);
     markMigrated();
-    return idbBacked(db);
+    return { kv: idbBacked(db), ops: idbOps(db) };
   } catch (error) {
     if (wasMigrated()) {
       console.warn('[storage] база не открылась, а данные уже в ней — читать нечего', error);
-      return failingStore(error);
+      return { kv: failingStore(error), ops: memoryOps() };
     }
     if (hasWebStorage()) {
       console.warn('[storage] IndexedDB недоступен, остаёмся на localStorage', error);
-      return webStorageStore;
+      return { kv: webStorageStore, ops: memoryOps() };
     }
     console.warn('[storage] постоянного хранилища нет, работаем из памяти', error);
-    return memoryStore();
+    return { kv: memoryStore(), ops: memoryOps() };
   }
 }
 
 /** Выбор делается один раз за сеанс: повторять открытие на каждой операции незачем. */
-let chosen: Promise<KeyValueStore> | undefined;
+let chosen: Promise<Local> | undefined;
 
-function backend(): Promise<KeyValueStore> {
+function backend(): Promise<Local> {
   chosen ??= resolveBackend();
   return chosen;
 }
@@ -308,14 +449,39 @@ function backend(): Promise<KeyValueStore> {
 export const localStore: KeyValueStore = {
   kind: 'local',
   isDegraded: () => false,
-  get: (keys) => backend().then((store) => store.get(keys)),
-  getPair: (keys) => backend().then((store) => store.getPair(keys)),
-  set: (key, value) => backend().then((store) => store.set(key, value)),
-  remove: (keys) => backend().then((store) => store.remove(keys)),
-  keys: () => backend().then((store) => store.keys()),
+  get: (keys) => backend().then(({ kv }) => kv.get(keys)),
+  getPair: (keys) => backend().then(({ kv }) => kv.getPair(keys)),
+  set: (key, value) => backend().then(({ kv }) => kv.set(key, value)),
+  remove: (keys) => backend().then(({ kv }) => kv.remove(keys)),
+  keys: () => backend().then(({ kv }) => kv.keys()),
+};
+
+/**
+ * Запись идёт цепочкой, а не поверх предыдущей.
+ *
+ * Порядок операций в журнале сам по себе не важен — на то и метки времени, — но
+ * две параллельные транзакции на одну базу означали бы, что вторая может
+ * завершиться раньше первой, а ошибка первой потеряется молча. Приём тот же,
+ * что у `pendingSettings` в сторе.
+ */
+let chain: Promise<void> = Promise.resolve();
+
+export const opsLog: OpsLog = {
+  append(ops) {
+    const done = chain.then(() => backend().then(({ ops: log }) => log.append(ops)));
+    chain = done.catch((error) => console.warn('[storage] операции не записались', error));
+    return done;
+  },
+  all: () => backend().then(({ ops }) => ops.all()),
+  pending: () => backend().then(({ ops }) => ops.pending()),
+  markSynced: (opIds) => backend().then(({ ops }) => ops.markSynced(opIds)),
+  clear: () => backend().then(({ ops }) => ops.clear()),
+  meta: (key) => backend().then(({ ops }) => ops.meta(key)),
+  setMeta: (key, value) => backend().then(({ ops }) => ops.setMeta(key, value)),
 };
 
 /** Только для тестов: следующий вызов снова выберет реализацию. */
 export function resetBackendForTests(): void {
   chosen = undefined;
+  chain = Promise.resolve();
 }

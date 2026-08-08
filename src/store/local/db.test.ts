@@ -1,7 +1,9 @@
 import { IDBFactory } from 'fake-indexeddb';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { localStore, resetBackendForTests } from './db';
+import { formatStamp } from '../../sync/hlc';
+import type { Op } from '../../sync/ops';
+import { localStore, opsLog, resetBackendForTests } from './db';
 
 /**
  * Минимальный `localStorage` для node: нужны только те пять членов, которыми
@@ -182,5 +184,68 @@ describe('когда базы нет', () => {
 
     await localStore.set('mp:s', '{"version":1}');
     expect(await localStore.get(['mp:s'])).toEqual({ 'mp:s': '{"version":1}' });
+  });
+});
+
+describe('журнал операций', () => {
+  const op = (id: string, at: number): Op => ({
+    opId: id,
+    kind: 'blk',
+    hlc: formatStamp({ wall: at, counter: 0 }, 'aaaa1111'),
+    day: '2026-08-06',
+    targetId: 'ab',
+    amount: 1,
+  });
+
+  it('пишет и читает', async () => {
+    await opsLog.append([op('a', 1), op('b', 2)]);
+    expect((await opsLog.all()).map((row) => row.opId).sort()).toEqual(['a', 'b']);
+  });
+
+  it('повторная запись той же операции ничего не удваивает', async () => {
+    // Доставка «хотя бы один раз» — норма, и падать на ней нельзя: иначе
+    // повтор одной операции ронял бы всю пачку.
+    await opsLog.append([op('a', 1)]);
+    await opsLog.append([op('a', 1), op('b', 2)]);
+    expect(await opsLog.all()).toHaveLength(2);
+  });
+
+  it('очередь отправки — это ещё не доставленное', async () => {
+    await opsLog.append([op('a', 1), op('b', 2), op('c', 3)]);
+    expect(await opsLog.pending()).toHaveLength(3);
+
+    await opsLog.markSynced(['a', 'b']);
+    expect((await opsLog.pending()).map((row) => row.opId)).toEqual(['c']);
+    // Доставленное из журнала не исчезает: из него строится проекция.
+    expect(await opsLog.all()).toHaveLength(3);
+  });
+
+  it('отметка о доставке несуществующей операции безобидна', async () => {
+    await opsLog.append([op('a', 1)]);
+    await opsLog.markSynced(['нет-такой']);
+    expect(await opsLog.all()).toHaveLength(1);
+  });
+
+  it('чистится целиком', async () => {
+    await opsLog.append([op('a', 1)]);
+    await opsLog.clear();
+    expect(await opsLog.all()).toEqual([]);
+  });
+
+  it('служебные значения переживают чистку журнала', async () => {
+    // Идентификатор устройства обязан пережить и стирание истории, и
+    // восстановление копии: иначе сервер сочтёт устройство новым.
+    await opsLog.setMeta('deviceId', 'ab12cd34');
+    await opsLog.append([op('a', 1)]);
+    await opsLog.clear();
+    expect(await opsLog.meta('deviceId')).toBe('ab12cd34');
+  });
+
+  it('без IndexedDB живёт в памяти до конца сеанса', async () => {
+    dropIndexedDb();
+    resetBackendForTests();
+
+    await opsLog.append([op('a', 1)]);
+    expect(await opsLog.all()).toHaveLength(1);
   });
 });

@@ -161,7 +161,14 @@ export function HomeScreen({ onEdit }: Props): JSX.Element {
 
         {pickerOpen || inPast ? (
           <>
-            <DayPicker value={writeDay} journal={journal} onChange={pickDay} />
+            <DayPicker
+              value={writeDay}
+              hasEntries={(day) => {
+                const entry = journal.clicks[day];
+                return Boolean(entry && Object.values(entry).some((n) => n > 0));
+              }}
+              onChange={pickDay}
+            />
             {/* Пока выбран сегодняшний день, «К сегодня» ниже не показывается, и
                 лента оставалась открытой без единого способа её убрать. */}
             {!inPast && (

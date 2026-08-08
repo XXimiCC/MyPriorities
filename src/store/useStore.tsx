@@ -18,6 +18,7 @@ import {
   type ReactNode,
 } from 'react';
 
+import { removeShift, setShift } from '../domain/battery';
 import { minuteOfDay, monthKey, todayKey } from '../domain/date';
 import { nextFreeColorId } from '../domain/palette';
 import { PRESETS } from '../domain/presets';
@@ -104,7 +105,8 @@ type Hydration = Omit<State, 'ready' | 'fresh'>;
 type Action =
   | ({ type: 'hydrate' } & Hydration)
   | { type: 'blocks'; day: DayKey; priorityId: string; delta: number }
-  | { type: 'battery'; day: DayKey; minute: number; level: BatteryLevel }
+  | { type: 'battery-set'; day: DayKey; minute: number; level: BatteryLevel; replace?: number }
+  | { type: 'battery-remove'; day: DayKey; minute: number }
   | { type: 'drain'; day: DayKey; drainedBy: string }
   | { type: 'settings'; settings: Settings }
   | { type: 'journal'; journal: Journal }
@@ -165,20 +167,27 @@ function reduce(state: State, action: Action): State {
     case 'dismiss-fresh':
       return state.fresh.length === 0 ? state : { ...state, fresh: [] };
 
-    case 'battery': {
+    case 'battery-set': {
       const existing = state.journal.battery[action.day] ?? [];
-      const last = existing[existing.length - 1];
-      // Повтор того же уровня ничего не меняет — лишняя запись только раздувает месяц.
-      if (last && last[1] === action.level && last[0] <= action.minute) return state;
-
-      const withoutSameMinute = existing.filter((shift) => shift[0] !== action.minute);
-      const shifts = [...withoutSameMinute, [action.minute, action.level] as [number, BatteryLevel]].sort(
-        (a, b) => a[0] - b[0],
-      );
+      const shifts = setShift(existing, action.minute, action.level, action.replace);
       return {
         ...state,
         journal: { ...state.journal, battery: { ...state.journal.battery, [action.day]: shifts } },
       };
+    }
+
+    case 'battery-remove': {
+      const existing = state.journal.battery[action.day];
+      if (!existing) return state;
+      const shifts = removeShift(existing, action.minute);
+
+      const battery = { ...state.journal.battery };
+      // Опустевший день выкидываем целиком: иначе он остаётся в журнале пустым
+      // ключом и попадает в расчёты как день «с отметками».
+      if (shifts.length > 0) battery[action.day] = shifts;
+      else delete battery[action.day];
+
+      return { ...state, journal: { ...state.journal, battery } };
     }
 
     case 'drain': {
@@ -226,6 +235,12 @@ export interface StoreActions {
   addBlock(priorityId: string, day?: DayKey): void;
   removeBlock(priorityId: string, day?: DayKey): void;
   setBattery(level: BatteryLevel): void;
+  /**
+   * Отметка задним числом: за любой день и на любую минуту. `replace` — минута
+   * правимой отметки, чтобы перенос времени не оставлял старую запись.
+   */
+  setBatteryAt(day: DayKey, minute: number, level: BatteryLevel, replace?: number): void;
+  removeBatteryShift(day: DayKey, minute: number): void;
   /** Ответ на вопрос, что посадило заряд. DRAIN_UNKNOWN — «не знаю». */
   setDrain(drainedBy: string): void;
   reorder(priorities: Priority[]): void;
@@ -685,7 +700,32 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       setBattery(level) {
         const now = new Date();
         const day = todayKey(now);
-        dispatch({ type: 'battery', day, minute: minuteOfDay(now), level });
+        const minute = minuteOfDay(now);
+
+        // Повтор того же уровня ничего не меняет — лишняя запись только раздувает
+        // месяц. Проверка живёт здесь, а не в reducer: это правило живого нажатия,
+        // а не правки задним числом, где такая отметка может быть осмысленной.
+        const existing = latest.current.journal.battery[day] ?? [];
+        const last = existing[existing.length - 1];
+        if (last && last[1] === level && last[0] <= minute) return;
+
+        dispatch({ type: 'battery-set', day, minute, level });
+        markBattery(day);
+      },
+
+      setBatteryAt(day, minute, level, replace) {
+        dispatch({
+          type: 'battery-set',
+          day,
+          minute,
+          level,
+          ...(replace === undefined ? {} : { replace }),
+        });
+        markBattery(day);
+      },
+
+      removeBatteryShift(day, minute) {
+        dispatch({ type: 'battery-remove', day, minute });
         markBattery(day);
       },
 

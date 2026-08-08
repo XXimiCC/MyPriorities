@@ -1,22 +1,27 @@
 import { useEffect, useRef } from 'react';
 
 import { addDays, dayKey, formatDayShort, todayKey, weekdayShort } from '../domain/date';
-import type { Journal, DayKey } from '../domain/types';
+import type { DayKey } from '../domain/types';
 import { t } from '../i18n';
 import { haptics } from '../telegram/sdk';
 import './DayPicker.css';
 
 interface Props {
-  /** День, в который сейчас пишутся клики. */
+  /** День, который сейчас правят. */
   value: DayKey;
-  journal: Journal;
+  /**
+   * Есть ли в дне записи — под числом появляется точка. Предикат, а не журнал:
+   * лента одна и та же для кликов и для отметок заряда, а «непустой день» у них
+   * значит разное.
+   */
+  hasEntries(day: DayKey): boolean;
   onChange(day: DayKey): void;
 }
 
 /** Заполнять пропуски дальше двух недель назад смысла нет — уже не вспомнить. */
 const BACK_DAYS = 14;
 
-export function DayPicker({ value, journal, onChange }: Props): JSX.Element {
+export function DayPicker({ value, hasEntries, onChange }: Props): JSX.Element {
   const today = todayKey();
   const now = new Date();
 
@@ -39,8 +44,7 @@ export function DayPicker({ value, journal, onChange }: Props): JSX.Element {
   return (
     <div className="dpick" role="tablist" aria-label={t('home.dayPicker')} ref={strip}>
       {days.map((day) => {
-        const entry = journal.clicks[day];
-        const marked = Boolean(entry && Object.values(entry).some((n) => n > 0));
+        const marked = hasEntries(day);
         const isToday = day === today;
         return (
           <button

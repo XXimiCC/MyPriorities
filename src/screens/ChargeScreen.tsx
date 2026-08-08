@@ -1,11 +1,14 @@
 import { useMemo, useState } from 'react';
 
 import { BatteryCaption, BatteryIcon } from '../components/BatteryIcon';
+import { BatteryShiftSheet, type EditedShift } from '../components/BatteryShiftSheet';
+import { DayPicker } from '../components/DayPicker';
 import { DrainSheet } from '../components/DrainSheet';
 import { WallpaperSheet } from '../components/WallpaperSheet';
-import { formatMinutes, formatPercent } from '../domain/date';
+import { formatTime } from '../domain/battery';
+import { formatDayShort, formatMinutes, formatPercent, minuteOfDay } from '../domain/date';
 import { batteryMeaning, batteryTheme, batteryTitle } from '../domain/palette';
-import { computeBatteryStats, currentBatteryLevel, periodDays } from '../domain/stats';
+import { computeBatteryStats, currentBatteryLevel, levelBefore, periodDays } from '../domain/stats';
 import { BATTERY_LEVELS, PERIODS } from '../domain/types';
 import { t } from '../i18n';
 import { useStore } from '../store/useStore';
@@ -13,17 +16,31 @@ import { haptics } from '../telegram/sdk';
 import './ChargeScreen.css';
 
 const TODAY = PERIODS.find((p) => p.id === 'today')!;
+const MINUTES_IN_DAY = 1440;
 
 export function ChargeScreen(): JSX.Element {
-  const { settings, journal, actions } = useStore();
+  const { settings, journal, today, actions } = useStore();
   const [wallpaperOpen, setWallpaperOpen] = useState(false);
   const [askDrain, setAskDrain] = useState(false);
+  /** День, отметки которого правим. Всегда начинаем с сегодняшнего. */
+  const [editDay, setEditDay] = useState(today);
+  const [editing, setEditing] = useState<EditedShift | null>(null);
 
   const level = useMemo(() => currentBatteryLevel(journal), [journal]);
   const todayStats = useMemo(
     () => computeBatteryStats(journal, periodDays(TODAY, journal)),
     [journal],
   );
+
+  const dayShifts = journal.battery[editDay] ?? [];
+  const carried = useMemo(() => levelBefore(journal, editDay), [journal, editDay]);
+  /*
+   * Хвост последней отметки: у прошедших суток он до полуночи, у сегодняшних —
+   * до «сейчас». Иначе сегодняшнее состояние показывало бы длительность авансом,
+   * до конца ещё не прожитого дня.
+   */
+  const dayEnd = editDay === today ? minuteOfDay(new Date()) : MINUTES_IN_DAY;
+  const defaultMinute = editDay === today ? minuteOfDay(new Date()) : 12 * 60;
 
   const theme = level ? batteryTheme(level) : null;
 
@@ -118,6 +135,63 @@ export function ChargeScreen(): JSX.Element {
         )}
 
         <div className="divider-label">
+          <span>{t('charge.editTitle')}</span>
+        </div>
+
+        <p className="charge__note">{t('charge.editNote')}</p>
+
+        <DayPicker
+          value={editDay}
+          hasEntries={(day) => (journal.battery[day]?.length ?? 0) > 0}
+          onChange={setEditDay}
+        />
+
+        {carried !== null && (
+          <p className="charge__carried">
+            {t('charge.carried', { title: batteryTitle(carried).toLowerCase() })}
+          </p>
+        )}
+
+        {dayShifts.length === 0 ? (
+          <p className="charge__note">{t('charge.dayEmpty')}</p>
+        ) : (
+          <ul className="bshifts">
+            {dayShifts.map((shift, index) => {
+              const optionTheme = batteryTheme(shift[1]);
+              const next = dayShifts[index + 1]?.[0] ?? dayEnd;
+              const minutes = Math.max(0, next - shift[0]);
+              return (
+                <li key={shift[0]}>
+                  <button
+                    className="bshifts__row press"
+                    type="button"
+                    style={{ '--accent': optionTheme.hex } as React.CSSProperties}
+                    onClick={() => setEditing({ at: shift[0], minute: shift[0], level: shift[1] })}
+                  >
+                    <span className="bshifts__time">{formatTime(shift[0])}</span>
+                    <span className="bshifts__dot" aria-hidden="true" />
+                    <span className="bshifts__title">{batteryTitle(shift[1])}</span>
+                    <span className="bshifts__len">
+                      {index === dayShifts.length - 1 && editDay === today
+                        ? t('charge.untilNow')
+                        : formatMinutes(minutes)}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        <button
+          className="edit__add press charge__wallpaper"
+          type="button"
+          onClick={() => setEditing({ minute: defaultMinute, level: level ?? 3 })}
+        >
+          {t('charge.shiftAdd')}
+        </button>
+
+        <div className="divider-label">
           <span>{t('charge.wallpaperTitle')}</span>
         </div>
 
@@ -142,6 +216,20 @@ export function ChargeScreen(): JSX.Element {
           setAskDrain(false);
         }}
         onSkip={() => setAskDrain(false)}
+      />
+
+      <BatteryShiftSheet
+        shift={editing}
+        dayLabel={editDay === today ? t('charge.todayTitle') : formatDayShort(editDay)}
+        onClose={() => setEditing(null)}
+        onSave={(minute, option) => {
+          actions.setBatteryAt(editDay, minute, option, editing?.at);
+          setEditing(null);
+        }}
+        onDelete={() => {
+          if (editing?.at !== undefined) actions.removeBatteryShift(editDay, editing.at);
+          setEditing(null);
+        }}
       />
     </>
   );

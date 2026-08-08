@@ -413,6 +413,19 @@ export function nearestChargeLevel(charge: number): BatteryLevel {
 }
 
 /** Текущий уровень: последний переход по всей истории. null — состояние ещё не задавали. */
+/**
+ * Состояние, с которым день начался, — то, что перенеслось с прошлых суток.
+ * Без него лента отметок непонятна: день, в котором ничего не переключали,
+ * выглядит пустым, хотя всё это время человек в каком-то состоянии был.
+ */
+export function levelBefore(journal: Journal, day: DayKey): BatteryLevel | null {
+  const days = batteryDaysSorted(journal).filter((key) => key < day);
+  const last = days[days.length - 1];
+  if (!last) return null;
+  const shifts = journal.battery[last];
+  return shifts?.[shifts.length - 1]?.[1] ?? null;
+}
+
 export function currentBatteryLevel(journal: Journal): BatteryLevel | null {
   const days = batteryDaysSorted(journal);
   const last = days[days.length - 1];

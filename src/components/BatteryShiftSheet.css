@@ -1,0 +1,98 @@
+/* Шторка правки отметки заряда: время, уровень, удаление. */
+
+.bshift {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.bshift__day {
+  font-size: 12px;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--text-faint);
+}
+
+.bshift__time {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: var(--r-md);
+  font-size: 14px;
+  color: var(--text-dim);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+}
+
+.bshift__time input {
+  flex: none;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--r-sm);
+  font-size: 20px; /* время — главное поле шторки, оно и должно быть крупным */
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  background: rgba(255, 255, 255, 0.05);
+  outline: none;
+  /* Поле тёмное — говорим об этом явно, чтобы движок сам нарисовал светлую
+     иконку часов. Наследования от :root тут мало: часть движков решает это
+     по фону самого поля. */
+  color-scheme: dark;
+}
+
+/*
+ * Только прозрачность. Здесь стоял filter: invert(1) — и это была ошибка: при
+ * тёмной схеме иконку уже рисуют светлой, а инверсия делала её чёрной на чёрном.
+ */
+.bshift__time input::-webkit-calendar-picker-indicator {
+  opacity: 0.55;
+  cursor: pointer;
+}
+
+.bshift__note {
+  margin: -6px 2px 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-faint);
+}
+
+.bshift__levels {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.bshift__level {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 8px;
+  border-radius: var(--r-md);
+  font-size: 12px;
+  color: var(--text-faint);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+.bshift__level--on {
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.bshift__delete {
+  padding: 13px;
+  border-radius: var(--r-md);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--battery-low);
+  background: color-mix(in srgb, var(--battery-low) 7%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--battery-low) 34%, transparent);
+}

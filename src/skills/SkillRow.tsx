@@ -1,5 +1,6 @@
 import { memo } from 'react';
 
+import { BlockStepper } from '../components/BlockStepper';
 import { formatHoursCompact } from '../domain/date';
 import { colorOf } from '../domain/palette';
 import { t } from '../i18n';
@@ -14,6 +15,7 @@ interface Props {
   periodMinutes: number;
   blockMinutes: number;
   onAdd(): void;
+  onRemove(): void;
   onOpen(): void;
 }
 
@@ -28,6 +30,7 @@ export const SkillRow = memo(function SkillRow({
   periodMinutes,
   blockMinutes,
   onAdd,
+  onRemove,
   onOpen,
 }: Props) {
   const color = colorOf(total.skill.colorId);
@@ -62,17 +65,13 @@ export const SkillRow = memo(function SkillRow({
         </span>
       </button>
 
-      <button
-        className="srow__add press"
-        type="button"
-        aria-label={t('skills.addBlock', { minutes: blockMinutes, title: total.skill.title })}
-        onClick={onAdd}
-      >
-        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-          <path d="M12 5.5v13M5.5 12h13" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-        </svg>
-        {todayBlocks > 0 && <span className="srow__today">{todayBlocks}</span>}
-      </button>
+      <BlockStepper
+        blocks={todayBlocks}
+        blockMinutes={blockMinutes}
+        title={total.skill.title}
+        onAdd={onAdd}
+        onRemove={onRemove}
+      />
     </li>
   );
 });

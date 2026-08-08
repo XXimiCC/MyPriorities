@@ -97,6 +97,25 @@ export function SkillsScreen(): JSX.Element {
     else actions.addSkillBlock(skillId);
   };
 
+  /**
+   * «−» снимает блок оттуда же, куда его положил «+». У привязанного навыка это
+   * приоритет — и на главной он тоже станет на блок меньше, что честно: время
+   * там и там одно. Запасной путь нужен для навыка, который копил сам и получил
+   * привязку позже: сегодняшние собственные блоки у него никуда не делись.
+   */
+  const removeBlock = (skillId: string): void => {
+    const skill = skills.skills.find((s) => s.id === skillId);
+    if (!skill) return;
+    const target = targetOf(skill, activeIds);
+    const fromPriority = target.kind === 'priority' && (journal.clicks[today]?.[target.id] ?? 0) > 0;
+    const own = skillClicks[today]?.[skillId] ?? 0;
+    if (!fromPriority && own === 0) return;
+
+    haptics.tap();
+    if (fromPriority && target.kind === 'priority') actions.removeBlock(target.id);
+    else actions.removeSkillBlock(skillId);
+  };
+
   const link = (priorityId: string | undefined): void => {
     if (!openSkill) return;
     void (async () => {
@@ -167,6 +186,7 @@ export function SkillsScreen(): JSX.Element {
                   periodMinutes={(inPeriod.get(item.skill.id) ?? 0) * blockMinutes}
                   blockMinutes={blockMinutes}
                   onAdd={() => addBlock(item.skill.id)}
+                  onRemove={() => removeBlock(item.skill.id)}
                   onOpen={() => setOpenId(item.skill.id)}
                 />
               ))}

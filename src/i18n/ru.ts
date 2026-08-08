@@ -15,6 +15,10 @@ export const ruStrings = {
   'common.or': 'Или',
   'common.nothing': '—',
 
+  // Отметка блока. Общие для приоритетов и навыков: контрол у них один.
+  'block.add': 'Добавить {minutes} минут: {title}',
+  'block.remove': 'Убрать {minutes} минут: {title}',
+
   'tab.home': 'Приоритеты',
   'tab.stats': 'Статистика',
   'tab.charge': 'Заряд',
@@ -39,7 +43,6 @@ export const ruStrings = {
   'home.hidePicker': 'Свернуть',
   'home.leader': '. Лидер: ',
   'home.holdHint': 'Удерживайте приоритет, чтобы изменить список',
-  'home.addBlock': 'Добавить {minutes} минут: {title}',
   'home.plus': 'Добавить {minutes} минут',
   'home.minus': 'Убрать {minutes} минут',
   'home.todayBlocks': '{count} {unit} сегодня',
@@ -180,7 +183,6 @@ export const ruStrings = {
   'skills.total': 'Всего в навыках — {time}',
   'skills.add': 'Добавить навык',
   'skills.limit': 'Максимум {max} навыков',
-  'skills.addBlock': 'Добавить {minutes} минут: {title}',
   'skills.blocksToday': '{count} {unit} сегодня',
   'skills.formTitle': 'Навык',
   'skills.newTitle': 'Новый навык',

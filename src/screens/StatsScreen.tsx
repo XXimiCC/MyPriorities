@@ -17,14 +17,8 @@ import {
   type PriorityStat,
 } from '../domain/stats';
 import { MAX_INSIGHTS, insightText, insights } from '../domain/insights';
-import {
-  BATTERY_LEVELS,
-  PERIODS,
-  blockMinutesOf,
-  drainTextOf,
-  modulesOf,
-  type PeriodId,
-} from '../domain/types';
+import { PERIODS, type PeriodId } from '../domain/periods';
+import { BATTERY_LEVELS, blockMinutesOf, drainTextOf, modulesOf } from '../domain/types';
 import { derive } from '../achievements/derive';
 import { plural, t } from '../i18n';
 import { useStore } from '../store/useStore';

@@ -1,6 +1,6 @@
 import { t } from '../i18n';
 import { haptics } from '../telegram/sdk';
-import type { Period, PeriodId } from '../domain/types';
+import type { Period, PeriodId } from '../domain/periods';
 import './PeriodSwitch.css';
 
 interface Props {

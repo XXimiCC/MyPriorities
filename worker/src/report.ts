@@ -10,6 +10,7 @@
  * отдельный канал незачем.
  */
 
+import { compactAll } from './compact';
 import type { Env } from './env';
 import { sendMessage } from './telegram';
 
@@ -73,6 +74,22 @@ export function formatReport(usage: Usage): string {
     lines.push('', 'Пора включать свёртку журнала или расширять тариф.');
   }
   return lines.join('\n');
+}
+
+export async function runNightlyMaintenance(env: Env): Promise<void> {
+  /*
+   * Свёртка идёт до отчёта, чтобы он показывал состояние после уборки, а не
+   * до неё. Иначе цифры пугали бы ровно в тот момент, когда проблема уже решена.
+   */
+  try {
+    const result = await compactAll(env);
+    if (result.folded > 0) {
+      console.info(`[compact] свёрнуто операций: ${result.folded} у ${result.users} чел.`);
+    }
+  } catch (error) {
+    console.warn('[compact] свёртка не удалась', error);
+  }
+  await runNightlyReport(env);
 }
 
 export async function runNightlyReport(env: Env): Promise<void> {

@@ -14,6 +14,7 @@
 
 import { opsLog } from '../store/local/db';
 import { ensureSession } from './auth';
+import { writeLocalBase } from './local';
 import type { Op } from './ops';
 import {
   TransportError,
@@ -157,6 +158,13 @@ async function pullAll(deps: EngineDeps, access: string): Promise<{ ops: Op[]; d
       ops.push(...result.ops);
     }
     if (result.docs.length > 0) docs = result.docs;
+
+    /*
+     * Снимки приходят только с `bootstrap` и заменяют прежние целиком. Без них
+     * свёрнутая сервером история просто исчезла бы с устройства: операций,
+     * которые её описывали, там больше нет.
+     */
+    if (cursor === 0) await writeLocalBase(result.snapshots);
 
     await advanceCursor(result.seq);
     if (!result.more) break;

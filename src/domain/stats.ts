@@ -1,10 +1,10 @@
+import type { Period } from './periods';
 import { addDays, dayKey, lastNDays, minuteOfDay, parseDayKey, todayKey } from './date';
 import {
   blockMinutesOf,
   type BatteryLevel,
   type DayKey,
   type Journal,
-  type Period,
   type Priority,
   type Settings,
 } from './types';

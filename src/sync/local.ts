@@ -13,7 +13,8 @@
 
 import { opsLog } from '../store/local/db';
 import { readDocs, type ReadDocs } from './documents';
-import type { SyncDoc } from './transport';
+import { emptyBase, type Base } from './project';
+import type { SyncDoc, SyncSnapshot } from './transport';
 
 const KEY = (kind: SyncDoc['kind']): string => `doc:${kind}`;
 
@@ -40,6 +41,47 @@ function sanitize(raw: unknown): SyncDoc | undefined {
   if (value.kind !== 'settings' && value.kind !== 'skills') return undefined;
   if (typeof value.body !== 'string' || !value.body) return undefined;
   return { kind: value.kind, body: value.body, hlc: typeof value.hlc === 'string' ? value.hlc : '' };
+}
+
+/**
+ * Свёрнутая часть истории.
+ *
+ * Сервер убирает старые операции, заменяя их месячным итогом, — и без этих
+ * снимков устройство увидело бы только хвост. Хранятся они рядом с журналом и
+ * служат основанием проекции: сначала снимки, поверх них операции.
+ */
+const SNAPSHOTS_KEY = 'snapshots';
+
+export async function readLocalBase(): Promise<Base> {
+  const base = emptyBase();
+  const raw = await opsLog.meta(SNAPSHOTS_KEY);
+  if (!Array.isArray(raw)) return base;
+
+  for (const item of raw as SyncSnapshot[]) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(item.body);
+    } catch {
+      console.warn(`[sync] снимок ${item.scope} ${item.month} не читается`);
+      continue;
+    }
+    if (typeof parsed !== 'object' || parsed === null) continue;
+
+    if (item.scope === 'clicks') Object.assign(base.clicks, parsed);
+    else if (item.scope === 'skills') Object.assign(base.skillClicks, parsed);
+    else Object.assign(base.battery, parsed);
+  }
+  return base;
+}
+
+/**
+ * Снимки заменяются целиком, а не дописываются.
+ *
+ * Сервер отдаёт их полным набором, и слияние по месяцам скрыло бы удаление:
+ * стёртый месяц остался бы у устройства навсегда.
+ */
+export async function writeLocalBase(snapshots: SyncSnapshot[]): Promise<void> {
+  await opsLog.setMeta(SNAPSHOTS_KEY, snapshots);
 }
 
 export async function readLocalDocs(): Promise<ReadDocs> {

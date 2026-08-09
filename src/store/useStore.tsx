@@ -65,7 +65,7 @@ import { ensureSession } from '../sync/auth';
 import { deviceId, newDeviceId } from '../sync/device';
 import { readDocs, settingsDoc, skillsDoc, type ReadDocs } from '../sync/documents';
 import { syncOnce } from '../sync/engine';
-import { isMigrated, markMigrated, readLocalDocs, writeLocalDocs } from '../sync/local';
+import { isMigrated, markMigrated, readLocalBase, readLocalDocs, writeLocalDocs } from '../sync/local';
 import { emptyBase, project } from '../sync/project';
 import type { SyncDoc } from '../sync/transport';
 import { createClock, emptyHlc, parseStamp, type Clock, type HlcState } from '../sync/hlc';
@@ -619,7 +619,8 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         const docs = await read<ReadDocs>('настройки и навыки', readLocalDocs, {});
         if (failed) loadFailed.current = true;
 
-        const projected = project(emptyBase(), ops);
+        const base = await read('свёрнутая история', readLocalBase, emptyBase());
+        const projected = project(base, ops);
         window.clearTimeout(deadline);
         if (cancelled) return;
 
@@ -642,7 +643,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           if (outcome.docs.length > 0) await writeLocalDocs(outcome.docs);
           if (outcome.pulled === 0 && outcome.docs.length === 0) return;
 
-          const fresh = project(emptyBase(), await opsLog.all());
+          const fresh = project(await readLocalBase(), await opsLog.all());
           const pulled = readDocs(outcome.docs);
           if (cancelled) return;
           commit({

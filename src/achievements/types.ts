@@ -1,4 +1,4 @@
-import type { DayKey, Journal, Settings } from '../domain/types';
+import type { AwardMap, Journal, Settings } from '../domain/types';
 import type { SkillTotal } from '../skills/total';
 import type { Params, StringKey } from '../i18n';
 import type { Derived } from './derive';
@@ -83,8 +83,8 @@ export interface Achievement {
  */
 export const RETIRED_IDS: readonly string[] = [];
 
-/** Полученные достижения: id → день выдачи. Это уже минимальная форма. */
-export type AwardMap = Record<string, DayKey>;
+// AwardMap живёт в домене: это форма данных, а не часть реестра достижений.
+export type { AwardMap };
 
 const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 

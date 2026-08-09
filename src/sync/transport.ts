@@ -49,9 +49,18 @@ export interface SyncDoc {
   hlc: string;
 }
 
+/** Свёрнутый месяц: то, что раньше было тысячей операций. */
+export interface SyncSnapshot {
+  scope: 'clicks' | 'skills' | 'battery';
+  month: string;
+  body: string;
+}
+
 export interface PullResult {
   ops: Op[];
   docs: SyncDoc[];
+  /** Приходят только в `bootstrap`: обычное чтение по курсору их не касается. */
+  snapshots: SyncSnapshot[];
   seq: number;
   /** Отдали не всё: за курсором есть ещё, надо повторить. */
   more: boolean;
@@ -156,8 +165,22 @@ function readPull(payload: unknown): PullResult {
     }
   }
 
+  const snapshots: SyncSnapshot[] = [];
+  for (const raw of Array.isArray((value as { snapshots?: unknown }).snapshots)
+    ? ((value as { snapshots: unknown[] }).snapshots)
+    : []) {
+    const row = (typeof raw === 'object' && raw !== null ? raw : {}) as Partial<SyncSnapshot>;
+    if (
+      (row.scope === 'clicks' || row.scope === 'skills' || row.scope === 'battery') &&
+      typeof row.month === 'string' &&
+      typeof row.body === 'string'
+    ) {
+      snapshots.push({ scope: row.scope, month: row.month, body: row.body });
+    }
+  }
+
   const seq = Number(value.seq);
-  return { ops, docs, seq: Number.isFinite(seq) ? seq : 0, more: Boolean(value.more) };
+  return { ops, docs, snapshots, seq: Number.isFinite(seq) ? seq : 0, more: Boolean(value.more) };
 }
 
 export function createTransport(baseUrl: string = BASE_URL): SyncTransport {

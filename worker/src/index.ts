@@ -12,7 +12,7 @@
 import { handleLogout, handleRefresh, handleTelegramLogin } from './auth';
 import type { Env } from './env';
 import { HttpError, corsHeaders, json, readJson } from './http';
-import { runNightlyReport } from './report';
+import { runNightlyMaintenance } from './report';
 import { authenticate } from './session';
 import { handleBootstrap, handlePull, handlePush } from './sync';
 
@@ -85,6 +85,6 @@ export default {
   },
 
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(runNightlyReport(env));
+    ctx.waitUntil(runNightlyMaintenance(env));
   },
 };

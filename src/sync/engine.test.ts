@@ -68,6 +68,7 @@ function fakeServer() {
       return {
         ops: page,
         docs,
+        snapshots: [],
         seq: since + page.length,
         more: since + page.length < stored.length,
       } satisfies PullResult;

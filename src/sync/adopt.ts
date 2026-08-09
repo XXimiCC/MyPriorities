@@ -20,10 +20,10 @@ import type { SnapshotContents } from '../domain/snapshot';
 import { exportSnapshot } from '../domain/snapshot';
 import { opsLog } from '../store/local/db';
 import { docsFrom, readDocs, type ReadDocs } from './documents';
-import { writeLocalDocs } from './local';
+import { readLocalBase, writeLocalDocs } from './local';
 import { seedServer, serverIsEmpty, syncOnce } from './engine';
 import type { Stamper } from './ops';
-import { emptyBase, project, type Projected } from './project';
+import { project, type Projected } from './project';
 import type { SyncDoc } from './transport';
 
 /** Где лежит страховочная копия. Одна на устройство: делается раз, перед переходом. */
@@ -104,7 +104,7 @@ export async function adoptServerState(
 
   // Проекция строится по всему журналу целиком, а не поверх локального
   // состояния: то же самое уже учтено в операциях засева, и сложение удвоило бы.
-  const projected = project(emptyBase(), await opsLog.all());
+  const projected = project(await readLocalBase(), await opsLog.all());
   return { ...projected, ...readDocs(outcome.docs), seeded };
 }
 

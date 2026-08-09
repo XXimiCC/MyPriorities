@@ -59,7 +59,9 @@ if (!me.ok) {
   console.error(`Telegram не принял токен: ${me.description ?? 'неизвестно'}`);
   process.exit(1);
 }
-console.log(`Бот: @${me.result.username}\n`);
+// Номер печатается рядом с именем: именно его показывает журнал Worker, и без
+// него сверить «тот ли это бот» не с чем.
+console.log(`Бот: @${me.result.username}, номер ${me.result.id}\n`);
 
 const sendIndex = process.argv.indexOf('--send');
 if (sendIndex >= 0) {

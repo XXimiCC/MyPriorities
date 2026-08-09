@@ -158,17 +158,24 @@ describe('обмен операциями', () => {
     expect(await opsLog.pending()).toHaveLength(0);
   });
 
-  it('накопленное за долгий оффлайн уходит целиком', async () => {
-    const server = fakeServer();
-    const many = Array.from({ length: 1200 }, (_, i) => op(i + 1));
-    await opsLog.append(many);
+  it(
+    'накопленное за долгий оффлайн уходит целиком',
+    async () => {
+      // Семьсот — это две пачки при потолке в пятьсот: ровно столько, чтобы
+      // проверить сам цикл. Запас по времени щедрый не от медленного кода, а
+      // от объёма ввода-вывода: fake-indexeddb на сотнях записей неспешен, и
+      // под общей нагрузкой пять секунд по умолчанию не выдерживаются.
+      const server = fakeServer();
+      await opsLog.append(Array.from({ length: 700 }, (_, i) => op(i + 1)));
 
-    const outcome = await syncOnce(deps(server));
-    expect(outcome.pushed).toBe(1200);
-    expect(server.stored).toHaveLength(1200);
-    // Пачками, а не одним куском: у сервера потолок на запрос.
-    expect(server.pushed.length).toBeGreaterThan(1);
-  });
+      const outcome = await syncOnce(deps(server));
+      expect(outcome.pushed).toBe(700);
+      expect(server.stored).toHaveLength(700);
+      // Пачками, а не одним куском: у сервера потолок на запрос.
+      expect(server.pushed.length).toBe(2);
+    },
+    20_000,
+  );
 
   it('длинный хвост чужих операций дочитывается страницами', async () => {
     const server = fakeServer();

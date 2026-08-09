@@ -63,8 +63,10 @@ import {
 import { adoptServerState } from '../sync/adopt';
 import { ensureSession } from '../sync/auth';
 import { deviceId, newDeviceId } from '../sync/device';
-import { docsFrom } from '../sync/documents';
+import { settingsDoc, skillsDoc } from '../sync/documents';
 import { syncOnce } from '../sync/engine';
+import { writeLocalDocs } from '../sync/local';
+import type { SyncDoc } from '../sync/transport';
 import { createClock, emptyHlc, parseStamp, type Clock, type HlcState } from '../sync/hlc';
 import type { Stamper } from '../sync/ops';
 import { isRecordable, opsForClear, opsForContents, recordOps } from '../sync/record';
@@ -403,37 +405,50 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
    * приложения, здесь — о трафике. Десять тапов подряд должны уехать одним
    * запросом, а не десятью.
    *
-   * Документы отмечаются флагом, а не собираются в очередь: они едут целиком, и
-   * важно лишь то, что последнее состояние должно оказаться на сервере.
+   * Документ кладётся в очередь целиком и с меткой, полученной в момент правки.
+   * Метка та же, что ушла в локальную копию: разойдись они — и собственная
+   * запись выглядела бы то новее, то старее самой себя.
    */
   const syncTimer = useRef<number | undefined>(undefined);
-  const docsDirty = useRef(false);
+  const pendingDocs = useRef(new Map<SyncDoc['kind'], SyncDoc>());
+
+  /** Правка документа: сразу на диск, в очередь отправки и к таймеру. */
+  const queueDoc = useCallback(
+    (doc: SyncDoc) => {
+      if (MOCK_MODE) return;
+      pendingDocs.current.set(doc.kind, doc);
+      void writeLocalDocs([doc]);
+    },
+    [],
+  );
 
   const runSync = useCallback(async () => {
     window.clearTimeout(syncTimer.current);
     syncTimer.current = undefined;
     if (MOCK_MODE || loadFailed.current) return;
 
-    const docs = docsDirty.current
-      ? docsFrom(latest.current.settings, latest.current.skills, stamp)
-      : [];
-    // Флаг снимается до отправки: правка, случившаяся во время запроса, должна
-    // взвести его заново, а не потеряться под уже отправленной.
-    docsDirty.current = false;
+    const docs = [...pendingDocs.current.values()];
+    // Очередь снимается до отправки: правка, случившаяся во время запроса,
+    // должна встать в неё заново, а не потеряться под уже отправленной.
+    pendingDocs.current.clear();
 
     const outcome = await syncOnce(undefined, docs);
-    if (!outcome.ok && docs.length > 0) docsDirty.current = true;
-  }, [stamp]);
+    if (outcome.docs.length > 0) await writeLocalDocs(outcome.docs);
+    if (!outcome.ok) {
+      // Не ушли — возвращаем, но не поверх более свежих: там могла оказаться
+      // правка, сделанная за время запроса.
+      for (const doc of docs) {
+        const newer = pendingDocs.current.get(doc.kind);
+        if (!newer || newer.hlc < doc.hlc) pendingDocs.current.set(doc.kind, doc);
+      }
+    }
+  }, []);
 
-  const scheduleSync = useCallback(
-    (withDocs = false) => {
-      if (MOCK_MODE) return;
-      if (withDocs) docsDirty.current = true;
-      window.clearTimeout(syncTimer.current);
-      syncTimer.current = window.setTimeout(() => void runSync(), SYNC_DELAY_MS);
-    },
-    [runSync],
-  );
+  const scheduleSync = useCallback(() => {
+    if (MOCK_MODE) return;
+    window.clearTimeout(syncTimer.current);
+    syncTimer.current = window.setTimeout(() => void runSync(), SYNC_DELAY_MS);
+  }, [runSync]);
 
   syncRef.current = scheduleSync;
 
@@ -715,13 +730,15 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       writeSettings(settings);
       // Настройки и каталог едут документом целиком, а не операциями: это
       // связные объекты, порядок приоритетов не набор независимых ячеек.
-      scheduleSync(true);
+      queueDoc(settingsDoc(settings, stamp));
+      scheduleSync();
     };
 
     const commitSkills = (skills: SkillsState): void => {
       commit({ type: 'skills', skills });
       writeSkills(skills);
-      scheduleSync(true);
+      queueDoc(skillsDoc(skills, stamp));
+      scheduleSync();
     };
 
     const commitAwards = (awards: AwardMap, fresh: string[] = []): void => {

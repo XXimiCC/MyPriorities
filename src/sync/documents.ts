@@ -13,11 +13,16 @@ import type { Settings } from '../domain/types';
 import type { Stamper } from './ops';
 import type { SyncDoc } from './transport';
 
+export function settingsDoc(settings: Settings, stamp: Stamper): SyncDoc {
+  return { kind: 'settings', body: JSON.stringify(settings), hlc: stamp() };
+}
+
+export function skillsDoc(skills: SkillsState, stamp: Stamper): SyncDoc {
+  return { kind: 'skills', body: JSON.stringify(skills), hlc: stamp() };
+}
+
 export function docsFrom(settings: Settings, skills: SkillsState, stamp: Stamper): SyncDoc[] {
-  return [
-    { kind: 'settings', body: JSON.stringify(settings), hlc: stamp() },
-    { kind: 'skills', body: JSON.stringify(skills), hlc: stamp() },
-  ];
+  return [settingsDoc(settings, stamp), skillsDoc(skills, stamp)];
 }
 
 export interface ReadDocs {

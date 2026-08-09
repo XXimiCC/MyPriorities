@@ -20,6 +20,7 @@ import type { SnapshotContents } from '../domain/snapshot';
 import { exportSnapshot } from '../domain/snapshot';
 import { opsLog } from '../store/local/db';
 import { docsFrom, readDocs, type ReadDocs } from './documents';
+import { writeLocalDocs } from './local';
 import { seedServer, serverIsEmpty, syncOnce } from './engine';
 import type { Stamper } from './ops';
 import { emptyBase, project, type Projected } from './project';
@@ -86,12 +87,20 @@ export async function adoptServerState(
      * ячейке: установкой, чтобы повтор засева ничего не удвоил.
      */
     const { opsForContents } = await import('./record');
-    seeded = await seedServer(opsForContents(local, stamp), docsFrom(local.settings, local.skills, stamp));
+    const docs = docsFrom(local.settings, local.skills, stamp);
+    // Локально те же документы с той же меткой: разойдись метки — и своя же
+    // запись выглядела бы то новее, то старее самой себя.
+    await writeLocalDocs(docs);
+    seeded = await seedServer(opsForContents(local, stamp), docs);
     if (!seeded) return undefined;
   }
 
   const outcome = await syncOnce();
   if (!outcome.ok && !seeded) return undefined;
+
+  // Пришедшие документы кладём на диск: следующий запуск должен открыться с
+  // ними, даже если сети не будет вовсе.
+  if (outcome.docs.length > 0) await writeLocalDocs(outcome.docs);
 
   // Проекция строится по всему журналу целиком, а не поверх локального
   // состояния: то же самое уже учтено в операциях засева, и сложение удвоило бы.

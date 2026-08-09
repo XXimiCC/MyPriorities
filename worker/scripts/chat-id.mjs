@@ -8,7 +8,12 @@
  *
  * Токен читается из .dev.vars и никуда, кроме api.telegram.org, не уходит.
  *
- *   npm run chat-id
+ *   npm run chat-id                      — показать, что бот видел
+ *   npm run chat-id -- --send <chat_id>  — проверить id отправкой
+ *
+ * Проверка отправкой не роскошь: у ботов нет способа узнать, состоит ли он в
+ * чате, кроме как попробовать написать. Неверный id в секрете иначе всплыл бы
+ * ночью — молчанием, которое не отличить от «всё в порядке».
  */
 
 import fs from 'node:fs';
@@ -55,6 +60,37 @@ if (!me.ok) {
   process.exit(1);
 }
 console.log(`Бот: @${me.result.username}\n`);
+
+const sendIndex = process.argv.indexOf('--send');
+if (sendIndex >= 0) {
+  const target = process.argv[sendIndex + 1];
+  if (!target) {
+    console.error('Укажите чат: npm run chat-id -- --send -1001234567890');
+    process.exit(1);
+  }
+
+  const sent = await api('sendMessage', {
+    chat_id: target,
+    text: '<b>MyPriorities</b>\n\nПроверка связи. Сюда будет приходить ночной отчёт.',
+    parse_mode: 'HTML',
+  });
+
+  if (sent.ok) {
+    const chat = sent.result.chat;
+    console.log(`Дошло: ${chat.type} «${chat.title ?? chat.first_name ?? ''}», id ${chat.id}`);
+    if (String(chat.id) !== String(target)) {
+      // Обычную группу Telegram при повышении до супергруппы переселяет, и
+      // старый id продолжает работать, но в секрет надо класть новый.
+      console.log(`Внимание: Telegram ответил другим id — ${chat.id}. В секрет кладите его.`);
+    }
+    process.exit(0);
+  }
+
+  console.error(`Не дошло: ${sent.description ?? 'неизвестно'}`);
+  if (sent.error_code === 400) console.error('Скорее всего, id неверный или бота нет в этом чате.');
+  if (sent.error_code === 403) console.error('Бота заблокировали или выгнали из чата.');
+  process.exit(1);
+}
 
 /*
  * getUpdates и вебхук взаимно исключают друг друга: пока вебхук установлен,

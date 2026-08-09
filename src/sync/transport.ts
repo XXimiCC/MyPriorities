@@ -39,6 +39,8 @@ export interface SyncTransport {
   login(input: LoginInput): Promise<Session>;
   refresh(token: string): Promise<Session>;
   logout(token: string): Promise<void>;
+  /** Версия развёрнутого Worker. undefined — не ответил или не настроен. */
+  version(): Promise<string | undefined>;
 }
 
 /** Сервер ответил, но отказал. Отличать от обрыва связи важно: реакция разная. */
@@ -95,7 +97,7 @@ export function sessionExpired(session: Session, now: number = Date.now()): bool
 const BASE_URL = (import.meta.env?.VITE_SYNC_URL as string | undefined)?.replace(/\/+$/, '') ?? '';
 
 export function createTransport(baseUrl: string = BASE_URL): SyncTransport {
-  const call = async (path: string, body: unknown): Promise<unknown> => {
+  const call = async (path: string, body?: unknown): Promise<unknown> => {
     if (!baseUrl) throw new TransportError(0, 'not-configured');
 
     // Предел ожидания свой, а не браузерный: тот бывает в минуты, а держать
@@ -106,9 +108,10 @@ export function createTransport(baseUrl: string = BASE_URL): SyncTransport {
     let response: Response;
     try {
       response = await fetch(baseUrl + path, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        method: body === undefined ? 'GET' : 'POST',
+        ...(body === undefined
+          ? {}
+          : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
         signal: abort.signal,
       });
     } catch (error) {
@@ -150,6 +153,17 @@ export function createTransport(baseUrl: string = BASE_URL): SyncTransport {
       } catch {
         // Выход — вежливость по отношению к серверу, а не условие. Локальную
         // сессию всё равно стираем: не вышло сказать — забыли молча.
+      }
+    },
+
+    async version() {
+      try {
+        const payload = await call('/health');
+        const value = (payload as { version?: unknown }).version;
+        return typeof value === 'string' ? value : undefined;
+      } catch {
+        // Справочная строка в настройках не повод шуметь.
+        return undefined;
       }
     },
   };

@@ -20,7 +20,9 @@ async function route(request: Request, env: Env): Promise<Response> {
   const method = request.method.toUpperCase();
 
   if (method === 'GET' && (path === '/' || path === '/health')) {
-    return json({ ok: true });
+    // Восемь символов версии: сверить с панелью хватает, а целиком она длиннее
+    // всей остальной строки в настройках.
+    return json({ ok: true, version: env.CF_VERSION?.id.slice(0, 8) ?? null });
   }
 
   if (method === 'POST' && path === '/auth/telegram') {

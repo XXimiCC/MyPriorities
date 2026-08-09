@@ -14,7 +14,9 @@ import { RETENTION_MONTHS } from '../store/legacy/persistence';
 import { useStore } from '../store/useStore';
 import { store } from '../telegram/cloudStorage';
 import { alertDialog, clientInfo, confirmDialog, haptics, homeScreen, isTelegram } from '../telegram/sdk';
+import { buildLabel } from '../build';
 import { subscribeSync, syncState, type SyncState } from '../sync/auth';
+import { transport } from '../sync/transport';
 import { saveFile } from '../wallpaper/save';
 import './SettingsScreen.css';
 
@@ -44,6 +46,7 @@ export function SettingsScreen({ onPresets, onAchievements }: Props): JSX.Elemen
   const [busy, setBusy] = useState(false);
   const [homeStatus, setHomeStatus] = useState<string>('unsupported');
   const [sync, setSync] = useState<SyncState>(syncState);
+  const [server, setServer] = useState<string | undefined>(undefined);
 
   const blockMinutes = blockMinutesOf(settings);
   const modules = modulesOf(settings);
@@ -63,6 +66,19 @@ export function SettingsScreen({ onPresets, onAchievements }: Props): JSX.Elemen
 
   // Вход идёт фоном и может закончиться уже после того, как экран открыли.
   useEffect(() => subscribeSync(setSync), []);
+
+  // Версию сервера спрашиваем при открытии экрана: она меняется реже, чем его
+  // открывают, а держать её в памяти всё равно негде.
+  useEffect(() => {
+    if (!transport.configured) return;
+    let cancelled = false;
+    void transport.version().then((value) => {
+      if (!cancelled) setServer(value);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const run = (task: () => Promise<void>): void => {
     if (busy) return;
@@ -273,6 +289,19 @@ export function SettingsScreen({ onPresets, onAchievements }: Props): JSX.Elemen
               <b className={sync.kind === 'signed-in' ? undefined : 'sset__warn'}>
                 {t(ACCOUNT_LABEL[sync.kind])}
               </b>
+            </li>
+          )}
+          {/* Отметки сборки и сервера: «доехало ли на прод» должно быть видно,
+              а не угадываться. Класс нужен сценарию скриншотов — иначе каждая
+              пересборка меняла бы снимок настроек. */}
+          <li className="sset__build">
+            <span>{t('settings.build')}</span>
+            <b>{buildLabel()}</b>
+          </li>
+          {sync.kind !== 'off' && (
+            <li className="sset__build">
+              <span>{t('settings.server')}</span>
+              <b>{server ?? t('settings.serverUnknown')}</b>
             </li>
           )}
         </ul>

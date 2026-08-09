@@ -1,6 +1,12 @@
 export interface Env {
   DB: D1Database;
 
+  /**
+   * Версия развёртывания от Cloudflare. Локально привязки нет, и это нормально:
+   * там «что развёрнуто» не вопрос.
+   */
+  CF_VERSION?: { id: string; tag?: string; timestamp?: string };
+
   /** Список origin через запятую. Пустой — браузерных клиентов не пускаем вовсе. */
   ALLOWED_ORIGINS: string;
 

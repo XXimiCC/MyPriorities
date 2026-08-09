@@ -8,6 +8,11 @@ compatibility_date = "2026-08-01"
 [triggers]
 crons = ["0 3 * * *"]
 
+# Версия развёртывания в /health. Без неё «доехало ли» проверяется только
+# заглядыванием в панель, а это ровно тот вопрос, который возникает чаще всего.
+[version_metadata]
+binding = "CF_VERSION"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "mypri"

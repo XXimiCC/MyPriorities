@@ -407,6 +407,7 @@ export const ruStrings = {
   'settings.whereLocal': 'Только это устройство',
   'settings.since': 'История с',
   'settings.retention': 'Глубина хранения',
+  'settings.retentionAll': 'вся история',
   'settings.client': 'Клиент',
   'settings.browser': 'браузер',
   'settings.build': 'Сборка',

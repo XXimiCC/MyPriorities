@@ -17,6 +17,7 @@ import { store } from '../telegram/cloudStorage';
 import { alertDialog, clientInfo, confirmDialog, haptics, homeScreen, isTelegram } from '../telegram/sdk';
 import { buildLabel } from '../build';
 import { signIn, signOut, subscribeSync, syncState, type SyncState } from '../sync/auth';
+import { isMigrated } from '../sync/local';
 import { transport } from '../sync/transport';
 import { saveFile } from '../wallpaper/save';
 import './SettingsScreen.css';
@@ -49,6 +50,7 @@ export function SettingsScreen({ onPresets, onAchievements }: Props): JSX.Elemen
   const [homeStatus, setHomeStatus] = useState<string>('unsupported');
   const [sync, setSync] = useState<SyncState>(syncState);
   const [server, setServer] = useState<string | undefined>(undefined);
+  const [migrated, setMigrated] = useState(false);
 
   const blockMinutes = blockMinutesOf(settings);
   const modules = modulesOf(settings);
@@ -68,6 +70,10 @@ export function SettingsScreen({ onPresets, onAchievements }: Props): JSX.Elemen
 
   // Вход идёт фоном и может закончиться уже после того, как экран открыли.
   useEffect(() => subscribeSync(setSync), []);
+
+  useEffect(() => {
+    void isMigrated().then(setMigrated);
+  }, []);
 
   // Версию сервера спрашиваем при открытии экрана: она меняется реже, чем его
   // открывают, а держать её в памяти всё равно негде.
@@ -270,10 +276,16 @@ export function SettingsScreen({ onPresets, onAchievements }: Props): JSX.Elemen
             <span>{t('settings.since')}</span>
             <b>{since ? formatDayShort(since) : t('common.nothing')}</b>
           </li>
+          {/* Горизонт хранения — свойство прежней схемы: тринадцать месяцев там
+              брались из числа ключей в CloudStorage. У журнала такого предела
+              нет, и показывать старое число перешедшему значило бы пугать его
+              потерей данных, которой не будет. */}
           <li>
             <span>{t('settings.retention')}</span>
             <b>
-              {RETENTION_MONTHS} {plural('month', RETENTION_MONTHS)}
+              {migrated
+                ? t('settings.retentionAll')
+                : `${RETENTION_MONTHS} ${plural('month', RETENTION_MONTHS)}`}
             </b>
           </li>
           <li>

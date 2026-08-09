@@ -11,6 +11,7 @@ import { randomToken, randomUuid, sha256 } from './crypto';
 import type { Env } from './env';
 import { HttpError, badRequest, unauthorized } from './http';
 import { signAccess } from './jwt';
+import { OidcError, exchangeCode, verifyIdToken } from './oidc';
 import { InitDataError, verifyInitData } from './telegram';
 
 const REFRESH_TTL_SECONDS = 90 * 24 * 60 * 60;
@@ -101,18 +102,17 @@ async function touchDevice(
     .run();
 }
 
-export async function handleTelegramLogin(
+/**
+ * Вход из мини-аппа: подпись приходит от клиента Telegram и проверяется
+ * токеном бота.
+ */
+async function fromMiniApp(
   env: Env,
-  body: unknown,
-  now: number = Date.now(),
-): Promise<Tokens> {
-  const input = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>;
-  const deviceId = requireDeviceId(input.deviceId);
-  const platform = typeof input.platform === 'string' ? input.platform.slice(0, 32) : undefined;
-
-  let user;
+  input: Record<string, unknown>,
+  now: number,
+): Promise<{ id: number; username?: string }> {
   try {
-    user = await verifyInitData(String(input.initData ?? ''), env.TELEGRAM_BOT_TOKEN, now);
+    return await verifyInitData(String(input.initData ?? ''), env.TELEGRAM_BOT_TOKEN, now);
   } catch (error) {
     // Наружу один код на все причины: «подпись не сошлась» и «срок вышел»,
     // различённые в ответе, превращают его в подсказку для подбора. Подробность
@@ -123,7 +123,56 @@ export async function handleTelegramLogin(
         : 'unknown';
     throw unauthorized('bad-init-data', detail);
   }
+}
 
+/**
+ * Вход из браузера: обмениваем код на `id_token` и проверяем его подпись
+ * открытым ключом Telegram.
+ */
+async function fromOidc(
+  env: Env,
+  input: Record<string, unknown>,
+  now: number,
+): Promise<{ id: number; username?: string }> {
+  const clientId = env.TELEGRAM_CLIENT_ID;
+  const clientSecret = env.TELEGRAM_OAUTH_CLIENT_SECRET;
+  // Не настроено — говорим прямо: это ошибка развёртывания, а не входа, и
+  // прятать её за общим кодом значит искать её потом вслепую.
+  if (!clientId || !clientSecret) throw new HttpError(503, 'oidc-not-configured');
+
+  const code = String(input.code ?? '');
+  const verifier = String(input.codeVerifier ?? '');
+  const redirectUri = String(input.redirectUri ?? '');
+  if (!code || !verifier || !redirectUri) throw badRequest('bad-oidc-request');
+
+  try {
+    const idToken = await exchangeCode(code, verifier, redirectUri, clientId, clientSecret);
+    const claims = await verifyIdToken(idToken, clientId, now);
+    const id = Number(claims.sub);
+    if (!Number.isFinite(id) || id <= 0) throw new OidcError('bad-subject');
+    return { id: Math.trunc(id), ...(claims.username ? { username: claims.username } : {}) };
+  } catch (error) {
+    throw unauthorized('bad-oidc', error instanceof OidcError ? error.code : 'unknown');
+  }
+}
+
+export async function handleTelegramLogin(
+  env: Env,
+  body: unknown,
+  now: number = Date.now(),
+): Promise<Tokens> {
+  const input = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>;
+  const deviceId = requireDeviceId(input.deviceId);
+  const platform = typeof input.platform === 'string' ? input.platform.slice(0, 32) : undefined;
+
+  const user =
+    input.mode === 'oidc' ? await fromOidc(env, input, now) : await fromMiniApp(env, input, now);
+
+  /*
+   * Профиль ищется по номеру Telegram независимо от того, каким путём человек
+   * вошёл. В этом и смысл: мини-апп, сайт и будущее мобильное приложение — это
+   * один и тот же человек с одной и той же историей.
+   */
   const userId = await profileFor(env, user.id, user.username);
   await touchDevice(env, userId, deviceId, platform);
   return issue(env, userId, deviceId, now);

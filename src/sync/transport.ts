@@ -21,12 +21,26 @@ export interface Session {
   expiresAt: number;
 }
 
-export interface LoginInput {
+/** Вход из мини-аппа: подпись приходит от клиента Telegram сама. */
+export interface MiniAppLogin {
+  mode?: 'miniapp';
   /** `window.Telegram.WebApp.initData` как есть. */
   initData: string;
   deviceId: string;
   platform?: string;
 }
+
+/** Вход из браузера: код меняет на сессию сервер, у него есть клиентский секрет. */
+export interface OidcLogin {
+  mode: 'oidc';
+  code: string;
+  codeVerifier: string;
+  redirectUri: string;
+  deviceId: string;
+  platform?: string;
+}
+
+export type LoginInput = MiniAppLogin | OidcLogin;
 
 /** Документ целиком: настройки и каталог навыков едут так, а не операциями. */
 export interface SyncDoc {

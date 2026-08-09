@@ -13,6 +13,7 @@
 import { sessionStore } from '../platform/session';
 import { initData, platform } from '../telegram/sdk';
 import { deviceId } from './device';
+import { loginAvailable, startLogin, takeCallback } from './oauth';
 import { TransportError, sessionExpired, transport, type Session } from './transport';
 
 export type SyncState =
@@ -20,8 +21,10 @@ export type SyncState =
   | { kind: 'off' }
   | { kind: 'working' }
   | { kind: 'signed-in'; userId: string }
-  /** Войти нечем: мы вне Telegram, а другого пути пока нет. */
+  /** Войти нечем: мы вне Telegram, и клиент входа не настроен. */
   | { kind: 'no-way-in' }
+  /** Вне Telegram, но войти можно — по нажатию, через Telegram. */
+  | { kind: 'can-log-in' }
   /** Сеть не дала. Это не отказ, а «попробуем позже». */
   | { kind: 'offline' }
   | { kind: 'error'; code: string };
@@ -54,11 +57,29 @@ export function subscribeSync(listener: (state: SyncState) => void): () => void 
 let inFlight: Promise<Session | undefined> | undefined;
 
 async function signInSilently(): Promise<Session | undefined> {
+  const device = await deviceId();
+
+  /*
+   * Возврат из Telegram разбирается раньше подписи мини-аппа: если человек
+   * только что вернулся с кодом, он нажал «войти» осознанно, и это намерение
+   * важнее всего остального.
+   */
+  const callback = takeCallback();
+  if (callback) {
+    const session = await transport.login({ mode: 'oidc', ...callback, deviceId: device, platform });
+    await sessionStore.write(session);
+    publish({ kind: 'signed-in', userId: session.userId });
+    return session;
+  }
+
   if (!initData) {
-    publish({ kind: 'no-way-in' });
+    // Вне Telegram войти молча нечем — но есть чем войти по нажатию, если
+    // клиент входа настроен сборкой.
+    publish({ kind: loginAvailable() ? 'can-log-in' : 'no-way-in' });
     return undefined;
   }
-  const session = await transport.login({ initData, deviceId: await deviceId(), platform });
+
+  const session = await transport.login({ initData, deviceId: device, platform });
   await sessionStore.write(session);
   publish({ kind: 'signed-in', userId: session.userId });
   return session;
@@ -120,5 +141,20 @@ export async function signOut(): Promise<void> {
   const stored = await sessionStore.read();
   await sessionStore.clear();
   if (stored) await transport.logout(stored.refresh);
-  publish(transport.configured ? { kind: 'no-way-in' } : { kind: 'off' });
+  if (!transport.configured) publish({ kind: 'off' });
+  else publish(loginAvailable() && !initData ? { kind: 'can-log-in' } : { kind: 'no-way-in' });
+}
+
+/**
+ * Начать вход по нажатию. Уводит на страницу Telegram и не возвращается —
+ * дальше работает разбор возврата при следующем запуске приложения.
+ */
+export async function signIn(): Promise<void> {
+  publish({ kind: 'working' });
+  try {
+    await startLogin();
+  } catch (error) {
+    console.warn('[sync] вход не начался', error);
+    publish({ kind: 'error', code: 'login-failed' });
+  }
 }

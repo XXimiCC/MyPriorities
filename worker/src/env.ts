@@ -14,6 +14,13 @@ export interface Env {
   TELEGRAM_BOT_TOKEN: string;
   /** Ключ подписи наших токенов. Тоже секрет. */
   JWT_SECRET: string;
+
+  /**
+   * Клиент входа через Telegram вне мини-аппа. Идентификатор совпадает с
+   * номером бота и не тайна; секрет — отдельная от токена бота пара, и он тайна.
+   */
+  TELEGRAM_CLIENT_ID?: string;
+  TELEGRAM_OAUTH_CLIENT_SECRET?: string;
   /** Кому слать ночной отчёт. Не задан — отчёт молча пропускается. */
   REPORT_CHAT_ID?: string;
 }

@@ -15,7 +15,7 @@ import { useStore } from '../store/useStore';
 import { store } from '../telegram/cloudStorage';
 import { alertDialog, clientInfo, confirmDialog, haptics, homeScreen, isTelegram } from '../telegram/sdk';
 import { buildLabel } from '../build';
-import { subscribeSync, syncState, type SyncState } from '../sync/auth';
+import { signIn, signOut, subscribeSync, syncState, type SyncState } from '../sync/auth';
 import { transport } from '../sync/transport';
 import { saveFile } from '../wallpaper/save';
 import './SettingsScreen.css';
@@ -30,6 +30,7 @@ const ACCOUNT_LABEL: Record<SyncState['kind'], StringKey> = {
   working: 'settings.accountWorking',
   'signed-in': 'settings.accountOn',
   'no-way-in': 'settings.accountNone',
+  'can-log-in': 'settings.accountCanLogIn',
   offline: 'settings.accountOffline',
   error: 'settings.accountError',
 };
@@ -305,6 +306,28 @@ export function SettingsScreen({ onPresets, onAchievements }: Props): JSX.Elemen
             </li>
           )}
         </ul>
+
+        {/* Вход вне Telegram: единственное место, где он вообще нужен. Внутри
+            мини-аппа он молчаливый, и кнопки там быть не должно. */}
+        {sync.kind === 'can-log-in' && (
+          <>
+            <p className="sset__note">{t('settings.signInNote')}</p>
+            <button className="edit__add press" type="button" onClick={() => void signIn()}>
+              {t('settings.signIn')}
+            </button>
+          </>
+        )}
+        {sync.kind === 'signed-in' && !isTelegram && (
+          <button
+            className="sset__danger press"
+            type="button"
+            onClick={async () => {
+              if (await confirmDialog(t('settings.signOutConfirm'))) await signOut();
+            }}
+          >
+            {t('settings.signOut')}
+          </button>
+        )}
 
         {/* Молчаливый откат на локальное хранилище выглядит как пропажа данных:
             на телефоне всё есть, на компьютере пусто. Поэтому он назван вслух. */}

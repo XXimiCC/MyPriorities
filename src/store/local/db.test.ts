@@ -211,18 +211,20 @@ describe('журнал операций', () => {
   });
 
   it('очередь отправки — это ещё не доставленное', async () => {
-    await opsLog.append([op('a', 1), op('b', 2), op('c', 3)]);
+    const [a, b, c] = [op('a', 1), op('b', 2), op('c', 3)];
+    await opsLog.append([a, b, c]);
     expect(await opsLog.pending()).toHaveLength(3);
 
-    await opsLog.markSynced(['a', 'b']);
+    await opsLog.markSynced([a, b]);
     expect((await opsLog.pending()).map((row) => row.opId)).toEqual(['c']);
     // Доставленное из журнала не исчезает: из него строится проекция.
     expect(await opsLog.all()).toHaveLength(3);
   });
 
-  it('отметка о доставке несуществующей операции безобидна', async () => {
-    await opsLog.append([op('a', 1)]);
-    await opsLog.markSynced(['нет-такой']);
+  it('пришедшее с сервера сразу считается доставленным', async () => {
+    // Оно там уже есть — отправлять обратно незачем.
+    await opsLog.append([op('a', 1)], 1);
+    expect(await opsLog.pending()).toHaveLength(0);
     expect(await opsLog.all()).toHaveLength(1);
   });
 

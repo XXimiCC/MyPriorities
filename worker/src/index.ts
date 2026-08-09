@@ -13,6 +13,8 @@ import { handleLogout, handleRefresh, handleTelegramLogin } from './auth';
 import type { Env } from './env';
 import { HttpError, corsHeaders, json, readJson } from './http';
 import { runNightlyReport } from './report';
+import { authenticate } from './session';
+import { handleBootstrap, handlePull, handlePush } from './sync';
 
 async function route(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
@@ -36,6 +38,22 @@ async function route(request: Request, env: Env): Promise<Response> {
   if (method === 'POST' && path === '/auth/logout') {
     await handleLogout(env, await readJson(request));
     return json({ ok: true });
+  }
+
+  // Дальше — только для своих. Проверка стоит один раз здесь, а не в каждом
+  // обработчике: забытая в одном месте, она открыла бы чужие данные целиком.
+  if (path.startsWith('/sync/')) {
+    const caller = await authenticate(request, env);
+
+    if (method === 'POST' && path === '/sync/push') {
+      return json(await handlePush(env, caller, await readJson(request)));
+    }
+    if (method === 'GET' && path === '/sync/pull') {
+      return json(await handlePull(env, caller, Number(url.searchParams.get('since') ?? 0)));
+    }
+    if (method === 'GET' && path === '/sync/bootstrap') {
+      return json(await handleBootstrap(env, caller));
+    }
   }
 
   throw new HttpError(404, 'not-found');

@@ -285,12 +285,22 @@ interface StoredOp extends Op {
 }
 
 export interface OpsLog {
-  append(ops: Op[]): Promise<void>;
+  /**
+   * `synced: 1` — для пришедшего с сервера: оно там уже есть, и отправлять его
+   * обратно незачем. Флагом при вставке, а не отдельной отметкой следом, чтобы
+   * не писать одну и ту же строку дважды.
+   */
+  append(ops: Op[], synced?: 0 | 1): Promise<void>;
   /** Всё, что есть: из этого строится проекция при запуске. */
   all(): Promise<Op[]>;
   /** Ещё не доставленное серверу. */
   pending(): Promise<Op[]>;
-  markSynced(opIds: string[]): Promise<void>;
+  /**
+   * Отметить доставленным. Принимает сами операции, а не идентификаторы:
+   * у вызывающего они на руках, и перечитывать их из базы ради одного флага —
+   * лишние чтение и запись на каждую строку.
+   */
+  markSynced(ops: Op[]): Promise<void>;
   /** Полная очистка журнала. Нужна после свёртки и при сбросе кабинета. */
   clear(): Promise<void>;
   meta(key: string): Promise<unknown>;
@@ -304,13 +314,13 @@ function strip(row: StoredOp): Op {
 
 function idbOps(db: IDBDatabase): OpsLog {
   return {
-    async append(ops) {
+    async append(ops, synced = 0) {
       if (ops.length === 0) return;
       const tx = db.transaction(STORE_OPS, 'readwrite');
       const os = tx.objectStore(STORE_OPS);
       // put, а не add: повторная запись той же операции должна быть безобидна,
       // иначе повтор доставки ронял бы всю пачку целиком.
-      for (const op of ops) os.put({ ...op, synced: 0 } satisfies StoredOp);
+      for (const op of ops) os.put({ ...op, synced } satisfies StoredOp);
       await txDone(tx);
     },
 
@@ -328,16 +338,11 @@ function idbOps(db: IDBDatabase): OpsLog {
       return rows.map(strip);
     },
 
-    async markSynced(opIds) {
-      if (opIds.length === 0) return;
+    async markSynced(ops) {
+      if (ops.length === 0) return;
       const tx = db.transaction(STORE_OPS, 'readwrite');
       const os = tx.objectStore(STORE_OPS);
-      // Сначала все чтения, потом все записи: между ними нет ожидания чего-то
-      // постороннего, поэтому транзакция доживает до конца.
-      const rows = await Promise.all(opIds.map((id) => req<StoredOp | undefined>(os.get(id))));
-      for (const row of rows) {
-        if (row) os.put({ ...row, synced: 1 });
-      }
+      for (const op of ops) os.put({ ...op, synced: 1 } satisfies StoredOp);
       await txDone(tx);
     },
 
@@ -369,8 +374,8 @@ function memoryOps(): OpsLog {
   const rows = new Map<string, StoredOp>();
   const meta = new Map<string, unknown>();
   return {
-    async append(ops) {
-      for (const op of ops) rows.set(op.opId, { ...op, synced: 0 });
+    async append(ops, synced = 0) {
+      for (const op of ops) rows.set(op.opId, { ...op, synced });
     },
     async all() {
       return [...rows.values()].map(strip);
@@ -378,11 +383,8 @@ function memoryOps(): OpsLog {
     async pending() {
       return [...rows.values()].filter((row) => row.synced === 0).map(strip);
     },
-    async markSynced(opIds) {
-      for (const id of opIds) {
-        const row = rows.get(id);
-        if (row) rows.set(id, { ...row, synced: 1 });
-      }
+    async markSynced(ops) {
+      for (const op of ops) rows.set(op.opId, { ...op, synced: 1 });
     },
     async clear() {
       rows.clear();
@@ -467,14 +469,14 @@ export const localStore: KeyValueStore = {
 let chain: Promise<void> = Promise.resolve();
 
 export const opsLog: OpsLog = {
-  append(ops) {
-    const done = chain.then(() => backend().then(({ ops: log }) => log.append(ops)));
+  append(ops, synced) {
+    const done = chain.then(() => backend().then(({ ops: log }) => log.append(ops, synced)));
     chain = done.catch((error) => console.warn('[storage] операции не записались', error));
     return done;
   },
   all: () => backend().then(({ ops }) => ops.all()),
   pending: () => backend().then(({ ops }) => ops.pending()),
-  markSynced: (opIds) => backend().then(({ ops }) => ops.markSynced(opIds)),
+  markSynced: (ops) => backend().then(({ ops: log }) => log.markSynced(ops)),
   clear: () => backend().then(({ ops }) => ops.clear()),
   meta: (key) => backend().then(({ ops }) => ops.meta(key)),
   setMeta: (key, value) => backend().then(({ ops }) => ops.setMeta(key, value)),

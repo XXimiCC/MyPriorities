@@ -13,6 +13,14 @@ docs/.vitepress/cache/
 .env.*
 !.env.example
 
+# Секреты Worker для локального запуска: wrangler читает их отсюда, и здесь
+# лежит настоящий токен бота. На проде секреты ставятся `wrangler secret put`.
+worker/.dev.vars
+!worker/.dev.vars.example
+
+# Локальная D1 и состояние wrangler.
+worker/.wrangler/
+
 .vercel/
 *.log
 npm-debug.log*

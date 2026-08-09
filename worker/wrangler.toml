@@ -1,0 +1,25 @@
+name = "mypri"
+main = "src/index.ts"
+compatibility_date = "2026-08-01"
+
+# Ночной отчёт: размер базы и число операций сообщением от бота. Появляется
+# раньше самих данных намеренно — наблюдение, поставленное «потом», не ставится
+# никогда, а упереться в тариф и узнать об этом от пользователей дорого.
+[triggers]
+crons = ["0 3 * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "mypri"
+# Подставляется после `wrangler d1 create mypri`.
+database_id = "00000000-0000-0000-0000-000000000000"
+
+[vars]
+# Кто может обращаться к Worker из браузера. Список, а не «*»: с «*» браузер
+# всё равно не пустит запрос с заголовком авторизации, а дыру открыть можно.
+ALLOWED_ORIGINS = "https://mypriorities.vercel.app,http://localhost:5173,http://127.0.0.1:5173"
+
+# Секреты сюда НЕ пишутся. Ставятся один раз командой:
+#   wrangler secret put TELEGRAM_BOT_TOKEN
+#   wrangler secret put JWT_SECRET
+#   wrangler secret put REPORT_CHAT_ID

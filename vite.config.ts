@@ -9,9 +9,12 @@ export default defineConfig({
   // системе, а значит требует типов Node. В src/ этот тест заставил бы добавить
   // "node" в tsconfig приложения — и Node API стали бы видны продуктовому коду,
   // которому их видеть незачем.
+  // worker/ добавлен по той же причине, что и tools/: его чистая часть —
+  // подпись, токены, обвязка над Web Crypto — проверяется обычным node, без
+  // поднятия workerd. Всё, что трогает D1, проверяется отдельно, вживую.
   test: {
     environment: 'node',
-    include: ['src/**/*.test.ts', 'tools/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'tools/**/*.test.ts', 'worker/test/**/*.test.ts'],
   },
   plugins: [react()],
   base: './',

@@ -7,15 +7,30 @@ import { formatDayShort, formatMinutes } from '../domain/date';
 import { findPreset } from '../domain/presets';
 import { computeStats, earliestDay, periodDays } from '../domain/stats';
 import { BLOCK_OPTIONS, PERIODS, blockMinutesOf, modulesOf } from '../domain/types';
-import { plural, t } from '../i18n';
+import { plural, t, type StringKey } from '../i18n';
 import { MOCK_MODE } from '../store/mock';
 import { SnapshotError } from '../domain/snapshot';
 import { RETENTION_MONTHS } from '../store/legacy/persistence';
 import { useStore } from '../store/useStore';
 import { store } from '../telegram/cloudStorage';
 import { alertDialog, clientInfo, confirmDialog, haptics, homeScreen, isTelegram } from '../telegram/sdk';
+import { subscribeSync, syncState, type SyncState } from '../sync/auth';
 import { saveFile } from '../wallpaper/save';
 import './SettingsScreen.css';
+
+/**
+ * Подпись состояния сессии. Таблица, а не цепочка условий: тип
+ * `Record<SyncState['kind'], StringKey>` делает её исчерпывающей, и новое
+ * состояние, забытое здесь, не соберётся.
+ */
+const ACCOUNT_LABEL: Record<SyncState['kind'], StringKey> = {
+  off: 'settings.accountNone',
+  working: 'settings.accountWorking',
+  'signed-in': 'settings.accountOn',
+  'no-way-in': 'settings.accountNone',
+  offline: 'settings.accountOffline',
+  error: 'settings.accountError',
+};
 
 const ALL_TIME = PERIODS.find((p) => p.id === 'all')!;
 
@@ -28,6 +43,7 @@ export function SettingsScreen({ onPresets, onAchievements }: Props): JSX.Elemen
   const { settings, journal, awards, actions } = useStore();
   const [busy, setBusy] = useState(false);
   const [homeStatus, setHomeStatus] = useState<string>('unsupported');
+  const [sync, setSync] = useState<SyncState>(syncState);
 
   const blockMinutes = blockMinutesOf(settings);
   const modules = modulesOf(settings);
@@ -44,6 +60,9 @@ export function SettingsScreen({ onPresets, onAchievements }: Props): JSX.Elemen
     if (!homeScreen.supported()) return;
     void homeScreen.status().then(setHomeStatus);
   }, []);
+
+  // Вход идёт фоном и может закончиться уже после того, как экран открыли.
+  useEffect(() => subscribeSync(setSync), []);
 
   const run = (task: () => Promise<void>): void => {
     if (busy) return;
@@ -245,6 +264,17 @@ export function SettingsScreen({ onPresets, onAchievements }: Props): JSX.Elemen
               {clientInfo.platform} {clientInfo.version}
             </b>
           </li>
+          {/* Строка появляется, только когда сервер вообще настроен сборкой:
+              без него говорить про аккаунт нечего, и пустой пункт только
+              добавил бы вопросов. */}
+          {sync.kind !== 'off' && (
+            <li>
+              <span>{t('settings.account')}</span>
+              <b className={sync.kind === 'signed-in' ? undefined : 'sset__warn'}>
+                {t(ACCOUNT_LABEL[sync.kind])}
+              </b>
+            </li>
+          )}
         </ul>
 
         {/* Молчаливый откат на локальное хранилище выглядит как пропажа данных:

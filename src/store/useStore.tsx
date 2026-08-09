@@ -60,7 +60,8 @@ import {
   saveSkillsMonth,
   writeAll,
 } from './legacy/persistence';
-import { isDeviceId, newDeviceId } from '../sync/device';
+import { ensureSession } from '../sync/auth';
+import { deviceId, newDeviceId } from '../sync/device';
 import { createClock, emptyHlc, parseStamp, type Clock, type HlcState } from '../sync/hlc';
 import type { Stamper } from '../sync/ops';
 import { isRecordable, opsForClear, opsForContents, recordOps } from '../sync/record';
@@ -191,14 +192,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
    */
   const restoreClock = useCallback(async (): Promise<void> => {
     try {
-      const stored = await opsLog.meta('deviceId');
-      let deviceId: string;
-      if (isDeviceId(stored)) {
-        deviceId = stored;
-      } else {
-        deviceId = newDeviceId();
-        await opsLog.setMeta('deviceId', deviceId);
-      }
+      const id = await deviceId();
 
       let newest = '';
       for (const op of await opsLog.all()) {
@@ -207,7 +201,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       const parsed = parseStamp(newest);
       const state: HlcState = parsed ? { wall: parsed.wall, counter: parsed.counter } : emptyHlc();
 
-      clock.current = createClock(deviceId, state);
+      clock.current = createClock(id, state);
     } catch (error) {
       // Без журнала приложение работает по-прежнему — источником истины пока
       // остаётся CloudStorage, — поэтому старт из-за этого ронять нельзя.
@@ -503,6 +497,16 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       // Часы поднимаются до первой возможной правки. Ошибка внутри заглушена:
       // без журнала приложение работает по-прежнему, а вот без данных — нет.
       await restoreClock();
+
+      /*
+       * Вход — фоном и без ожидания.
+       *
+       * Ждать его нельзя ни секунды: приложение обязано открыться из локальной
+       * копии независимо от сети и сессии. Сессия нужна следующему этапу, где
+       * появится обмен операциями, а сейчас она только зажигает строку в
+       * настройках и заводит профиль на сервере.
+       */
+      void ensureSession();
 
       /*
        * До чтения истории: если её стёрли на другом устройстве, локальная копия

@@ -296,3 +296,12 @@ export const files = {
 
 export const platform = webApp?.platform ?? 'web';
 export const userId = webApp?.initDataUnsafe?.user?.id;
+
+/**
+ * Подписанная строка входа. Уходит на сервер как есть — проверять подпись
+ * может только тот, у кого токен бота, и это не приложение.
+ *
+ * Пустая строка вне Telegram: там вход появится отдельным путём, через
+ * Telegram Login в браузере.
+ */
+export const initData = webApp?.initData ?? '';

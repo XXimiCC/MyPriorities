@@ -115,9 +115,13 @@ export async function handleTelegramLogin(
     user = await verifyInitData(String(input.initData ?? ''), env.TELEGRAM_BOT_TOKEN, now);
   } catch (error) {
     // Наружу один код на все причины: «подпись не сошлась» и «срок вышел»,
-    // различённые в ответе, превращают его в подсказку для подбора.
-    const code = error instanceof InitDataError ? error.code : 'unknown';
-    throw unauthorized('bad-init-data', code);
+    // различённые в ответе, превращают его в подсказку для подбора. Подробность
+    // остаётся в журнале Worker, где она видна только владельцу.
+    const detail =
+      error instanceof InitDataError
+        ? [error.code, error.hint].filter(Boolean).join(' — ')
+        : 'unknown';
+    throw unauthorized('bad-init-data', detail);
   }
 
   const userId = await profileFor(env, user.id, user.username);

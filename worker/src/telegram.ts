@@ -25,7 +25,17 @@ export interface TelegramUser {
 }
 
 export class InitDataError extends Error {
-  constructor(readonly code: string) {
+  /**
+   * Что удалось разглядеть, не раскрывая секретов: имена полей и номер бота.
+   *
+   * Без этого «подпись не сошлась» — тупик: причин ровно две, чужой токен и
+   * неверная строка проверки, и снаружи они выглядят одинаково. Имена полей не
+   * тайна, номер бота тоже — тайна только то, что после двоеточия.
+   */
+  constructor(
+    readonly code: string,
+    readonly hint?: string,
+  ) {
     super(code);
     this.name = 'InitDataError';
   }
@@ -37,14 +47,27 @@ export class InitDataError extends Error {
  * `now` приходит аргументом, а не берётся из Date.now(): иначе проверку срока
  * не написать.
  */
+/** Форма токена от BotFather: номер бота, двоеточие, секрет. */
+const TOKEN_PATTERN = /^\d+:[A-Za-z0-9_-]+$/;
+
 export async function verifyInitData(
   initData: string,
-  botToken: string,
+  rawToken: string,
   now: number = Date.now(),
 ): Promise<TelegramUser> {
   if (typeof initData !== 'string' || initData.length === 0) {
     throw new InitDataError('empty');
   }
+
+  /*
+   * Пробелы по краям срезаются.
+   *
+   * Токен попадает в секрет копированием, и лишний перевод строки в конце —
+   * самая частая беда при настройке: бот тот, байты другие, подпись не сходится,
+   * а понять это по ответу невозможно. Ключ считается от токена целиком, так что
+   * один невидимый символ меняет всё.
+   */
+  const botToken = rawToken.trim();
 
   const params = new URLSearchParams(initData);
   const hash = params.get('hash');
@@ -66,7 +89,16 @@ export async function verifyInitData(
 
   const secret = await hmacSha256(utf8('WebAppData'), botToken);
   const expected = toHex(await hmacSha256(secret, checkString));
-  if (!timingSafeEqual(expected, hash.toLowerCase())) throw new InitDataError('bad-signature');
+  if (!timingSafeEqual(expected, hash.toLowerCase())) {
+    const botId = botToken.split(':')[0] ?? '?';
+    const keys = pairs.map((pair) => pair.slice(0, pair.indexOf('='))).join(',');
+    // Форма токена в подсказку: кривой токен и чужой токен снаружи выглядят
+    // одинаково, а чинятся по-разному.
+    const shape = TOKEN_PATTERN.test(botToken)
+      ? `${botToken.length} симв.`
+      : `ФОРМА ТОКЕНА НЕВЕРНА, ${botToken.length} симв.`;
+    throw new InitDataError('bad-signature', `бот ${botId} (${shape}), поля: ${keys}`);
+  }
 
   const authDate = Number(params.get('auth_date'));
   if (!Number.isFinite(authDate) || authDate <= 0) throw new InitDataError('no-auth-date');

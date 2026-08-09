@@ -101,4 +101,45 @@ describe('проверка initData', () => {
     const signed = sign(fields({ user: JSON.stringify({ id: 7 }) }));
     await expect(verifyInitData(signed, TOKEN, NOW)).resolves.toEqual({ id: 7 });
   });
+
+  it('настоящий набор полей с кириллицей и ссылками проходит', async () => {
+    /*
+     * Форма взята из живого захода: auth_date, chat_instance, user. Смысл теста
+     * не в полях как таковых, а в кодировании: значения приезжают
+     * процентно-закодированными, а в строку проверки идут раскодированными.
+     * Ошибись здесь на один шаг — и подпись не сойдётся ровно на тех данных,
+     * где есть кириллица, двоеточия и косые черты, то есть всегда.
+     */
+    const user = JSON.stringify({
+      id: 279058397,
+      first_name: 'Андрій',
+      last_name: 'Гетьманенко',
+      username: 'andrii',
+      language_code: 'ru',
+      is_premium: true,
+      allows_write_to_pm: true,
+      photo_url: 'https://t.me/i/userpic/320/abc-DEF_123.svg',
+    });
+
+    const signed = sign({
+      auth_date: String(Math.floor(NOW / 1000)),
+      chat_instance: '-3336887971990173897',
+      user,
+    });
+
+    // Так строку собирает сам Telegram: encodeURIComponent на каждое значение.
+    expect(signed).toContain('%D0%90'); // «А» кириллическая — значит, кодирование живое
+    await expect(verifyInitData(signed, TOKEN, NOW)).resolves.toMatchObject({
+      id: 279058397,
+      username: 'andrii',
+      firstName: 'Андрій',
+    });
+  });
+
+  it('поле, о котором мы не знаем, в подпись всё равно входит', async () => {
+    // Telegram добавляет поля со временем. Пропустить незнакомое значило бы
+    // перестать сходиться подписью на всех новых клиентах разом.
+    const signed = sign(fields({ chat_type: 'sender', start_param: 'ref_42' }));
+    await expect(verifyInitData(signed, TOKEN, NOW)).resolves.toMatchObject({ id: 4242 });
+  });
 });

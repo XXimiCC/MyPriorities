@@ -78,14 +78,14 @@ const REAL: EngineDeps = { transport, session: ensureSession };
  * следующим чтением как чужая — идемпотентность спасёт от порчи данных, но
  * лишний круг по сети случится на каждом заходе.
  */
-export async function syncOnce(deps: EngineDeps = REAL): Promise<SyncOutcome> {
+export async function syncOnce(deps: EngineDeps = REAL, docs: SyncDoc[] = []): Promise<SyncOutcome> {
   if (!deps.transport.configured) return IDLE;
 
   const session = await deps.session();
   if (!session) return IDLE;
 
   try {
-    const pushed = await pushPending(deps, session.access);
+    const pushed = await pushPending(deps, session.access, docs);
     const pulled = await pullAll(deps, session.access);
     return { pushed, pulled: pulled.ops.length, docs: pulled.docs, ok: true };
   } catch (error) {
@@ -101,6 +101,13 @@ export async function syncOnce(deps: EngineDeps = REAL): Promise<SyncOutcome> {
 async function pushPending(deps: EngineDeps, access: string, docs: SyncDoc[] = []): Promise<number> {
   const pending = await opsLog.pending();
   if (pending.length === 0 && docs.length === 0) return 0;
+
+  // Документам нужен хотя бы один запрос, даже если операций нет вовсе:
+  // переименовать приоритет, ничего не отметив, — обычное дело.
+  if (pending.length === 0) {
+    await deps.transport.push(access, [], docs);
+    return 0;
+  }
 
   let sent = 0;
   for (let from = 0; from < Math.max(pending.length, 1); from += PUSH_BATCH) {

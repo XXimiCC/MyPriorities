@@ -60,8 +60,11 @@ import {
   saveSkillsMonth,
   writeAll,
 } from './legacy/persistence';
+import { adoptServerState } from '../sync/adopt';
 import { ensureSession } from '../sync/auth';
 import { deviceId, newDeviceId } from '../sync/device';
+import { docsFrom } from '../sync/documents';
+import { syncOnce } from '../sync/engine';
 import { createClock, emptyHlc, parseStamp, type Clock, type HlcState } from '../sync/hlc';
 import type { Stamper } from '../sync/ops';
 import { isRecordable, opsForClear, opsForContents, recordOps } from '../sync/record';
@@ -70,6 +73,13 @@ import { reduce, type Action, type Hydration, type State } from './reduce';
 import { MOCK_MODE, buildMockData } from './mock';
 
 const FLUSH_DELAY_MS = 700;
+
+/**
+ * Пауза перед отправкой на сервер. Больше, чем у записи в хранилище: там речь
+ * о сохранности при внезапном закрытии, здесь — о том, чтобы десять тапов
+ * подряд уехали одним запросом, а не десятью.
+ */
+const SYNC_DELAY_MS = 2500;
 
 /**
  * Откат при повторах записи: задержка удваивается на каждой неудаче подряд.
@@ -174,6 +184,9 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
    * приложение показывает заставку и правок не принимает, поэтому временные
    * часы в настоящий журнал не попадают.
    */
+  /** Ссылка на отложенную отправку: она объявлена ниже, а нужна уже в `commit`. */
+  const syncRef = useRef<(withDocs?: boolean) => void>(() => {});
+
   const clock = useRef<Clock | undefined>(undefined);
   const stamp = useCallback<Stamper>(() => {
     clock.current ??= createClock(newDeviceId());
@@ -222,7 +235,12 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       const before = latest.current;
       if (!MOCK_MODE && isRecordable(action)) {
         const ops = recordOps(before, action, stamp);
-        if (ops.length > 0) void opsLog.append(ops);
+        if (ops.length > 0) {
+          void opsLog.append(ops);
+          // Через ссылку: отправка объявлена ниже, а замыкаться на неё отсюда
+          // нельзя. Тот же приём, что и у флаша с его flushRef.
+          syncRef.current();
+        }
       }
       /*
        * Снимок обновляется сразу, не дожидаясь рендера.
@@ -377,6 +395,47 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       .then(() => saveAwards(awards))
       .catch((error) => console.warn('[store] достижения не записались', error));
   }, []);
+
+  /**
+   * Отправка на сервер: отложенная и объединяющая, как и запись в хранилище.
+   *
+   * Пауза больше, чем у флаша, намеренно: там речь о сохранности при закрытии
+   * приложения, здесь — о трафике. Десять тапов подряд должны уехать одним
+   * запросом, а не десятью.
+   *
+   * Документы отмечаются флагом, а не собираются в очередь: они едут целиком, и
+   * важно лишь то, что последнее состояние должно оказаться на сервере.
+   */
+  const syncTimer = useRef<number | undefined>(undefined);
+  const docsDirty = useRef(false);
+
+  const runSync = useCallback(async () => {
+    window.clearTimeout(syncTimer.current);
+    syncTimer.current = undefined;
+    if (MOCK_MODE || loadFailed.current) return;
+
+    const docs = docsDirty.current
+      ? docsFrom(latest.current.settings, latest.current.skills, stamp)
+      : [];
+    // Флаг снимается до отправки: правка, случившаяся во время запроса, должна
+    // взвести его заново, а не потеряться под уже отправленной.
+    docsDirty.current = false;
+
+    const outcome = await syncOnce(undefined, docs);
+    if (!outcome.ok && docs.length > 0) docsDirty.current = true;
+  }, [stamp]);
+
+  const scheduleSync = useCallback(
+    (withDocs = false) => {
+      if (MOCK_MODE) return;
+      if (withDocs) docsDirty.current = true;
+      window.clearTimeout(syncTimer.current);
+      syncTimer.current = window.setTimeout(() => void runSync(), SYNC_DELAY_MS);
+    },
+    [runSync],
+  );
+
+  syncRef.current = scheduleSync;
 
   /** Отменяет всё, что ещё не записано. Нужно перед сбросом, чтобы стёртое не вернулось. */
   const dropPendingWrites = useCallback(async () => {
@@ -545,6 +604,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       // Свёртка строго до уборки: она читает те самые месяцы, что уборка удалит.
       void (async () => {
         if (failed) return;
+        let current = skills;
         const folded = await foldExpiredMonths(skills);
         if (cancelled) return;
 
@@ -558,8 +618,45 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             console.warn('[store] свёртка не записалась, уборку откладываем', error);
             return;
           }
+          current = folded;
         }
         await pruneOldMonths();
+        if (cancelled) return;
+
+        /*
+         * Переход на сервер идёт последним и строго после уборки: засеять его
+         * недосвёрнутым состоянием значило бы отправить туда часы, которые тут
+         * же переедут в carryBlocks, и посчитать их дважды.
+         */
+        let history = skillClicks;
+        if (!skillsLoaded) {
+          /*
+           * История навыков читается, даже если модуль выключен.
+           *
+           * При выключенном модуле она в память не грузится, и засев отправил
+           * бы на сервер состояние без неё — то есть стёр бы годы занятий у
+           * того, кто просто убрал вкладку с глаз.
+           */
+          history = await read('история навыков для засева', () => loadSkillClicks(monthsToLoad()), {});
+          if (failed || cancelled) return;
+        }
+
+        const adopted = await adoptServerState(
+          { settings: settings ?? emptySettings(), journal, skills: current, skillClicks: history, awards },
+          stamp,
+        );
+        if (!adopted || cancelled) return;
+
+        commit({
+          type: 'hydrate',
+          settings: adopted.settings ?? settings ?? emptySettings(),
+          journal: adopted.journal,
+          skills: adopted.skills ?? current,
+          skillClicks: adopted.skillClicks,
+          awards: adopted.awards,
+          skillsLoaded: true,
+        });
+        console.info(adopted.seeded ? '[sync] сервер засеян' : '[sync] состояние взято с сервера');
       })();
     })();
 
@@ -569,21 +666,30 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     };
   }, [commit, restoreClock, writeSkills]);
 
-  // Сворачивание мини-аппа не даёт времени на отложенную запись — дожимаем немедленно.
+  /*
+   * Сворачивание мини-аппа не даёт времени на отложенную запись — дожимаем
+   * немедленно. Отправка на сервер идёт следом и без ожидания: она может не
+   * успеть, и это нормально — операции остаются в очереди и уедут при
+   * следующем открытии. А вот запись в хранилище успеть обязана.
+   */
   useEffect(() => {
+    const hide = (): void => {
+      void flush();
+      void runSync();
+    };
     const onHide = (): void => {
-      if (document.visibilityState === 'hidden') void flush();
+      if (document.visibilityState === 'hidden') hide();
     };
     // Именованная, а не инлайновая: анонимную снять нельзя, и при каждой смене
     // flush поверх старого слушателя вешался ещё один — с устаревшим замыканием.
-    const onPageHide = (): void => void flush();
+    const onPageHide = (): void => hide();
     document.addEventListener('visibilitychange', onHide);
     window.addEventListener('pagehide', onPageHide);
     return () => {
       document.removeEventListener('visibilitychange', onHide);
       window.removeEventListener('pagehide', onPageHide);
     };
-  }, [flush]);
+  }, [flush, runSync]);
 
   /**
    * Сегодняшний день как состояние, а не как вычисление на каждый рендер.
@@ -607,11 +713,15 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     const commitSettings = (settings: Settings): void => {
       commit({ type: 'settings', settings });
       writeSettings(settings);
+      // Настройки и каталог едут документом целиком, а не операциями: это
+      // связные объекты, порядок приоритетов не набор независимых ячеек.
+      scheduleSync(true);
     };
 
     const commitSkills = (skills: SkillsState): void => {
       commit({ type: 'skills', skills });
       writeSkills(skills);
+      scheduleSync(true);
     };
 
     const commitAwards = (awards: AwardMap, fresh: string[] = []): void => {

@@ -17,6 +17,23 @@ import type { SyncDoc } from './transport';
 
 const KEY = (kind: SyncDoc['kind']): string => `doc:${kind}`;
 
+/**
+ * Отметка «журнал здесь главный».
+ *
+ * Именно отметка, а не «журнал непуст». После «стереть всё» журнал пуст
+ * законно, и по пустоте приложение решило бы, что переезда не было, — и
+ * подняло бы из прежнего хранилища ровно то, что человек только что стёр.
+ */
+const READY_KEY = 'oplog:ready';
+
+export async function isMigrated(): Promise<boolean> {
+  return Boolean(await opsLog.meta(READY_KEY));
+}
+
+export async function markMigrated(): Promise<void> {
+  await opsLog.setMeta(READY_KEY, 1);
+}
+
 function sanitize(raw: unknown): SyncDoc | undefined {
   if (typeof raw !== 'object' || raw === null) return undefined;
   const value = raw as Partial<SyncDoc>;

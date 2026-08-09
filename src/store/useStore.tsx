@@ -63,9 +63,10 @@ import {
 import { adoptServerState } from '../sync/adopt';
 import { ensureSession } from '../sync/auth';
 import { deviceId, newDeviceId } from '../sync/device';
-import { settingsDoc, skillsDoc } from '../sync/documents';
+import { readDocs, settingsDoc, skillsDoc, type ReadDocs } from '../sync/documents';
 import { syncOnce } from '../sync/engine';
-import { writeLocalDocs } from '../sync/local';
+import { isMigrated, markMigrated, readLocalDocs, writeLocalDocs } from '../sync/local';
+import { emptyBase, project } from '../sync/project';
 import type { SyncDoc } from '../sync/transport';
 import { createClock, emptyHlc, parseStamp, type Clock, type HlcState } from '../sync/hlc';
 import type { Stamper } from '../sync/ops';
@@ -271,6 +272,15 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
    * первым успешным чтением и до тех пор запрещает любую запись.
    */
   const loadFailed = useRef(false);
+
+  /**
+   * Пишем ли ещё в CloudStorage.
+   *
+   * Гаснет ровно в тот момент, когда устройство перешло на журнал. Ни секундой
+   * раньше: пока переход не подтверждён, прежнее хранилище остаётся источником
+   * истины, и переставшая писать в него запись заморозила бы данные.
+   */
+  const legacyWrites = useRef(true);
   /** Идущая запись: сброс обязан её дождаться, иначе она допишет уже стёртое. */
   const activeFlush = useRef<Promise<void>>(Promise.resolve());
   /** Неудачи подряд — задержка повтора растёт, чтобы не долбить отказавшее хранилище. */
@@ -291,6 +301,16 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       window.clearTimeout(flushTimer.current);
       flushTimer.current = undefined;
       if (loadFailed.current) return;
+
+      // Устройство перешло на журнал — прежнему хранилищу писать нечего.
+      // Метки снимаем: без этого они копились бы до конца сеанса.
+      if (!legacyWrites.current) {
+        dirtyClicks.current.clear();
+        dirtyBattery.current.clear();
+        dirtySkillClicks.current.clear();
+        dirtySettings.current = false;
+        return;
+      }
 
       const months = {
         clicks: [...dirtyClicks.current],
@@ -365,7 +385,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
 
   const writeSettings = useCallback(
     (settings: Settings) => {
-      if (MOCK_MODE || loadFailed.current) return;
+      if (MOCK_MODE || loadFailed.current || !legacyWrites.current) return;
       // Через цепочку, а не поверх предыдущей записи: две параллельные могли
       // завершиться в обратном порядке, и в облаке побеждал более старый список.
       pendingSettings.current = pendingSettings.current
@@ -380,7 +400,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
   );
 
   const writeSkills = useCallback((skills: SkillsState): Promise<void> => {
-    if (MOCK_MODE || loadFailed.current) return Promise.resolve();
+    if (MOCK_MODE || loadFailed.current || !legacyWrites.current) return Promise.resolve();
     pendingSkills.current = pendingSkills.current.then(() => saveSkills(skills));
     // Наружу отдаём цепочку с проглоченной ошибкой, но саму ошибку не теряем:
     // свёртка месяцев обязана знать, дошла запись или нет.
@@ -392,7 +412,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
   }, []);
 
   const writeAwards = useCallback((awards: AwardMap) => {
-    if (MOCK_MODE || loadFailed.current) return;
+    if (MOCK_MODE || loadFailed.current || !legacyWrites.current) return;
     pendingAwards.current = pendingAwards.current
       .then(() => saveAwards(awards))
       .catch((error) => console.warn('[store] достижения не записались', error));
@@ -583,6 +603,62 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       void ensureSession();
 
       /*
+       * Переезд уже был — читаем журнал, а не прежнее хранилище.
+       *
+       * Это и есть переключатель: с этого момента источник истины на устройстве
+       * — операции, а CloudStorage только читается при разовом переносе ниже.
+       * Держать чтение там дальше нельзя: запись туда прекращается, и экран
+       * показывал бы вчерашнее, пока журнал уходит вперёд.
+       */
+      if (await read('отметка о переезде', isMigrated, false)) {
+        // Переезд был — писать в прежнее хранилище больше не нужно. Забыть эту
+        // строку значит возобновлять запись при каждом перезапуске.
+        legacyWrites.current = false;
+
+        const ops = await read('журнал операций', () => opsLog.all(), []);
+        const docs = await read<ReadDocs>('настройки и навыки', readLocalDocs, {});
+        if (failed) loadFailed.current = true;
+
+        const projected = project(emptyBase(), ops);
+        window.clearTimeout(deadline);
+        if (cancelled) return;
+
+        finish({
+          settings: docs.settings,
+          journal: projected.journal,
+          skills: docs.skills ?? emptySkills(),
+          skillClicks: projected.skillClicks,
+          awards: projected.awards,
+          // Журнал содержит историю навыков наравне с остальной: отдельной
+          // догрузки, ради которой существовал этот флаг, больше нет.
+          skillsLoaded: true,
+        });
+
+        // Дальше только обмен: свёртка и уборка — заботы прежнего хранилища.
+        void (async () => {
+          if (failed || cancelled) return;
+          const outcome = await syncOnce();
+          if (!outcome.ok || cancelled) return;
+          if (outcome.docs.length > 0) await writeLocalDocs(outcome.docs);
+          if (outcome.pulled === 0 && outcome.docs.length === 0) return;
+
+          const fresh = project(emptyBase(), await opsLog.all());
+          const pulled = readDocs(outcome.docs);
+          if (cancelled) return;
+          commit({
+            type: 'hydrate',
+            settings: pulled.settings ?? docs.settings ?? emptySettings(),
+            journal: fresh.journal,
+            skills: pulled.skills ?? docs.skills ?? emptySkills(),
+            skillClicks: fresh.skillClicks,
+            awards: fresh.awards,
+            skillsLoaded: true,
+          });
+        })();
+        return;
+      }
+
+      /*
        * До чтения истории: если её стёрли на другом устройстве, локальная копия
        * здесь ещё цела и при слиянии воскресила бы стёртое. Ошибки внутри
        * заглушены — сверка не должна мешать старту.
@@ -661,6 +737,18 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           stamp,
         );
         if (!adopted || cancelled) return;
+
+        /*
+         * Переезд состоялся: с этого момента источник истины — журнал, и в
+         * CloudStorage больше не пишем.
+         *
+         * Отметка ставится только здесь, после подтверждённого обмена. Пока
+         * его не было, устройство живёт по-старому целиком: читает и пишет
+         * прежнее хранилище. Так оффлайн и отсутствие сессии не оставляют
+         * человека с замороженными данными.
+         */
+        await markMigrated();
+        legacyWrites.current = false;
 
         commit({
           type: 'hydrate',

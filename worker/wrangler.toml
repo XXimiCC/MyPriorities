@@ -12,7 +12,7 @@ crons = ["0 3 * * *"]
 binding = "DB"
 database_name = "mypri"
 # Подставляется после `wrangler d1 create mypri`.
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "17e95f5f-72b0-4a81-bdc6-d475ba3267cb"
 
 [vars]
 # Кто может обращаться к Worker из браузера. Список, а не «*»: с «*» браузер

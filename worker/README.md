@@ -30,10 +30,26 @@ npm run db:remote                   # создать таблицы на про�
 
 npx wrangler secret put TELEGRAM_BOT_TOKEN
 npx wrangler secret put JWT_SECRET     # node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
-npx wrangler secret put REPORT_CHAT_ID # куда слать ночной отчёт
+npx wrangler secret put REPORT_CHAT_ID # куда слать ночной отчёт, см. ниже
 
 npm run deploy
 ```
+
+## Куда слать отчёт
+
+```sh
+npm run chat-id
+# или, если в .dev.vars лежит тестовый токен:
+TELEGRAM_BOT_TOKEN=<настоящий> npm run chat-id
+```
+
+Идентификатор чата нельзя вывести ни из ссылки-приглашения, ни из имени: его
+знает только Telegram и отдаёт лишь вместе с настоящим сообщением. Поэтому
+сначала надо боту написать — в личку или в группу, — и только потом спрашивать.
+
+В группе есть тонкость: у ботов по умолчанию включён режим приватности, обычных
+сообщений они не видят. Писать надо команду, например `/start`. Идентификатор
+группы отрицательный, у супергрупп начинается с `-100`.
 
 После развёртывания: адрес Worker — в `VITE_SYNC_URL` приложения, домен
 приложения — в `ALLOWED_ORIGINS`.

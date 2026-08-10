@@ -9,7 +9,7 @@ import { computeStats, earliestDay, periodDays } from '../domain/stats';
 import { PERIODS } from '../domain/periods';
 import { BLOCK_OPTIONS, blockMinutesOf, modulesOf } from '../domain/types';
 import { plural, t, type StringKey } from '../i18n';
-import { MOCK_MODE } from '../store/mock';
+import { DEMO_MODE, GUEST_MODE } from '../demo/mode';
 import { SnapshotError } from '../domain/snapshot';
 import { RETENTION_MONTHS } from '../store/legacy/persistence';
 import { useStore } from '../store/useStore';
@@ -43,9 +43,10 @@ const ALL_TIME = PERIODS.find((p) => p.id === 'all')!;
 interface Props {
   onPresets(): void;
   onAchievements(): void;
+  onDemo(): void;
 }
 
-export function SettingsScreen({ onPresets, onAchievements }: Props): JSX.Element {
+export function SettingsScreen({ onPresets, onAchievements, onDemo }: Props): JSX.Element {
   const { settings, journal, skills, skillClicks, awards, actions } = useStore();
   const [busy, setBusy] = useState(false);
   const [homeStatus, setHomeStatus] = useState<string>('unsupported');
@@ -292,16 +293,51 @@ export function SettingsScreen({ onPresets, onAchievements }: Props): JSX.Elemen
           })}
         </p>
 
+        {/* Между ценой клика и данными намеренно: действие безопасное, и
+            соседство с красной зоной читалось бы как угроза. В гостевом режиме
+            раздела нет — гость уже внутри демо, и вложить в него второе демо
+            значит потерять дорогу назад. */}
+        {!GUEST_MODE && (
+          <>
+            <div className="divider-label">
+              <span>{t('demo.title')}</span>
+            </div>
+
+            <button className="sset__row press" type="button" onClick={onDemo}>
+              <span className="sset__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 11a3.2 3.2 0 100-6.4A3.2 3.2 0 009 11" />
+                  <path d="M2.5 19.5v-1a4.5 4.5 0 014.5-4.5h4a4.5 4.5 0 014.5 4.5v1" />
+                  <path d="M16.5 10.5a2.6 2.6 0 100-5.2M18 14.2a4 4 0 013.5 4v1.3" />
+                </svg>
+              </span>
+              <span className="sset__row-text">
+                <b>{t('demo.settingsRow')}</b>
+                <small>{t('demo.settingsNote')}</small>
+              </span>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true">
+                <path d="M9 5l7 7-7 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </>
+        )}
+
         <div className="divider-label">
           <span>{t('settings.dataTitle')}</span>
         </div>
 
         <ul className="sset__facts">
+          {/* В демо строка обязана говорить «демо»: и «облако», и «это
+              устройство» здесь были бы неправдой — данных нет нигде. */}
           <li>
             <span>{t('settings.where')}</span>
-            <b className={synced ? undefined : 'sset__warn'}>
-              {synced ? t('settings.whereCloud') : t('settings.whereLocal')}
-            </b>
+            {DEMO_MODE ? (
+              <b className="sset__warn">{t('demo.whereDemo')}</b>
+            ) : (
+              <b className={synced ? undefined : 'sset__warn'}>
+                {synced ? t('settings.whereCloud') : t('settings.whereLocal')}
+              </b>
+            )}
           </li>
           <li>
             <span>{t('settings.since')}</span>
@@ -328,7 +364,7 @@ export function SettingsScreen({ onPresets, onAchievements }: Props): JSX.Elemen
           {/* Строка появляется, только когда сервер вообще настроен сборкой:
               без него говорить про аккаунт нечего, и пустой пункт только
               добавил бы вопросов. */}
-          {sync.kind !== 'off' && (
+          {sync.kind !== 'off' && !GUEST_MODE && (
             <li>
               <span>{t('settings.account')}</span>
               <b className={sync.kind === 'signed-in' ? undefined : 'sset__warn'}>
@@ -343,7 +379,7 @@ export function SettingsScreen({ onPresets, onAchievements }: Props): JSX.Elemen
             <span>{t('settings.build')}</span>
             <b>{buildLabel()}</b>
           </li>
-          {sync.kind !== 'off' && (
+          {sync.kind !== 'off' && !GUEST_MODE && (
             <li className="sset__build">
               <span>{t('settings.server')}</span>
               <b>{server ?? t('settings.serverUnknown')}</b>
@@ -351,9 +387,21 @@ export function SettingsScreen({ onPresets, onAchievements }: Props): JSX.Elemen
           )}
         </ul>
 
+        {/*
+         * Дальше — всё, что трогает аккаунт и данные владельца. Гостю этого
+         * видеть не нужно, а кое-что и опасно: выход из аккаунта единственный
+         * во всём приложении не прикрыт подменённым хранилищем — он гасит
+         * сессию на сервере, а не на устройстве.
+         *
+         * Остальное в демо и так мертво (хранилище — память), но живая с виду
+         * кнопка «Стереть историю» в чужих руках объясняется дольше, чем
+         * прячется.
+         */}
+        {GUEST_MODE && <p className="sset__note sset__gap">{t('demo.note')}</p>}
+
         {/* Вход вне Telegram: единственное место, где он вообще нужен. Внутри
             мини-аппа он молчаливый, и кнопки там быть не должно. */}
-        {sync.kind === 'can-log-in' && (
+        {!GUEST_MODE && sync.kind === 'can-log-in' && (
           <>
             <p className="sset__note">{t('settings.signInNote')}</p>
             <button className="edit__add press" type="button" onClick={() => void signIn()}>
@@ -361,7 +409,7 @@ export function SettingsScreen({ onPresets, onAchievements }: Props): JSX.Elemen
             </button>
           </>
         )}
-        {sync.kind === 'signed-in' && !isTelegram && (
+        {!GUEST_MODE && sync.kind === 'signed-in' && !isTelegram && (
           <button
             className="sset__danger press"
             type="button"
@@ -375,82 +423,86 @@ export function SettingsScreen({ onPresets, onAchievements }: Props): JSX.Elemen
 
         {/* Молчаливый откат на локальное хранилище выглядит как пропажа данных:
             на телефоне всё есть, на компьютере пусто. Поэтому он назван вслух. */}
-        {!synced && (
+        {!GUEST_MODE && !synced && (
           <p className="sset__note sset__warn">
             {clientInfo.isTelegram ? t('settings.noSyncTelegram') : t('settings.noSyncBrowser')}
           </p>
         )}
 
-        <button className="edit__add press" type="button" disabled={busy} onClick={exportData}>
-          {t('settings.export')}
-        </button>
+        {!GUEST_MODE && (
+          <>
+            <button className="edit__add press" type="button" disabled={busy} onClick={exportData}>
+              {t('settings.export')}
+            </button>
 
-        {/* Появляется только там, где есть что возвращать: копия снимается
-            один раз, перед самым переходом на сервер. */}
-        {hasBefore && (
-          <button
-            className="edit__add press sset__gap"
-            type="button"
-            disabled={busy}
-            onClick={restoreBefore}
-          >
-            {t('settings.restoreBefore')}
-          </button>
+            {/* Появляется только там, где есть что возвращать: копия снимается
+                один раз, перед самым переходом на сервер. */}
+            {hasBefore && (
+              <button
+                className="edit__add press sset__gap"
+                type="button"
+                disabled={busy}
+                onClick={restoreBefore}
+              >
+                {t('settings.restoreBefore')}
+              </button>
+            )}
+
+            <label className="edit__add press sset__gap sset__file">
+              {t('settings.import')}
+              <input
+                type="file"
+                accept="application/json,.json"
+                disabled={busy}
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  // Сбрасываем значение, иначе повторный выбор того же файла не даёт события.
+                  event.target.value = '';
+                  if (file) importData(file);
+                }}
+              />
+            </label>
+
+            {homeScreen.supported() && homeStatus !== 'added' && (
+              <button
+                className="edit__add press sset__gap"
+                type="button"
+                onClick={() => {
+                  haptics.tap();
+                  homeScreen.add();
+                  window.setTimeout(() => {
+                    void homeScreen.status().then((status) => {
+                      setHomeStatus(status);
+                      if (status === 'added') actions.award('r4');
+                    });
+                  }, 3000);
+                }}
+              >
+                {t('settings.homeScreen')}
+              </button>
+            )}
+            {homeStatus === 'added' && <p className="sset__note">{t('settings.homeScreenAdded')}</p>}
+
+            <div className="divider-label">
+              <span>{t('settings.resetTitle')}</span>
+            </div>
+
+            <button className="sset__danger press" type="button" disabled={busy} onClick={resetHistory}>
+              <b>{t('settings.resetHistory')}</b>
+              <small>{t('settings.resetHistoryNote')}</small>
+            </button>
+
+            <button className="sset__danger press" type="button" disabled={busy} onClick={resetEverything}>
+              <b>{t('settings.resetAll')}</b>
+              <small>{t('settings.resetAllNote')}</small>
+            </button>
+
+            <p className="sset__note sset__gap">
+              {isTelegram ? t('settings.resetScopeCloud') : t('settings.resetScopeLocal')}
+              {DEMO_MODE && t('settings.mockNote')}
+            </p>
+          </>
         )}
-
-        <label className="edit__add press sset__gap sset__file">
-          {t('settings.import')}
-          <input
-            type="file"
-            accept="application/json,.json"
-            disabled={busy}
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              // Сбрасываем значение, иначе повторный выбор того же файла не даёт события.
-              event.target.value = '';
-              if (file) importData(file);
-            }}
-          />
-        </label>
-
-        {homeScreen.supported() && homeStatus !== 'added' && (
-          <button
-            className="edit__add press sset__gap"
-            type="button"
-            onClick={() => {
-              haptics.tap();
-              homeScreen.add();
-              window.setTimeout(() => {
-                void homeScreen.status().then((status) => {
-                  setHomeStatus(status);
-                  if (status === 'added') actions.award('r4');
-                });
-              }, 3000);
-            }}
-          >
-            {t('settings.homeScreen')}
-          </button>
-        )}
-        {homeStatus === 'added' && <p className="sset__note">{t('settings.homeScreenAdded')}</p>}
-
-        <div className="divider-label">
-          <span>{t('settings.resetTitle')}</span>
-        </div>
-
-        <button className="sset__danger press" type="button" disabled={busy} onClick={resetHistory}>
-          <b>{t('settings.resetHistory')}</b>
-          <small>{t('settings.resetHistoryNote')}</small>
-        </button>
-
-        <button className="sset__danger press" type="button" disabled={busy} onClick={resetEverything}>
-          <b>{t('settings.resetAll')}</b>
-          <small>{t('settings.resetAllNote')}</small>
-        </button>
-
-        <p className="sset__note sset__gap">
-          {isTelegram ? t('settings.resetScopeCloud') : t('settings.resetScopeLocal')}
-          {MOCK_MODE && t('settings.mockNote')}
-        </p>
       </div>
     </>
   );

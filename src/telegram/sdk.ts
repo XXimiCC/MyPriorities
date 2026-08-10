@@ -28,7 +28,11 @@ interface CloudStorageApi {
 
 interface TelegramWebApp {
   initData: string;
-  initDataUnsafe?: { user?: { id: number; first_name?: string; language_code?: string } };
+  initDataUnsafe?: {
+    user?: { id: number; first_name?: string; language_code?: string };
+    /** Хвост ссылки-приглашения: t.me/<бот>/app?startapp=<это>. */
+    start_param?: string;
+  };
   version: string;
   platform: string;
   colorScheme: 'light' | 'dark';
@@ -296,6 +300,13 @@ export const files = {
 
 export const platform = webApp?.platform ?? 'web';
 export const userId = webApp?.initDataUnsafe?.user?.id;
+
+/**
+ * Хвост ссылки, по которой открыли мини-апп. Приезжает в хэше и переживает
+ * перезагрузку страницы — единственный способ передать что-то приложению,
+ * когда адрес задан настройками бота, а не отправителем.
+ */
+export const startParam = webApp?.initDataUnsafe?.start_param;
 
 /**
  * Подписанная строка входа. Уходит на сервер как есть — проверять подпись

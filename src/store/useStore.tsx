@@ -73,7 +73,8 @@ import type { Stamper } from '../sync/ops';
 import { isRecordable, opsForClear, opsForContents, recordOps } from '../sync/record';
 import { opsLog } from './local/db';
 import { reduce, type Action, type Hydration, type State } from './reduce';
-import { MOCK_MODE, buildMockData } from './mock';
+import { DEMO_ID } from '../demo/mode';
+import { buildProfile } from '../demo/profiles';
 
 const FLUSH_DELAY_MS = 700;
 
@@ -160,6 +161,15 @@ export interface StoreActions {
    * не удался. Во втором случае не изменилось ничего.
    */
   restoreBeforeSync(): Promise<number | undefined>;
+
+  /**
+   * Дописать всё отложенное прямо сейчас.
+   *
+   * Нужно перед перезагрузкой страницы, которой открывается демо: клик,
+   * сделанный за полсекунды до входа, иначе уедет вместе с ней. Тот же путь,
+   * что и при уходе приложения в фон, только вызванный руками.
+   */
+  flushPending(): Promise<void>;
 }
 
 interface StoreValue extends State {
@@ -243,7 +253,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
   const commit = useCallback(
     (action: Action): void => {
       const before = latest.current;
-      if (!MOCK_MODE && isRecordable(action)) {
+      if (isRecordable(action)) {
         const ops = recordOps(before, action, stamp);
         if (ops.length > 0) {
           void opsLog.append(ops);
@@ -304,7 +314,6 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
 
   const flush = useCallback(async () => {
     const run = (async () => {
-      if (MOCK_MODE) return;
       window.clearTimeout(flushTimer.current);
       flushTimer.current = undefined;
       if (loadFailed.current) return;
@@ -365,7 +374,6 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
   flushRef.current = flush;
 
   const scheduleFlush = useCallback(() => {
-    if (MOCK_MODE) return;
     window.clearTimeout(flushTimer.current);
     flushTimer.current = window.setTimeout(() => void flush(), FLUSH_DELAY_MS);
   }, [flush]);
@@ -392,7 +400,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
 
   const writeSettings = useCallback(
     (settings: Settings) => {
-      if (MOCK_MODE || loadFailed.current || !legacyWrites.current) return;
+      if (loadFailed.current || !legacyWrites.current) return;
       // Через цепочку, а не поверх предыдущей записи: две параллельные могли
       // завершиться в обратном порядке, и в облаке побеждал более старый список.
       pendingSettings.current = pendingSettings.current
@@ -407,7 +415,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
   );
 
   const writeSkills = useCallback((skills: SkillsState): Promise<void> => {
-    if (MOCK_MODE || loadFailed.current || !legacyWrites.current) return Promise.resolve();
+    if (loadFailed.current || !legacyWrites.current) return Promise.resolve();
     pendingSkills.current = pendingSkills.current.then(() => saveSkills(skills));
     // Наружу отдаём цепочку с проглоченной ошибкой, но саму ошибку не теряем:
     // свёртка месяцев обязана знать, дошла запись или нет.
@@ -419,7 +427,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
   }, []);
 
   const writeAwards = useCallback((awards: AwardMap) => {
-    if (MOCK_MODE || loadFailed.current || !legacyWrites.current) return;
+    if (loadFailed.current || !legacyWrites.current) return;
     pendingAwards.current = pendingAwards.current
       .then(() => saveAwards(awards))
       .catch((error) => console.warn('[store] достижения не записались', error));
@@ -440,19 +448,15 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
   const pendingDocs = useRef(new Map<SyncDoc['kind'], SyncDoc>());
 
   /** Правка документа: сразу на диск, в очередь отправки и к таймеру. */
-  const queueDoc = useCallback(
-    (doc: SyncDoc) => {
-      if (MOCK_MODE) return;
-      pendingDocs.current.set(doc.kind, doc);
-      void writeLocalDocs([doc]);
-    },
-    [],
-  );
+  const queueDoc = useCallback((doc: SyncDoc) => {
+    pendingDocs.current.set(doc.kind, doc);
+    void writeLocalDocs([doc]);
+  }, []);
 
   const runSync = useCallback(async () => {
     window.clearTimeout(syncTimer.current);
     syncTimer.current = undefined;
-    if (MOCK_MODE || loadFailed.current) return;
+    if (loadFailed.current) return;
 
     const docs = [...pendingDocs.current.values()];
     // Очередь снимается до отправки: правка, случившаяся во время запроса,
@@ -472,7 +476,6 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
   }, []);
 
   const scheduleSync = useCallback(() => {
-    if (MOCK_MODE) return;
     window.clearTimeout(syncTimer.current);
     syncTimer.current = window.setTimeout(() => void runSync(), SYNC_DELAY_MS);
   }, [runSync]);
@@ -566,8 +569,14 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     }, HYDRATE_DEADLINE_MS);
 
     void (async () => {
-      if (MOCK_MODE) {
-        finish({ ...buildMockData(), skillsLoaded: true });
+      /*
+       * Демо: синтетика вместо чтения. Единственная оставшаяся проверка режима
+       * в сторе — и это не предохранитель, а способ загрузить данные. От записи
+       * демо держит не она, а подменённое хранилище: `store/local/db.ts`,
+       * `telegram/cloudStorage.ts` и `sync/transport.ts`.
+       */
+      if (DEMO_ID) {
+        finish({ ...buildProfile(DEMO_ID), skillsLoaded: true });
         window.clearTimeout(deadline);
         return;
       }
@@ -1006,7 +1015,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
          * появится раньше данных, и клик, сделанный в эту щель, потеряется —
          * пришедшая следом карта заменит собой оптимистичную запись.
          */
-        if (id === 'skills' && on && !latest.current.skillsLoaded && !MOCK_MODE) {
+        if (id === 'skills' && on && !latest.current.skillsLoaded) {
           try {
             const clicks = await loadSkillClicks(monthsToLoad());
             commit({ type: 'skill-journal', skillClicks: clicks, skillsLoaded: true });
@@ -1159,7 +1168,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
          * Достижений он не касается: снятие автоматических приедет отдельными
          * операциями из commitAwards ниже.
          */
-        if (!MOCK_MODE) void opsLog.append(opsForClear(stamp));
+        void opsLog.append(opsForClear(stamp));
 
         commit({ type: 'journal', journal: emptyJournal() });
         commit({ type: 'skill-journal', skillClicks: {}, skillsLoaded: current.skillsLoaded });
@@ -1187,12 +1196,10 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
 
         // Барьер плюс снятие всех отметок: барьер историю не трогает выборочно,
         // а достижения он не отменяет вовсе — их надо снять поимённо.
-        if (!MOCK_MODE) {
-          void opsLog.append([
-            ...opsForClear(stamp),
-            ...recordOps(latest.current, { type: 'awards', awards: {} }, stamp),
-          ]);
-        }
+        void opsLog.append([
+          ...opsForClear(stamp),
+          ...recordOps(latest.current, { type: 'awards', awards: {} }, stamp),
+        ]);
 
         commit({
           type: 'hydrate',
@@ -1227,10 +1234,8 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
          * Старый журнал перед этим стирается: его операции всё равно отсечёт
          * барьер, а место они занимать продолжали бы.
          */
-        if (!MOCK_MODE) {
-          await opsLog.clear();
-          void opsLog.append(opsForContents(restored, stamp));
-        }
+        await opsLog.clear();
+        void opsLog.append(opsForContents(restored, stamp));
 
         commit({ type: 'hydrate', ...restored, skillsLoaded: true });
         return restored;
@@ -1259,6 +1264,14 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         });
         return restored.filled;
       },
+
+      async flushPending() {
+        await flush();
+        // Немедленные очереди идут мимо флаша, а перезагрузка обрывает и их.
+        await pendingSettings.current;
+        await pendingSkills.current;
+        await pendingAwards.current;
+      },
     };
   }, [
     commit,
@@ -1270,6 +1283,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     writeSkills,
     writeAwards,
     dropPendingWrites,
+    flush,
   ]);
 
   const value = useMemo<StoreValue>(

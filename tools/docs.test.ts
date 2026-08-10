@@ -33,6 +33,7 @@ const SHOTS = path.join(DOCS, 'public', 'shots');
 const SCREEN_PAGES: Record<string, string> = {
   'AchievementsScreen.tsx': 'screens/achievements.md',
   'ChargeScreen.tsx': 'screens/charge.md',
+  'DemoScreen.tsx': 'screens/demo.md',
   'EditPrioritiesScreen.tsx': 'screens/edit.md',
   'HomeScreen.tsx': 'screens/home.md',
   'OnboardingScreen.tsx': 'screens/onboarding.md',

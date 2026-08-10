@@ -11,6 +11,7 @@
  * отказ сети превращался бы во что-то большее, чем «пока не синхронизировано».
  */
 
+import { DEMO_MODE } from '../demo/mode';
 import { sanitizeOp, type Op } from './ops';
 
 export interface Session {
@@ -138,8 +139,15 @@ export function sessionExpired(session: Session, now: number = Date.now()): bool
 /**
  * Адрес Worker приходит из сборки. Не задан — транспорт объявляет себя
  * ненастроенным, и приложение работает ровно как раньше: локально.
+ *
+ * В демо адрес гасится намеренно: «сервера нет» — уже написанная и обкатанная
+ * ветка, которой живёт каждый, у кого не задан VITE_SYNC_URL. Вход, обмен и
+ * продление сессии выходят рано сами, и придумывать для синтетики второй,
+ * параллельный способ ничего не отправлять не приходится.
  */
-const BASE_URL = (import.meta.env?.VITE_SYNC_URL as string | undefined)?.replace(/\/+$/, '') ?? '';
+const BASE_URL = DEMO_MODE
+  ? ''
+  : (import.meta.env?.VITE_SYNC_URL as string | undefined)?.replace(/\/+$/, '') ?? '';
 
 function readPull(payload: unknown): PullResult {
   const value = (typeof payload === 'object' && payload !== null ? payload : {}) as {

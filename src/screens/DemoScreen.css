@@ -1,0 +1,55 @@
+/*
+ * Витрина демо-профилей.
+ *
+ * Список в одну колонку, а не сетка из двух, как у наборов: у профиля три
+ * строки текста вместо одной, и в половину ширины они рассыпаются в лесенку.
+ * Значок стоит слева от текста по той же причине — сверху он съедал бы высоту,
+ * которой карточке и так не хватает.
+ */
+
+.demos {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dcard {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  grid-template-rows: auto auto auto;
+  align-items: center;
+  column-gap: 14px;
+  row-gap: 3px;
+  padding: 16px 16px 15px;
+  border-radius: var(--r-lg);
+  text-align: left;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  transition: box-shadow 0.16s ease, background 0.16s ease;
+}
+
+/* Значок занимает всю высоту карточки и потому центрируется по ней, а не по
+   первой строке — иначе он висит у самого верха и карточка кажется падающей. */
+.dcard .picon {
+  grid-row: 1 / -1;
+  align-self: center;
+}
+
+.dcard__name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.dcard__tagline {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-dim);
+}
+
+.dcard__shows {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-faint);
+}

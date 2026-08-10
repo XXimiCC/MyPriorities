@@ -9,6 +9,7 @@
  * решает `store/local/db.ts`; сюда это не просачивается.
  */
 
+import { DEMO_MODE } from '../demo/mode';
 import { localStore } from '../store/local/db';
 import type { KeyValueStore, ValuePair } from '../store/kv';
 import { cloudStorage } from './sdk';
@@ -220,7 +221,13 @@ function mirrored(primary: KeyValueStore): KeyValueStore {
   };
 }
 
-export const store: KeyValueStore = cloudStorage ? mirrored(cloudStore) : localStore;
+/*
+ * В демо облака нет даже внутри клиента: `localStore` там подменён памятью
+ * (`store/local/db.ts`), и подмешивать к нему настоящий CloudStorage значило бы
+ * оставить синтетике ровно один путь наружу — самый дорогой из всех.
+ */
+export const store: KeyValueStore =
+  cloudStorage && !DEMO_MODE ? mirrored(cloudStore) : localStore;
 
 /**
  * Прямой доступ к локальной копии в обход облака. Нужен ровно на один случай:

@@ -3,8 +3,10 @@ import { useEffect, useState } from 'react';
 import { AchievementToast } from './achievements/AchievementToast';
 import { Watcher } from './achievements/Watcher';
 import { BatteryPromptProvider } from './components/BatteryPrompt';
+import { DemoBar } from './components/DemoBar';
 import { AchievementsScreen } from './screens/AchievementsScreen';
 import { ChargeScreen } from './screens/ChargeScreen';
+import { DemoScreen } from './screens/DemoScreen';
 import { EditPrioritiesScreen } from './screens/EditPrioritiesScreen';
 import { HomeScreen } from './screens/HomeScreen';
 import { OnboardingScreen } from './screens/OnboardingScreen';
@@ -70,12 +72,13 @@ const TABS: Array<{ id: Tab; labelKey: StringKey; icon: string[] }> = [
 ];
 
 /** Вложенные экраны поверх вкладок. */
-type Overlay = 'edit' | 'presets' | 'achievements' | null;
+type Overlay = 'edit' | 'presets' | 'achievements' | 'demo' | null;
 
 const OVERLAY_ACTION: Record<Exclude<Overlay, null>, StringKey> = {
   edit: 'common.done',
   presets: 'common.back',
   achievements: 'common.back',
+  demo: 'common.back',
 };
 
 export function App(): JSX.Element {
@@ -115,9 +118,12 @@ export function App(): JSX.Element {
     );
   }
 
+  /* Плашка демо стоит и здесь: изнутри демо до онбординга доводит «сбросить
+     кабинет», и оставить гостя там без выхода нельзя. */
   if (onboarding) {
     return (
       <div className="app">
+        <DemoBar />
         <OnboardingScreen />
       </div>
     );
@@ -126,9 +132,11 @@ export function App(): JSX.Element {
   if (overlay) {
     return (
       <div className="app">
+        <DemoBar />
         {overlay === 'edit' && <EditPrioritiesScreen />}
         {overlay === 'presets' && <PresetsScreen onApplied={() => setOverlay(null)} />}
         {overlay === 'achievements' && <AchievementsScreen />}
+        {overlay === 'demo' && <DemoScreen />}
         <div className="app__footer">
           <button type="button" onClick={() => setOverlay(null)}>
             {t(OVERLAY_ACTION[overlay])}
@@ -144,6 +152,7 @@ export function App(): JSX.Element {
        живёт только здесь, а шторка с вопросом про расход — одна на все вкладки. */
     <BatteryPromptProvider>
       <div className="app app--tabs">
+        <DemoBar />
         {tab === 'home' && <HomeScreen onEdit={() => setOverlay('edit')} />}
         {tab === 'stats' && <StatsScreen />}
         {tab === 'charge' && <ChargeScreen />}
@@ -152,6 +161,7 @@ export function App(): JSX.Element {
           <SettingsScreen
             onPresets={() => setOverlay('presets')}
             onAchievements={() => setOverlay('achievements')}
+            onDemo={() => setOverlay('demo')}
           />
         )}
 

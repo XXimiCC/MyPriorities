@@ -31,6 +31,7 @@ const sidebar = [
       { text: 'Редактирование приоритетов', link: '/screens/edit' },
       { text: 'Наборы', link: '/screens/presets' },
       { text: 'Достижения', link: '/screens/achievements' },
+      { text: 'Показать другу', link: '/screens/demo' },
     ],
   },
   {

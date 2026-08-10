@@ -53,11 +53,15 @@ function sanitize(raw: unknown): SyncDoc | undefined {
 const SNAPSHOTS_KEY = 'snapshots';
 
 export async function readLocalBase(): Promise<Base> {
+  return baseFrom((await opsLog.meta(SNAPSHOTS_KEY)) as SyncSnapshot[] | undefined);
+}
+
+/** Снимки сервера в основание проекции. Отдельно от чтения — их же надо разобрать и не с диска. */
+export function baseFrom(raw: SyncSnapshot[] | undefined): Base {
   const base = emptyBase();
-  const raw = await opsLog.meta(SNAPSHOTS_KEY);
   if (!Array.isArray(raw)) return base;
 
-  for (const item of raw as SyncSnapshot[]) {
+  for (const item of raw) {
     let parsed: unknown;
     try {
       parsed = JSON.parse(item.body);

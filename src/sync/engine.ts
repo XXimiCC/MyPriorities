@@ -14,8 +14,9 @@
 
 import { opsLog } from '../store/local/db';
 import { ensureSession } from './auth';
-import { writeLocalBase } from './local';
+import { baseFrom, writeLocalBase } from './local';
 import type { Op } from './ops';
+import { project, type Projected } from './project';
 import {
   TransportError,
   transport,
@@ -183,6 +184,29 @@ async function pullAll(deps: EngineDeps, access: string): Promise<{ ops: Op[]; d
   }
 
   return { ops, docs };
+}
+
+/**
+ * Состояние сервера как оно есть — не смешанное с местным.
+ *
+ * Нужно доливке. Спрашивать «чего не хватает» у собственной проекции нельзя:
+ * перенесённое из прежнего хранилища лежит в том же журнале, и разница с самим
+ * собой всегда пуста — своё так и осталось бы только на устройстве. Отдельный
+ * запрос отвечает на настоящий вопрос: что из этого уже есть **там**.
+ *
+ * undefined — не дозвонились. Долить по догадке хуже, чем отложить.
+ */
+export async function serverState(deps: EngineDeps = REAL): Promise<Projected | undefined> {
+  if (!deps.transport.configured) return undefined;
+  const session = await deps.session();
+  if (!session) return undefined;
+
+  try {
+    const result = await deps.transport.bootstrap(session.access);
+    return project(baseFrom(result.snapshots), result.ops);
+  } catch {
+    return undefined;
+  }
 }
 
 /**

@@ -28,7 +28,7 @@ import { exportSnapshot, parseSnapshot } from '../domain/snapshot';
 import type { ClicksMap, Priority, Settings } from '../domain/types';
 import { opsLog } from '../store/local/db';
 import { readDocs, settingsDoc, skillsDoc, type ReadDocs } from './documents';
-import { contribute, rewindCursor, syncOnce, type EngineDeps } from './engine';
+import { contribute, rewindCursor, serverState, syncOnce, type EngineDeps } from './engine';
 import { opsToFill } from './fill';
 import { readLocalBase, writeLocalDocs } from './local';
 import type { Op, Stamper } from './ops';
@@ -189,7 +189,16 @@ async function joinServer(
   if (pull.docs.length > 0) await writeLocalDocs(pull.docs);
   const theirs = readDocs(pull.docs);
 
-  const before = project(await readLocalBase(), await opsLog.all());
+  /*
+   * Чего не хватает СЕРВЕРУ, а не собственной проекции.
+   *
+   * Разница принципиальная и оплачена проверкой на боевой сборке. Перенесённое
+   * из прежнего хранилища лежит в том же журнале, что и всё остальное, поэтому
+   * разница с самим собой всегда пуста: своё так и осталось бы на устройстве, а
+   * обмен бодро отчитывался бы «долито 0».
+   */
+  const before = await serverState(deps);
+  if (!before) return undefined;
   const ops: Op[] = opsToFill(local, before, stamp);
 
   /*

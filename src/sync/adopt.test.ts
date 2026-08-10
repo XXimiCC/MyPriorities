@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { emptySettings } from '../domain/settings';
 import type { SnapshotContents } from '../domain/snapshot';
+import { emptyJournal } from '../domain/types';
 import { emptySkills } from '../skills/types';
 import { opsLog, resetBackendForTests } from '../store/local/db';
 import {
@@ -21,6 +22,7 @@ import {
   somethingToRestore,
 } from './adopt';
 import type { EngineDeps } from './engine';
+import { opsToFill } from './fill';
 import { formatStamp } from './hlc';
 import type { Op, Stamper } from './ops';
 import { TransportError, type PullResult, type SyncDoc, type SyncTransport } from './transport';
@@ -169,6 +171,32 @@ describe('переход на сервер', () => {
     expect(adopted!.skillClicks['2026-08-09']).toEqual({ sk: 2 });
     expect(adopted!.journal.battery['2026-08-09']).toEqual([[540, 3]]);
     expect(adopted!.awards).toEqual({ n1: '2025-11-03' });
+  });
+
+  it('перенесённое из прежнего хранилища доезжает до сервера', async () => {
+    /*
+     * Ловушка, пойманная проверкой на боевой сборке, а не рассуждением.
+     *
+     * Перенос кладёт итоги по ячейкам в тот же журнал и сразу помечает
+     * доставленными — отправлять абсолютные установки напрямую нельзя, они
+     * перебили бы чужие числа. Но разница «своё против собственной проекции»
+     * после этого всегда пуста: перенесённое лежит ровно там, где его ищут.
+     * Обмен бодро отчитывался «долито 0», а история оставалась на устройстве.
+     *
+     * Считать надо против сервера, и вот это здесь и проверяется.
+     */
+    const server = fakeServer();
+    const stamp = stamper('phone');
+    const local = longUsed();
+
+    const imported = opsToFill(local, { journal: emptyJournal(), skillClicks: {}, awards: {} }, stamp);
+    await opsLog.append(imported, 1);
+    expect(await opsLog.pending()).toHaveLength(0);
+
+    const adopted = await adoptServerState(local, stamp, deps(server));
+    expect(adopted).toBeDefined();
+    expect(server.stored.length).toBeGreaterThan(0);
+    expect(totalBlocks(adopted!.journal.clicks)).toBe(10);
   });
 
   it('не затирает историю другого устройства, а складывается с ней', async () => {

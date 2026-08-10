@@ -102,13 +102,22 @@ export function OnboardingScreen(): JSX.Element {
         <p className="onb__text">{t(slide.text)}</p>
       </div>
 
-      <div className="app__sticky onb__dots" role="presentation">
-        {SLIDES.map((item, index) => (
-          <span key={item.title} className={index === step ? 'onb__dot onb__dot--on' : 'onb__dot'} />
-        ))}
-      </div>
-
+      {/*
+        Точки живут внутри нижней панели, а не отдельной полосой над ней: у
+        панели есть растушёвка сверху (.app__footer::before) на 28 пикселей и
+        z-index выше, чем у .app__sticky, — она ровно накрывала собой весь ряд
+        точек, и шаги было не видно вообще.
+      */}
       <div className="app__footer">
+        <div className="onb__dots" role="presentation">
+          {SLIDES.map((item, index) => (
+            <span
+              key={item.title}
+              className={index === step ? 'onb__dot onb__dot--on' : 'onb__dot'}
+            />
+          ))}
+        </div>
+
         <button
           className="onb__next"
           type="button"

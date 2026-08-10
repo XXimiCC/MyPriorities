@@ -4,6 +4,7 @@
   gap: 6px;
   margin-top: 10px;
   padding-bottom: 4px;
+  margin-bottom: 10px;
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scrollbar-width: none;
@@ -20,7 +21,17 @@
   display: none;
 }
 
+/*
+ * position: relative нужен не для раскладки, а чтобы удержать внутри дня
+ * скрытую подпись .dpick__full. Без него абсолютный элемент считает координаты
+ * от корневого блока: он остаётся на своей позиции внутри прокрученной ленты —
+ * до 660 пикселей вправо и ниже экрана, — а overflow: hidden у .app такой
+ * элемент не обрезает, потому что содержащий блок у него выше .app. В итоге
+ * прокручивалась вся страница: на «Заряде», где лента видна всегда, это был
+ * горизонтальный скролл всего приложения.
+ */
 .dpick__day {
+  position: relative;
   flex: none;
   width: 42px;
   display: flex;

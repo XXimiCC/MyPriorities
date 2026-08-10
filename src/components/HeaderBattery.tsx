@@ -23,7 +23,7 @@ export function HeaderBattery(): JSX.Element {
   return (
     <>
       <button
-        className="header__battery press"
+        className={`header__battery press${level ? '' : ' header__battery--ask'}`}
         onClick={() => setOpen(true)}
         type="button"
         aria-label={t('home.battery')}
@@ -31,7 +31,12 @@ export function HeaderBattery(): JSX.Element {
         {level ? (
           <BatteryIcon level={level} width={36} />
         ) : (
-          <span className="header__battery-empty">{t('home.batteryEmpty')}</span>
+          <span className="header__battery-empty">
+            <svg viewBox="0 0 24 24" width="11" height="13" aria-hidden="true">
+              <path d="M13.4 2.5 5.4 13.6h4.9L9.8 21.5l8-11.2h-5.2z" fill="currentColor" />
+            </svg>
+            {t('home.batteryEmpty')}
+          </span>
         )}
       </button>
 

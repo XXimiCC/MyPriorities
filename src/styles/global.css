@@ -6,10 +6,18 @@
   box-sizing: border-box;
 }
 
+/*
+ * Страница не прокручивается никогда: весь скролл живёт внутри .app__body.
+ * overflow: hidden здесь — не украшение, а страховка. Любой абсолютный элемент
+ * без позиционированного предка (скрытая подпись, спрятанный input) считает
+ * координаты от корневого блока и не попадает под обрезку .app — и тогда у
+ * страницы появляется вторая полоса прокрутки поверх списка.
+ */
 html,
 body,
 #root {
   height: 100%;
+  overflow: hidden;
 }
 
 body {
@@ -222,10 +230,49 @@ ol {
 }
 
 .header__battery-empty {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 11px;
   letter-spacing: 0.06em;
   color: var(--text-faint);
   white-space: nowrap;
+}
+
+/*
+ * Пока заряд ни разу не отмечен, показывать в шапке нечего — а серое «Заряд?»
+ * вплотную к карандашу читалось как подпись к нему, и нажимать на него никто
+ * не догадывался. Здесь оно становится отдельной капсулой: свой цвет, обводка,
+ * зазор от соседа и медленное дыхание. Это единственное место в шапке, которое
+ * просит нажать, и просить оно перестанет, как только заряд отметят хоть раз.
+ */
+.header__battery--ask {
+  min-width: 0;
+  height: 30px;
+  margin-left: 4px;
+  padding: 0 11px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--battery-charge) 14%, transparent);
+  animation: hbat-ask 2.6s ease-in-out infinite;
+}
+
+.header__battery--ask .header__battery-empty {
+  font-weight: 600;
+  color: var(--battery-charge);
+}
+
+@keyframes hbat-ask {
+  0%,
+  100% {
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--battery-charge) 42%, transparent),
+      0 0 0 rgba(53, 224, 255, 0);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--battery-charge) 75%, transparent),
+      0 0 14px rgba(53, 224, 255, 0.35);
+  }
 }
 
 /* --- Таб-бар --- */
@@ -355,5 +402,12 @@ ol {
    */
   .wp__spinner {
     animation-duration: 1.6s !important;
+  }
+
+  /* Дыхание капсулы «Заряд?» на 0.01 мс — это стробоскоп в шапке. Оставляем
+     капсулу неподвижной: она и без пульсации отличается от соседних кнопок. */
+  .header__battery--ask {
+    animation: none !important;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--battery-charge) 55%, transparent);
   }
 }

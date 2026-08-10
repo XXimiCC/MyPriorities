@@ -15,6 +15,10 @@
   left: var(--pad-x);
   right: var(--pad-x);
   bottom: calc(var(--tabbar-h) + var(--safe-bottom) + var(--tg-content-bottom) + 12px);
+  /* Плашка встаёт над таб-баром и потому держится колонки — тем же приёмом
+     с полями auto, что и он сам (см. .tabbar в global.css). */
+  max-width: calc(var(--app-w) - var(--pad-x) * 2);
+  margin-inline: auto;
   z-index: 30;
   /* Сдвиг от пальца живёт здесь, а въезд — на .atoast__card: на одном элементе
      transform анимации и transform из style спорят, и въезд обнулял бы смахивание. */

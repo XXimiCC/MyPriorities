@@ -98,12 +98,16 @@
     calc(24px + var(--safe-bottom) + var(--tg-content-bottom));
 }
 
+/* Ширину держит содержимое, а не сам оверлей: затемнять экран он должен
+   целиком (см. .sheet__panel в Sheet.css — там ровно тот же расклад). */
 .wp__manual-body {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 14px;
+  width: 100%;
+  max-width: var(--app-w);
   max-height: 100%;
   overflow-y: auto;
   overscroll-behavior: contain;

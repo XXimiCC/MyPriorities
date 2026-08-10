@@ -27,8 +27,17 @@
   animation: sheet-fade 0.2s ease;
 }
 
+/*
+ * Ширину ограничивает панель, а не .sheet: затемнение — это её дочерний слой
+ * inset: 0, и вместе с ней оно перестало бы накрывать экран целиком. Тогда
+ * нажатие мимо колонки не закрывало бы шторку, а сама она висела бы над
+ * незатемнённым фоном.
+ */
 .sheet__panel {
   position: relative;
+  width: 100%;
+  max-width: var(--app-w);
+  align-self: center;
   max-height: 88%;
   overflow-y: auto;
   overscroll-behavior: contain;

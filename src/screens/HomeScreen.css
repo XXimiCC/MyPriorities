@@ -28,27 +28,8 @@
   padding-top: 2px;
 }
 
-/*
- * Кнопка-капсула, а не строка мелким серым во всю ширину: в прежнем виде она
- * стояла ровно под итогом дня и читалась как его подпись — текст, а не то, на
- * что нажимают. Отсюда и обводка со значком: у кнопки должны быть края.
- *
- * nowrap обязателен: в строке она делит ширину с итогом периода, и без запрета
- * переноса капсула сложилась бы в два этажа вместо того, чтобы отжать текст.
- */
-.home__gaps {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px 6px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  white-space: nowrap;
-  color: var(--text-dim);
-  background: var(--surface-2);
-  box-shadow: inset 0 0 0 1px var(--hairline-strong);
-}
+/* Кнопка «Дописать прошлый день» переехала в components/DayPicker.css
+   (`.dpick__toggle`) — её делят главная и навыки. */
 
 .home__hint {
   margin: 18px 2px 0;

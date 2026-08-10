@@ -5,7 +5,7 @@ import { HeaderBattery } from '../components/HeaderBattery';
 import { PeriodSwitch } from '../components/PeriodSwitch';
 import { PriorityRow } from '../components/PriorityRow';
 import { Sheet } from '../components/Sheet';
-import { DayPicker } from '../components/DayPicker';
+import { DayPicker, DayPickerToggle, PastDayNotice } from '../components/DayPicker';
 import { formatDayShort, formatMinutes, formatPercent } from '../domain/date';
 import { colorOf } from '../domain/palette';
 import { computeStats, periodDays } from '../domain/stats';
@@ -156,36 +156,7 @@ export function HomeScreen({ onEdit }: Props): JSX.Element {
           {/* В режиме прошлого дня ленту закрывает «К сегодня» из предупреждения
               ниже: вторая кнопка рядом означала бы два разных выхода из режима. */}
           {!inPast && (
-            <button
-              className="home__gaps press"
-              type="button"
-              onClick={() => setPickerOpen(!pickerOpen)}
-            >
-              {pickerOpen ? (
-                t('home.hidePicker')
-              ) : (
-                <>
-                  {/* Стрелка против часовой: вернуться назад по времени и дописать. */}
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" aria-hidden="true">
-                    <path
-                      d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    <path
-                      d="M3 3v5h5"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                  {t('home.fillGaps')}
-                </>
-              )}
-            </button>
+            <DayPickerToggle open={pickerOpen} onToggle={() => setPickerOpen(!pickerOpen)} />
           )}
         </div>
 
@@ -201,19 +172,13 @@ export function HomeScreen({ onEdit }: Props): JSX.Element {
         )}
 
         {inPast && (
-          <div className="dpast">
-            <span>{t('home.pastWarning', { day: formatDayShort(writeDay) })}</span>
-            <button
-              type="button"
-              onClick={() => {
-                haptics.tap();
-                setWriteDay(today);
-                setPickerOpen(false);
-              }}
-            >
-              {t('home.backToToday')}
-            </button>
-          </div>
+          <PastDayNotice
+            day={writeDay}
+            onBack={() => {
+              setWriteDay(today);
+              setPickerOpen(false);
+            }}
+          />
         )}
       </div>
 

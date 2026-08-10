@@ -71,3 +71,56 @@ export function DayPicker({ value, hasEntries, onChange }: Props): JSX.Element {
     </div>
   );
 }
+
+/**
+ * Кнопка, раскрывающая ленту. Живёт рядом с самой лентой, а не на экране:
+ * её делят главная и навыки, и разъехаться значку с подписью нельзя.
+ */
+export function DayPickerToggle({ open, onToggle }: { open: boolean; onToggle(): void }): JSX.Element {
+  return (
+    <button className="dpick__toggle press" type="button" onClick={onToggle}>
+      {open ? (
+        t('home.hidePicker')
+      ) : (
+        <>
+          {/* Стрелка против часовой: вернуться назад по времени и дописать. */}
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" aria-hidden="true">
+            <path
+              d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M3 3v5h5"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          {t('home.fillGaps')}
+        </>
+      )}
+    </button>
+  );
+}
+
+/** Напоминание, что клики уходят не в сегодня, и выход из режима. */
+export function PastDayNotice({ day, onBack }: { day: DayKey; onBack(): void }): JSX.Element {
+  return (
+    <div className="dpast">
+      <span>{t('home.pastWarning', { day: formatDayShort(day) })}</span>
+      <button
+        type="button"
+        onClick={() => {
+          haptics.tap();
+          onBack();
+        }}
+      >
+        {t('home.backToToday')}
+      </button>
+    </div>
+  );
+}

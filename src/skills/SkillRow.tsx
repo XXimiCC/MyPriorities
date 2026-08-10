@@ -9,9 +9,10 @@ import './SkillRow.css';
 
 interface Props {
   total: SkillTotal;
-  todayBlocks: number;
-  /** Сколько вложено за выбранный период — без стартового капитала. */
-  periodMinutes: number;
+  /** Блоки того дня, в который идёт запись, — их и показывает точка у «+». */
+  dayBlocks: number;
+  /** Сколько вложено за окно темпа — без стартового капитала. */
+  recentMinutes: number;
   blockMinutes: number;
   onAdd(): void;
   onOpen(): void;
@@ -24,8 +25,8 @@ interface Props {
  */
 export const SkillRow = memo(function SkillRow({
   total,
-  todayBlocks,
-  periodMinutes,
+  dayBlocks,
+  recentMinutes,
   blockMinutes,
   onAdd,
   onOpen,
@@ -48,8 +49,8 @@ export const SkillRow = memo(function SkillRow({
 
         <span className="srow__foot">
           <span className="srow__hours">{formatHoursCompact(progress.minutes)}</span>
-          {periodMinutes > 0 && (
-            <span className="srow__period">+{formatHoursCompact(periodMinutes)}</span>
+          {recentMinutes > 0 && (
+            <span className="srow__recent">+{formatHoursCompact(recentMinutes)}</span>
           )}
           {progress.next && (
             <span className="srow__next">
@@ -71,7 +72,7 @@ export const SkillRow = memo(function SkillRow({
         <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
           <path d="M12 5.5v13M5.5 12h13" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
         </svg>
-        {todayBlocks > 0 && <span className="srow__today">{todayBlocks}</span>}
+        {dayBlocks > 0 && <span className="srow__today">{dayBlocks}</span>}
       </button>
     </li>
   );

@@ -218,13 +218,25 @@ const demo = [
 
   {
     name: 'skills-list',
-    note: 'Три навыка на разных ступенях лестницы, период «30 дней»',
+    note: 'Три навыка на разных ступенях лестницы и прибавка за 30 дней',
     setup: (page) => goTab(page, 'tab.skills'),
     tall: true,
   },
   {
+    name: 'skills-past',
+    note: 'Навыки в режиме прошлого дня: лента, предупреждение и точки у «+»',
+    setup: async (page) => {
+      await goTab(page, 'tab.skills');
+      await page.getByRole('button', { name: s('home.fillGaps') }).click();
+      const strip = page.getByRole('tablist', { name: s('home.dayPicker') });
+      // Предпоследний день ленты — вчера: сегодня стоит последним, справа.
+      await strip.getByRole('tab').nth(12).click();
+      await page.locator('.dpast').waitFor();
+    },
+  },
+  {
     name: 'skills-sheet',
-    note: 'Шторка навыка: ступень, часы и сколько до следующей',
+    note: 'Шторка навыка: ступень, часы, темп за 30 дней и сколько до следующей',
     setup: async (page) => {
       await goTab(page, 'tab.skills');
       await page.locator('.srow__main').first().click();

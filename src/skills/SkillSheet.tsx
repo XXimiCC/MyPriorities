@@ -3,11 +3,12 @@ import { useState } from 'react';
 import { BlockTuner } from '../components/BlockTuner';
 import { ColorPicker } from '../components/ColorPicker';
 import { Sheet } from '../components/Sheet';
-import { formatHoursCompact, formatMinutes, parseDayKey } from '../domain/date';
+import { formatDayShort, formatHoursCompact, formatMinutes, parseDayKey, todayKey } from '../domain/date';
 import { colorOf } from '../domain/palette';
-import type { Priority } from '../domain/types';
+import type { DayKey, Priority } from '../domain/types';
 import { count, plural, t } from '../i18n';
 import { LEVELS, levelTitle, rankTitle } from './levels';
+import { formatEta, paceOf, PACE_DAYS } from './pace';
 import { formatNumber } from './SkillRow';
 import type { SkillTotal } from './total';
 import './SkillSheet.css';
@@ -21,8 +22,12 @@ export interface LinkTarget {
 interface Props {
   total: SkillTotal | null;
   blockMinutes: number;
-  /** Блоки навыка за сегодня — их и правит счётчик наверху шторки. */
-  todayBlocks: number;
+  /** День, в который идёт запись: сегодня или выбранный в ленте на экране. */
+  day: DayKey;
+  /** Блоки навыка за этот день — их и правит счётчик наверху шторки. */
+  dayBlocks: number;
+  /** Сколько набрано за окно темпа — из этого считается прогноз ступени. */
+  recentMinutes: number;
   /** Приоритеты, к которым можно привязаться, с пометкой уже занятых. */
   targets: LinkTarget[];
   /** Название привязанного приоритета; undefined — привязки нет. */
@@ -53,7 +58,9 @@ export function SkillSheet(props: Props): JSX.Element {
 function SkillDetails({
   total,
   blockMinutes,
-  todayBlocks,
+  day,
+  dayBlocks,
+  recentMinutes,
   targets,
   linkedTitle,
   linkArchived,
@@ -88,6 +95,14 @@ function SkillDetails({
     ? Math.floor((Date.now() - parseDayKey(skill.startedOn).getTime()) / (365.25 * 864e5))
     : 0;
 
+  /*
+   * Темп и прогноз стоят сразу под «до следующей ступени»: порог сам по себе —
+   * это просто большое число, и только вместе со сроком он говорит, далеко ли до
+   * него на самом деле.
+   */
+  const pace = paceOf(recentMinutes, progress);
+  const eta = pace.daysToNext === undefined ? '' : formatEta(pace.daysToNext);
+
   return (
     <div className="sksheet" style={{ '--accent': accent } as React.CSSProperties}>
       <div className="sksheet__now">
@@ -116,14 +131,31 @@ function SkillDetails({
         {skill.startedOn && years > 0 && (
           <small>{t('skills.startedYears', { years, unit: plural('year', years) })}</small>
         )}
+
+        {pace.minutes > 0 ? (
+          <small className="sksheet__pace">
+            {t('skills.pace', { days: PACE_DAYS, time: formatHoursCompact(pace.perWeek) })}
+            {eta && <>. {t('skills.eta', { eta })}</>}
+          </small>
+        ) : (
+          <small className="sksheet__pace">{t('skills.paceNone', { days: PACE_DAYS })}</small>
+        )}
       </div>
 
       {/* Тот же счётчик, что и у приоритета: промахнуться по «+» одинаково легко
           и там, и там, и способ исправиться должен быть один и тот же. */}
       <BlockTuner
-        blocks={todayBlocks}
+        blocks={dayBlocks}
         blockMinutes={blockMinutes}
-        caption={t('home.todayBlocks', { count: todayBlocks, unit: plural('block', todayBlocks) })}
+        caption={
+          day === todayKey()
+            ? t('home.todayBlocks', { count: dayBlocks, unit: plural('block', dayBlocks) })
+            : t('home.dayBlocks', {
+                count: dayBlocks,
+                unit: plural('block', dayBlocks),
+                day: formatDayShort(day),
+              })
+        }
         onAdd={onAdd}
         onRemove={onRemove}
       />

@@ -1,18 +1,17 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { ColorPicker } from '../components/ColorPicker';
+import { DayPicker, DayPickerToggle, PastDayNotice } from '../components/DayPicker';
 import { HeaderBattery } from '../components/HeaderBattery';
-import { PeriodSwitch } from '../components/PeriodSwitch';
 import { Sheet } from '../components/Sheet';
-import { formatMinutes, todayKey } from '../domain/date';
+import { formatHoursCompact, formatMinutes, lastNDays, parseDayKey } from '../domain/date';
 import { colorOf, nextFreeColorId } from '../domain/palette';
-import { periodDays } from '../domain/stats';
-import { PERIODS, type PeriodId } from '../domain/periods';
-import { blockMinutesOf } from '../domain/types';
+import { blockMinutesOf, type DayKey } from '../domain/types';
 import { plural, t } from '../i18n';
 import { SkillRow } from '../skills/SkillRow';
 import { SkillSheet, type LinkTarget } from '../skills/SkillSheet';
 import { ALL_SUGGESTIONS, SKILL_SUGGESTIONS } from '../skills/catalogue';
+import { PACE_DAYS } from '../skills/pace';
 import {
   skillBlocksIn,
   skillBlocksOn,
@@ -26,17 +25,30 @@ import { useStore } from '../store/useStore';
 import { confirmDialog, haptics } from '../telegram/sdk';
 import './SkillsScreen.css';
 
-/** «Сегодня» здесь бессмысленно: навык меряется годами, а не сутками. */
-const SKILL_PERIODS = PERIODS.filter((p) => p.id !== 'today');
-
 export function SkillsScreen(): JSX.Element {
-  const { settings, journal, skills, skillClicks, actions } = useStore();
+  const { settings, journal, skills, skillClicks, today, actions } = useStore();
   const [openId, setOpenId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
-  const [periodId, setPeriodId] = useState<PeriodId>('month');
+  /**
+   * День, в который идут клики, — та же механика, что на главной. Живёт в
+   * состоянии экрана, а не в сторе, и потому сбрасывается на сегодня при каждом
+   * открытии приложения: забыть, что пишешь во вчера, — главный риск режима.
+   */
+  const [writeDay, setWriteDay] = useState<DayKey>(today);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const blockMinutes = blockMinutesOf(settings);
-  const today = todayKey();
+
+  // Наступила полночь при открытом приложении — переводим запись на новые сутки.
+  const lastToday = useRef(today);
+  useEffect(() => {
+    if (lastToday.current === today) return;
+    lastToday.current = today;
+    setWriteDay(today);
+    setPickerOpen(false);
+  }, [today]);
+
+  const inPast = writeDay !== today;
 
   const ctx: SkillContext = useMemo(
     () => ({ skillClicks, clicks: journal.clicks, blockMinutes }),
@@ -44,20 +56,23 @@ export function SkillsScreen(): JSX.Element {
   );
 
   const totals = useMemo(() => skillTotals(skills.skills, ctx), [skills.skills, ctx]);
-  const period = SKILL_PERIODS.find((p) => p.id === periodId) ?? SKILL_PERIODS[0]!;
 
-  // Окно периода строится по журналу приоритетов и навыков сразу: у привязанного
-  // навыка время лежит в первом, у самостоятельного — во втором.
-  const days = useMemo(
-    () => periodDays(period, { clicks: { ...journal.clicks, ...skillClicks }, battery: {} }),
-    [period, journal.clicks, skillClicks],
-  );
+  /*
+   * Окно темпа. Оно одно на весь экран и не выбирается: переключатель периода
+   * убран, потому что менял два мелких числа и не трогал ни ступень, ни полосу.
+   * Вместо выбора окна — прогноз в шторке, который отвечает на тот же вопрос
+   * «двигаюсь ли», но по существу. Подробности — в src/skills/pace.ts.
+   */
+  const recentDays = useMemo(() => lastNDays(PACE_DAYS, parseDayKey(today)), [today]);
 
-  const inPeriod = useMemo(
-    () => new Map(skills.skills.map((skill) => [skill.id, skillBlocksIn(skill, ctx, days)])),
-    [skills.skills, ctx, days],
+  const recentMinutes = useMemo(
+    () =>
+      new Map(
+        skills.skills.map((skill) => [skill.id, skillBlocksIn(skill, ctx, recentDays) * blockMinutes]),
+      ),
+    [skills.skills, ctx, recentDays, blockMinutes],
   );
-  const periodBlocks = [...inPeriod.values()].reduce((sum, n) => sum + n, 0);
+  const recentTotal = [...recentMinutes.values()].reduce((sum, n) => sum + n, 0);
 
   const activeIds = useMemo(
     () => new Set(settings.priorities.map((p) => p.id)),
@@ -95,23 +110,30 @@ export function SkillsScreen(): JSX.Element {
     if (!skill) return;
     haptics.bump();
     const target = targetOf(skill, activeIds);
-    if (target.kind === 'priority') actions.addBlock(target.id);
-    else actions.addSkillBlock(skillId);
+    if (target.kind === 'priority') actions.addBlock(target.id, writeDay);
+    else actions.addSkillBlock(skillId, writeDay);
+    // Запись в прошлый день из журнала не восстановить: клик за вчера выглядит
+    // там ровно как сделанный вчера. Достижение то же, что и на главной.
+    if (inPast) actions.award('r8');
   };
 
   /**
    * «−» снимает блок оттуда же, куда его положил «+». У привязанного навыка это
    * приоритет — и на главной он тоже станет на блок меньше, что честно: время
    * там и там одно. Запасной путь нужен для навыка, который копил сам и получил
-   * привязку позже: сегодняшние собственные блоки у него никуда не делись.
+   * привязку позже: собственные блоки этого дня у него никуда не делись.
+   *
+   * Проверяется именно выбранный день, а не сегодня: в режиме прошлого дня «−»
+   * иначе смотрел бы в один журнал, а списывал из другого.
    */
   const removeBlock = (skillId: string): void => {
     const skill = skills.skills.find((s) => s.id === skillId);
     if (!skill) return;
     const target = targetOf(skill, activeIds);
-    const fromPriority = target.kind === 'priority' && (journal.clicks[today]?.[target.id] ?? 0) > 0;
-    if (fromPriority && target.kind === 'priority') actions.removeBlock(target.id);
-    else actions.removeSkillBlock(skillId);
+    const fromPriority =
+      target.kind === 'priority' && (journal.clicks[writeDay]?.[target.id] ?? 0) > 0;
+    if (fromPriority && target.kind === 'priority') actions.removeBlock(target.id, writeDay);
+    else actions.removeSkillBlock(skillId, writeDay);
   };
 
   const link = (priorityId: string | undefined): void => {
@@ -162,7 +184,44 @@ export function SkillsScreen(): JSX.Element {
 
       {totals.length > 0 && (
         <div className="app__sticky">
-          <PeriodSwitch periods={SKILL_PERIODS} value={periodId} onChange={setPeriodId} />
+          {/* Итог и кнопка записи в прошлый день в одной строке — как на главной:
+              место у кнопки одно и то же и под «Дописать», и под «Свернуть». */}
+          <div className="sks__head">
+            {/* Часы, а не «часы и минуты»: в сумме за жизнь получаются тысячи,
+                и хвост «30 м» там не значит ничего, зато ломает строку надвое.
+                Строки навыков считают в тех же единицах. */}
+            <p className="sks__total">
+              {t('skills.total', { time: formatHoursCompact(totalMinutes(totals)) })}
+              <span>
+                {t('skills.recent', { days: PACE_DAYS, time: formatHoursCompact(recentTotal) })}
+              </span>
+            </p>
+
+            {!inPast && (
+              <DayPickerToggle open={pickerOpen} onToggle={() => setPickerOpen(!pickerOpen)} />
+            )}
+          </div>
+
+          {(pickerOpen || inPast) && (
+            <DayPicker
+              value={writeDay}
+              // Точка означает «в этот день у навыков что-то есть»: у привязанного
+              // это блоки приоритета, у самостоятельного — свои. Спрашиваем ровно
+              // то, что экран потом и покажет.
+              hasEntries={(day) => skills.skills.some((s) => skillBlocksOn(s, ctx, day) > 0)}
+              onChange={setWriteDay}
+            />
+          )}
+
+          {inPast && (
+            <PastDayNotice
+              day={writeDay}
+              onBack={() => {
+                setWriteDay(today);
+                setPickerOpen(false);
+              }}
+            />
+          )}
         </div>
       )}
 
@@ -171,20 +230,13 @@ export function SkillsScreen(): JSX.Element {
           <p className="empty">{t('skills.empty')}</p>
         ) : (
           <>
-            <p className="sks__total">
-              {t('skills.total', { time: formatMinutes(totalMinutes(totals)) })}
-              <span>
-                {t('skills.inPeriod', { time: formatMinutes(periodBlocks * blockMinutes) })}
-              </span>
-            </p>
-
             <ul className="sks__list">
               {totals.map((item) => (
                 <SkillRow
                   key={item.skill.id}
                   total={item}
-                  todayBlocks={skillBlocksOn(item.skill, ctx, today)}
-                  periodMinutes={(inPeriod.get(item.skill.id) ?? 0) * blockMinutes}
+                  dayBlocks={skillBlocksOn(item.skill, ctx, writeDay)}
+                  recentMinutes={recentMinutes.get(item.skill.id) ?? 0}
                   blockMinutes={blockMinutes}
                   onAdd={() => addBlock(item.skill.id)}
                   onOpen={() => setOpenId(item.skill.id)}
@@ -230,7 +282,9 @@ export function SkillsScreen(): JSX.Element {
       <SkillSheet
         total={open}
         blockMinutes={blockMinutes}
-        todayBlocks={openSkill ? skillBlocksOn(openSkill, ctx, today) : 0}
+        day={writeDay}
+        dayBlocks={openSkill ? skillBlocksOn(openSkill, ctx, writeDay) : 0}
+        recentMinutes={openSkill ? recentMinutes.get(openSkill.id) ?? 0 : 0}
         onAdd={() => openSkill && addBlock(openSkill.id)}
         onRemove={() => openSkill && removeBlock(openSkill.id)}
         targets={targets}

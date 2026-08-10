@@ -12,7 +12,7 @@
  */
 
 import type { DayKey } from '../domain/types';
-import type { AwardMap } from '../store/persistence';
+import type { AwardMap } from './types';
 import { ACHIEVEMENTS, BY_ID } from './registry';
 import type { AchievementContext } from './types';
 

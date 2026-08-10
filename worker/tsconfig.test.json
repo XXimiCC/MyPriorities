@@ -1,0 +1,8 @@
+{
+  "//": "Тесты проверяются отдельно, потому что им нужны типы Node, а продуктовому коду Worker их видеть незачем. Тот же приём, что и с tools/ в приложении.",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["@cloudflare/workers-types", "node"]
+  },
+  "include": ["src", "test"]
+}

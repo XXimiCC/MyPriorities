@@ -11,6 +11,7 @@
  */
 
 import type { BatteryLevel, BatteryShift } from './types';
+import { DRAIN_TEXT_MAX, DRAIN_TEXT_PREFIX } from './types';
 
 /** Минута суток, в которую нельзя поставить отметку: сутки кончаются на 1439. */
 export const LAST_MINUTE = 1439;
@@ -66,4 +67,37 @@ export function parseTime(value: string): number | undefined {
   const m = Number(match[2]);
   if (h > 23 || m > 59) return undefined;
   return h * 60 + m;
+}
+
+/**
+ * Приводит переходы заряда к валидному виду.
+ *
+ * Живёт рядом с остальной работой над отметками, а не в слое хранилища: правила
+ * одинаковы и для записи из CloudStorage, и для строки из базы, и для файла
+ * копии, который человек мог поправить руками.
+ *
+ * Третий элемент — ответ о расходе — необязателен: записи, сделанные до
+ * появления этого вопроса, читаются без миграции.
+ */
+export function sanitizeShifts(raw: unknown): BatteryShift[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter(
+      (s): s is [number, BatteryLevel] | [number, BatteryLevel, unknown] =>
+        Array.isArray(s) &&
+        s.length >= 2 &&
+        Number.isFinite(s[0]) &&
+        [1, 2, 3, 4].includes(s[1] as number),
+    )
+    .map((s): BatteryShift => {
+      const minute = Math.max(0, Math.min(1440, Math.floor(s[0])));
+      const level = s[1] as BatteryLevel;
+      const drainedBy = s[2];
+      // Длина режется: ответ своими словами приходит из поля ввода, и чужой или
+      // повреждённый файл не должен раздувать месяц истории.
+      return typeof drainedBy === 'string' && drainedBy.length > 0
+        ? [minute, level, drainedBy.slice(0, DRAIN_TEXT_MAX + DRAIN_TEXT_PREFIX.length)]
+        : [minute, level];
+    })
+    .sort((a, b) => a[0] - b[0]);
 }

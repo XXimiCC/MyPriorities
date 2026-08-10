@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { serializeAwards } from '../store/persistence';
+import { serializeAwards } from '../store/legacy/persistence';
 import { VALUE_LIMIT } from '../telegram/cloudStorage';
 import { t } from '../i18n';
 import { noteOf } from './note';

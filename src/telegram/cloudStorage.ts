@@ -1,38 +1,21 @@
 /**
- * Хранилище ключ-значение поверх Telegram CloudStorage с фолбэком на localStorage.
+ * Хранилище ключ-значение поверх Telegram CloudStorage с фолбэком на локальную копию.
  *
  * CloudStorage привязан к аккаунту и синхронизируется между устройствами, но
  * даёт колбэки вместо промисов и жёстко ограничен 4096 символами на значение.
  * Оба ограничения закрываются здесь, чтобы выше по стеку об этом не думать.
+ *
+ * Где именно живёт локальная копия — IndexedDB, localStorage или память —
+ * решает `store/local/db.ts`; сюда это не просачивается.
  */
 
+import { localStore } from '../store/local/db';
+import type { KeyValueStore, ValuePair } from '../store/kv';
 import { cloudStorage } from './sdk';
 
 export const VALUE_LIMIT = 4096;
 
-/** Две копии одного ключа: облачная и локальная. Слияние — забота слоя выше. */
-export interface ValuePair {
-  local?: string;
-  remote?: string;
-}
-
-export interface KeyValueStore {
-  readonly kind: 'cloud' | 'local';
-  get(keys: string[]): Promise<Record<string, string>>;
-  /**
-   * То же чтение, но обе копии по отдельности.
-   *
-   * Нужно там, где «облако побеждает целиком» теряет данные: месяц истории —
-   * это один ключ, и запись со второго устройства затирала всё, что накопило
-   * первое. Кто и как сливает содержимое, знает persistence, а не транспорт.
-   */
-  getPair(keys: string[]): Promise<Record<string, ValuePair>>;
-  set(key: string, value: string): Promise<void>;
-  remove(keys: string[]): Promise<void>;
-  keys(): Promise<string[]>;
-  /** Облако было выбрано, но отказало на ходу — синхронизации между устройствами нет. */
-  isDegraded(): boolean;
-}
+export type { KeyValueStore, ValuePair };
 
 /**
  * Мост Telegram передаёт ответ одним сообщением, поэтому длинный список ключей
@@ -40,43 +23,6 @@ export interface KeyValueStore {
  * реализациях такой ответ надёжнее разбить, чем проверять эмпирически, где он порвётся.
  */
 const GET_BATCH = 8;
-
-/** Свой префикс, чтобы локальная копия не путалась с чужими ключами на том же домене. */
-const LOCAL_PREFIX = 'mypri/';
-
-const localStore: KeyValueStore = {
-  kind: 'local',
-  isDegraded: () => false,
-  async get(keys) {
-    const out: Record<string, string> = {};
-    for (const key of keys) {
-      const value = localStorage.getItem(LOCAL_PREFIX + key);
-      if (value !== null) out[key] = value;
-    }
-    return out;
-  },
-  async getPair(keys) {
-    const out: Record<string, ValuePair> = {};
-    for (const [key, value] of Object.entries(await localStore.get(keys))) {
-      out[key] = { local: value };
-    }
-    return out;
-  },
-  async set(key, value) {
-    localStorage.setItem(LOCAL_PREFIX + key, value);
-  },
-  async remove(keys) {
-    for (const key of keys) localStorage.removeItem(LOCAL_PREFIX + key);
-  },
-  async keys() {
-    const out: string[] = [];
-    for (let i = 0; i < localStorage.length; i += 1) {
-      const raw = localStorage.key(i);
-      if (raw?.startsWith(LOCAL_PREFIX)) out.push(raw.slice(LOCAL_PREFIX.length));
-    }
-    return out;
-  },
-};
 
 /**
  * Предел ожидания ответа от облака.
@@ -205,9 +151,14 @@ function mirrored(primary: KeyValueStore): KeyValueStore {
 
   /**
    * Локальная копия — не источник истины, и её отказ не должен ронять облачный путь.
-   * Доступ к localStorage бросает в приватном режиме Safari и в вебвью с отключённым
-   * хранилищем, а запись — при переполнении квоты. Раньше это выбивало чтение целиком,
+   * Хранилище на устройстве бросает в приватном режиме Safari, в вебвью с отключённым
+   * хранилищем и при переполнении квоты. Раньше это выбивало чтение целиком,
    * приложение стартовало пустым и первой же записью затирало живое облако.
+   *
+   * Глушить здесь безопасно именно потому, что рядом есть облако: пустая копия
+   * означает лишь «показываем то, что пришло из сети». Там, где копия читается
+   * без облака — `readLocalOnly` и прямой `localMirror`, — отказ, наоборот,
+   * пробрасывается и поднимает `loadFailed`.
    *
    * Латч `broken` здесь не трогаем: сломалась копия, а не синхронизация.
    */

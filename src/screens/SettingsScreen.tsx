@@ -6,15 +6,36 @@ import { Toggle } from '../components/Toggle';
 import { formatDayShort, formatMinutes } from '../domain/date';
 import { findPreset } from '../domain/presets';
 import { computeStats, earliestDay, periodDays } from '../domain/stats';
-import { BLOCK_OPTIONS, PERIODS, blockMinutesOf, modulesOf } from '../domain/types';
-import { plural, t } from '../i18n';
+import { PERIODS } from '../domain/periods';
+import { BLOCK_OPTIONS, blockMinutesOf, modulesOf } from '../domain/types';
+import { plural, t, type StringKey } from '../i18n';
 import { MOCK_MODE } from '../store/mock';
-import { RETENTION_MONTHS, SnapshotError } from '../store/persistence';
+import { SnapshotError } from '../domain/snapshot';
+import { RETENTION_MONTHS } from '../store/legacy/persistence';
 import { useStore } from '../store/useStore';
 import { store } from '../telegram/cloudStorage';
 import { alertDialog, clientInfo, confirmDialog, haptics, homeScreen, isTelegram } from '../telegram/sdk';
+import { buildLabel } from '../build';
+import { signIn, signOut, subscribeSync, syncState, type SyncState } from '../sync/auth';
+import { isMigrated } from '../sync/local';
+import { transport } from '../sync/transport';
 import { saveFile } from '../wallpaper/save';
 import './SettingsScreen.css';
+
+/**
+ * Подпись состояния сессии. Таблица, а не цепочка условий: тип
+ * `Record<SyncState['kind'], StringKey>` делает её исчерпывающей, и новое
+ * состояние, забытое здесь, не соберётся.
+ */
+const ACCOUNT_LABEL: Record<SyncState['kind'], StringKey> = {
+  off: 'settings.accountNone',
+  working: 'settings.accountWorking',
+  'signed-in': 'settings.accountOn',
+  'no-way-in': 'settings.accountNone',
+  'can-log-in': 'settings.accountCanLogIn',
+  offline: 'settings.accountOffline',
+  error: 'settings.accountError',
+};
 
 const ALL_TIME = PERIODS.find((p) => p.id === 'all')!;
 
@@ -27,6 +48,9 @@ export function SettingsScreen({ onPresets, onAchievements }: Props): JSX.Elemen
   const { settings, journal, awards, actions } = useStore();
   const [busy, setBusy] = useState(false);
   const [homeStatus, setHomeStatus] = useState<string>('unsupported');
+  const [sync, setSync] = useState<SyncState>(syncState);
+  const [server, setServer] = useState<string | undefined>(undefined);
+  const [migrated, setMigrated] = useState(false);
 
   const blockMinutes = blockMinutesOf(settings);
   const modules = modulesOf(settings);
@@ -42,6 +66,26 @@ export function SettingsScreen({ onPresets, onAchievements }: Props): JSX.Elemen
   useEffect(() => {
     if (!homeScreen.supported()) return;
     void homeScreen.status().then(setHomeStatus);
+  }, []);
+
+  // Вход идёт фоном и может закончиться уже после того, как экран открыли.
+  useEffect(() => subscribeSync(setSync), []);
+
+  useEffect(() => {
+    void isMigrated().then(setMigrated);
+  }, []);
+
+  // Версию сервера спрашиваем при открытии экрана: она меняется реже, чем его
+  // открывают, а держать её в памяти всё равно негде.
+  useEffect(() => {
+    if (!transport.configured) return;
+    let cancelled = false;
+    void transport.version().then((value) => {
+      if (!cancelled) setServer(value);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const run = (task: () => Promise<void>): void => {
@@ -232,10 +276,16 @@ export function SettingsScreen({ onPresets, onAchievements }: Props): JSX.Elemen
             <span>{t('settings.since')}</span>
             <b>{since ? formatDayShort(since) : t('common.nothing')}</b>
           </li>
+          {/* Горизонт хранения — свойство прежней схемы: тринадцать месяцев там
+              брались из числа ключей в CloudStorage. У журнала такого предела
+              нет, и показывать старое число перешедшему значило бы пугать его
+              потерей данных, которой не будет. */}
           <li>
             <span>{t('settings.retention')}</span>
             <b>
-              {RETENTION_MONTHS} {plural('month', RETENTION_MONTHS)}
+              {migrated
+                ? t('settings.retentionAll')
+                : `${RETENTION_MONTHS} ${plural('month', RETENTION_MONTHS)}`}
             </b>
           </li>
           <li>
@@ -244,7 +294,53 @@ export function SettingsScreen({ onPresets, onAchievements }: Props): JSX.Elemen
               {clientInfo.platform} {clientInfo.version}
             </b>
           </li>
+          {/* Строка появляется, только когда сервер вообще настроен сборкой:
+              без него говорить про аккаунт нечего, и пустой пункт только
+              добавил бы вопросов. */}
+          {sync.kind !== 'off' && (
+            <li>
+              <span>{t('settings.account')}</span>
+              <b className={sync.kind === 'signed-in' ? undefined : 'sset__warn'}>
+                {t(ACCOUNT_LABEL[sync.kind])}
+              </b>
+            </li>
+          )}
+          {/* Отметки сборки и сервера: «доехало ли на прод» должно быть видно,
+              а не угадываться. Класс нужен сценарию скриншотов — иначе каждая
+              пересборка меняла бы снимок настроек. */}
+          <li className="sset__build">
+            <span>{t('settings.build')}</span>
+            <b>{buildLabel()}</b>
+          </li>
+          {sync.kind !== 'off' && (
+            <li className="sset__build">
+              <span>{t('settings.server')}</span>
+              <b>{server ?? t('settings.serverUnknown')}</b>
+            </li>
+          )}
         </ul>
+
+        {/* Вход вне Telegram: единственное место, где он вообще нужен. Внутри
+            мини-аппа он молчаливый, и кнопки там быть не должно. */}
+        {sync.kind === 'can-log-in' && (
+          <>
+            <p className="sset__note">{t('settings.signInNote')}</p>
+            <button className="edit__add press" type="button" onClick={() => void signIn()}>
+              {t('settings.signIn')}
+            </button>
+          </>
+        )}
+        {sync.kind === 'signed-in' && !isTelegram && (
+          <button
+            className="sset__danger press"
+            type="button"
+            onClick={async () => {
+              if (await confirmDialog(t('settings.signOutConfirm'))) await signOut();
+            }}
+          >
+            {t('settings.signOut')}
+          </button>
+        )}
 
         {/* Молчаливый откат на локальное хранилище выглядит как пропажа данных:
             на телефоне всё есть, на компьютере пусто. Поэтому он назван вслух. */}

@@ -1,4 +1,4 @@
-import type { Journal, Settings } from '../domain/types';
+import type { AwardMap, Journal, Settings } from '../domain/types';
 import type { SkillTotal } from '../skills/total';
 import type { Params, StringKey } from '../i18n';
 import type { Derived } from './derive';
@@ -82,3 +82,27 @@ export interface Achievement {
  * достаться никому. Пока пусто — список ведётся с первого удаления.
  */
 export const RETIRED_IDS: readonly string[] = [];
+
+// AwardMap живёт в домене: это форма данных, а не часть реестра достижений.
+export type { AwardMap };
+
+const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Приведение карты выдач к валидному виду.
+ *
+ * Оболочка `{ g: ... }` — форма записи в хранилище, а не домена, но разбирается
+ * здесь: снаружи приходит и она, и голая карта из файла копии, и обе должны
+ * пройти одни и те же проверки.
+ */
+export function sanitizeAwards(raw: unknown): AwardMap {
+  if (typeof raw !== 'object' || raw === null) return {};
+  const source = (raw as { g?: unknown }).g;
+  if (typeof source !== 'object' || source === null) return {};
+
+  const out: AwardMap = {};
+  for (const [id, day] of Object.entries(source as Record<string, unknown>)) {
+    if (typeof day === 'string' && DAY_PATTERN.test(day)) out[id] = day;
+  }
+  return out;
+}

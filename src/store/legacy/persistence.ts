@@ -1,39 +1,28 @@
 /**
- * Схема хранения и сериализация.
+ * Схема хранения в Telegram CloudStorage.
  *
- * CloudStorage даёт 4096 символов на значение, поэтому история режется по
- * месяцам, а клики, батарея и навыки лежат в разных ключах. Внутри месяца дни —
- * это `01`..`31`, а приоритеты адресуются короткими стабильными id: месяц с
- * десятью активными приоритетами укладывается примерно в 2.2 КБ, вдвое ниже лимита.
+ * Всё здесь продиктовано одним числом: CloudStorage даёт 4096 байт на значение.
+ * Поэтому история режется по месяцам, дни внутри месяца — это `01`..`31`,
+ * приоритеты адресуются двухсимвольными id, а поля навыков сокращены до одной
+ * буквы. Позиционные массивы вместо id использовать нельзя: добавление или
+ * удаление приоритета переписало бы задним числом всю историю.
  *
- * Позиционные массивы вместо id использовать нельзя: добавление или удаление
- * приоритета переписало бы задним числом всю историю.
+ * Каталог `legacy/` — не приговор, а метка границы. Проверка данных, формат
+ * копии и сами типы живут в домене и переезд на другой бэкенд переживут; всё,
+ * что осталось тут, существует ради лимита в 4 КБ и вместе с ним исчезнет.
  */
 
-import { localMirror, store, VALUE_LIMIT } from '../telegram/cloudStorage';
-import { composeDayKey, dayOfMonth, monthKey, recentMonths } from '../domain/date';
-import { DEFAULT_PRIORITIES } from '../domain/presets';
-import type {
-  BatteryLevel,
-  BatteryShift,
-  ClicksMap,
-  DayClicks,
-  DayKey,
-  Journal,
-  Priority,
-  Settings,
-} from '../domain/types';
-import {
-  DEFAULT_BLOCK_MINUTES,
-  DEFAULT_MODULES,
-  DRAIN_TEXT_MAX,
-  DRAIN_TEXT_PREFIX,
-  MAX_PRIORITIES,
-  sanitizeModules,
-} from '../domain/types';
-import type { Skill, SkillsState } from '../skills/types';
-import { MAX_ARCHIVED_SKILLS, MAX_SKILLS, MAX_SKILL_TITLE, emptySkills } from '../skills/types';
-import type { StringKey } from '../i18n';
+import { localMirror, store, VALUE_LIMIT } from '../../telegram/cloudStorage';
+import { composeDayKey, dayOfMonth, monthKey, recentMonths } from '../../domain/date';
+import { sanitizeShifts } from '../../domain/battery';
+import { MAX_ARCHIVED, sanitizeSettings } from '../../domain/settings';
+import type { SnapshotContents } from '../../domain/snapshot';
+import type { BatteryShift, ClicksMap, DayClicks, Journal, Settings } from '../../domain/types';
+import { emptyJournal } from '../../domain/types';
+import type { SkillsState } from '../../skills/types';
+import { MAX_ARCHIVED_SKILLS, MAX_SKILLS, emptySkills, sanitizeSkills } from '../../skills/types';
+import type { Skill } from '../../skills/types';
+import { sanitizeAwards, type AwardMap } from '../../achievements/types';
 
 const KEY_SETTINGS = 'mp:s';
 /** Каталог навыков. Без даты, поэтому под месячный шаблон не попадает и историей не считается. */
@@ -46,9 +35,6 @@ const keySkillClicks = (month: string): string => `mp:k:${month}`;
 /** Сколько месяцев истории держим. Дальше — чистим, чтобы не упереться в лимит ключей. */
 export const RETENTION_MONTHS = 13;
 
-/** Архив нужен только ради подписей в статистике, поэтому он ограничен. */
-const MAX_ARCHIVED = 40;
-
 /**
  * Размер значения в байтах UTF-8, а не в символах строки.
  *
@@ -60,123 +46,7 @@ export function payloadSize(payload: string): number {
   return new TextEncoder().encode(payload).length;
 }
 
-// --- Идентификаторы ----------------------------------------------------------
-
-const ID_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789';
-
-/** Двухсимвольный id: короткий, потому что он повторяется в каждом дне истории. */
-export function newShortId(taken: Iterable<string>): string {
-  const used = new Set(taken);
-  for (let length = 2; length <= 4; length += 1) {
-    for (let attempt = 0; attempt < 200; attempt += 1) {
-      let id = '';
-      for (let i = 0; i < length; i += 1) {
-        id += ID_ALPHABET[Math.floor(Math.random() * ID_ALPHABET.length)];
-      }
-      if (!used.has(id)) return id;
-    }
-  }
-  return `x${Date.now().toString(36)}`;
-}
-
 // --- Настройки ---------------------------------------------------------------
-
-export function emptySettings(): Settings {
-  return {
-    version: 1,
-    priorities: [],
-    archived: [],
-    onboarded: false,
-    blockMinutes: DEFAULT_BLOCK_MINUTES,
-    modules: { ...DEFAULT_MODULES },
-  };
-}
-
-/** Разворачивает пресет или список названий в приоритеты, переиспользуя уже известные id. */
-export function materialize(
-  source: Array<{ title: string; colorId: number }>,
-  known: Priority[],
-): Priority[] {
-  const byTitle = new Map(known.map((p) => [p.title.trim().toLowerCase(), p]));
-  const taken = new Set(known.map((p) => p.id));
-  const out: Priority[] = [];
-
-  for (const item of source.slice(0, MAX_PRIORITIES)) {
-    // Совпадение по названию сохраняет историю: «Работа» из одного набора и из
-    // другого — это один и тот же приоритет, а не два разных с нуля.
-    const existing = byTitle.get(item.title.trim().toLowerCase());
-    const id = existing?.id ?? newShortId(taken);
-    taken.add(id);
-    out.push({ id, title: item.title, colorId: item.colorId });
-  }
-  return out;
-}
-
-export function defaultSettings(): Settings {
-  const base = emptySettings();
-  return { ...base, priorities: materialize(DEFAULT_PRIORITIES, []) };
-}
-
-export function sanitizeSettings(raw: unknown): Settings | undefined {
-  if (typeof raw !== 'object' || raw === null) return undefined;
-  const value = raw as Partial<Settings>;
-  if (!Array.isArray(value.priorities)) return undefined;
-
-  const clean = (list: unknown): Priority[] =>
-    (Array.isArray(list) ? list : [])
-      .filter((p): p is Priority =>
-        typeof p === 'object' &&
-        p !== null &&
-        typeof (p as Priority).id === 'string' &&
-        typeof (p as Priority).title === 'string',
-      )
-      .map((p) => {
-        // Отрицательный индекс цвета ломает выбор из палитры: -1 % 10 === -1,
-        // и обращение по такому индексу не даёт ничего.
-        const colorId = Number(p.colorId);
-        return {
-          id: p.id,
-          title: p.title,
-          colorId: Number.isFinite(colorId) && colorId >= 0 ? Math.floor(colorId) : 0,
-        };
-      });
-
-  /** Оставляет первое вхождение каждого id и помечает его как занятое. */
-  const dedupe = (list: Priority[], seen: Set<string>): Priority[] =>
-    list.filter((p) => {
-      if (seen.has(p.id)) return false;
-      seen.add(p.id);
-      return true;
-    });
-
-  /*
-   * Срез по потолку идёт до того, как id попадут в общий `seen`.
-   *
-   * Раньше множество заполнялось всем списком сразу, поэтому приоритет,
-   * вытесненный лимитом, считался уже виденным и выбрасывался ещё и из архива —
-   * исчезал целиком, а его история в месяцах оставалась без подписи. Теперь
-   * лишние уходят в архив, ради которого он и существует.
-   */
-  const all = dedupe(clean(value.priorities), new Set<string>());
-  const priorities = all.slice(0, MAX_PRIORITIES);
-  const overflow = all.slice(MAX_PRIORITIES);
-
-  const seen = new Set(priorities.map((p) => p.id));
-  // Вытесненные дописываются в хвост: срез архива оставляет именно последние.
-  const archived = dedupe([...clean(value.archived), ...overflow], seen).slice(-MAX_ARCHIVED);
-
-  const blockMinutes = Number(value.blockMinutes);
-  return {
-    version: 1,
-    priorities,
-    archived,
-    presetId: typeof value.presetId === 'string' ? value.presetId : undefined,
-    onboarded: Boolean(value.onboarded) || priorities.length > 0,
-    // Настройки, записанные до появления этого поля, читаются как значение по умолчанию.
-    blockMinutes: Number.isFinite(blockMinutes) && blockMinutes > 0 ? blockMinutes : DEFAULT_BLOCK_MINUTES,
-    modules: sanitizeModules(value.modules),
-  };
-}
 
 export async function loadSettings(): Promise<Settings | undefined> {
   const raw = await store.get([KEY_SETTINGS]);
@@ -264,35 +134,6 @@ function parseClicksMonth(month: string, raw: string, into: Journal): void {
   parseClicksMap(month, raw, into.clicks);
 }
 
-/**
- * Приводит переходы заряда к валидному виду.
- *
- * Третий элемент — id приоритета, который посадил батарею, — необязателен:
- * записи, сделанные до появления этого вопроса, читаются без миграции.
- */
-function sanitizeShifts(raw: unknown): BatteryShift[] {
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .filter(
-      (s): s is [number, BatteryLevel] | [number, BatteryLevel, unknown] =>
-        Array.isArray(s) &&
-        s.length >= 2 &&
-        Number.isFinite(s[0]) &&
-        [1, 2, 3, 4].includes(s[1] as number),
-    )
-    .map((s): BatteryShift => {
-      const minute = Math.max(0, Math.min(1440, Math.floor(s[0])));
-      const level = s[1] as BatteryLevel;
-      const drainedBy = s[2];
-      // Длина режется: ответ своими словами приходит из поля ввода, и чужой или
-      // повреждённый файл не должен раздувать месяц истории.
-      return typeof drainedBy === 'string' && drainedBy.length > 0
-        ? [minute, level, drainedBy.slice(0, DRAIN_TEXT_MAX + DRAIN_TEXT_PREFIX.length)]
-        : [minute, level];
-    })
-    .sort((a, b) => a[0] - b[0]);
-}
-
 function parseBatteryMonth(month: string, raw: string, into: Journal): void {
   const parsed = JSON.parse(raw) as BatteryMonth;
   for (const [day, shifts] of Object.entries(parsed)) {
@@ -300,10 +141,6 @@ function parseBatteryMonth(month: string, raw: string, into: Journal): void {
     const clean = sanitizeShifts(shifts);
     if (clean.length > 0) into.battery[composeDayKey(month, day)] = clean;
   }
-}
-
-export function emptyJournal(): Journal {
-  return { clicks: {}, battery: {} };
 }
 
 // --- Слияние двух копий одного месяца ----------------------------------------
@@ -318,6 +155,9 @@ export function emptyJournal(): Journal {
  * то, что оба устройства уже видели после синхронизации. Цена такого выбора —
  * снятый блок может вернуться, если его снимали на одном устройстве, а второе
  * ещё помнит старое число. Это несопоставимо дешевле потери месяца.
+ *
+ * Именно эта цена и есть причина переезда на журнал операций: там снятие —
+ * обычное слагаемое со знаком минус, и воскресать ему нечем.
  */
 
 /** Большее из двух значений по каждой ячейке «день → id → счётчик». */
@@ -463,9 +303,6 @@ interface StoredSkills {
   f?: string;
 }
 
-const MONTH_PATTERN = /^\d{4}-\d{2}$/;
-const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-
 function packSkill(skill: Skill): StoredSkill {
   const out: StoredSkill = {
     i: skill.id,
@@ -503,70 +340,6 @@ export function serializeSkills(state: SkillsState): string {
     ...(state.foldedThrough ? { f: state.foldedThrough } : {}),
   };
   return JSON.stringify(stored);
-}
-
-function cleanSkill(raw: unknown, seen: Set<string>): Skill | undefined {
-  if (typeof raw !== 'object' || raw === null) return undefined;
-  const value = raw as Partial<Skill>;
-  if (typeof value.id !== 'string' || !value.id) return undefined;
-  if (typeof value.title !== 'string') return undefined;
-  if (seen.has(value.id)) return undefined;
-  seen.add(value.id);
-
-  const base = Number(value.baseMinutes);
-  const carry = Number(value.carryBlocks);
-  return {
-    id: value.id,
-    title: value.title.slice(0, MAX_SKILL_TITLE),
-    colorId: Number(value.colorId) || 0,
-    baseMinutes: Number.isFinite(base) && base > 0 ? Math.floor(base) : 0,
-    carryBlocks: Number.isFinite(carry) && carry > 0 ? Math.floor(carry) : 0,
-    ...(typeof value.linkedPriorityId === 'string' && value.linkedPriorityId
-      ? { linkedPriorityId: value.linkedPriorityId }
-      : {}),
-    ...(typeof value.startedOn === 'string' && DAY_PATTERN.test(value.startedOn)
-      ? { startedOn: value.startedOn }
-      : {}),
-  };
-}
-
-/**
- * Разбор каталога в его обычном виде — так навыки лежат в копии данных, которую
- * человек может открыть и прочитать. Компактная форма нужна только хранилищу.
- *
- * Инвариант «один приоритет кормит не больше одного навыка» чинится именно
- * здесь: две привязки к одному приоритету означали бы, что одни и те же часы
- * засчитаны дважды, и такое лучше поправить молча, чем показать.
- */
-export function sanitizeSkills(raw: unknown): SkillsState {
-  if (typeof raw !== 'object' || raw === null) return emptySkills();
-  const value = raw as Partial<SkillsState>;
-
-  // Список общий: один навык не может быть одновременно активным и архивным.
-  const seen = new Set<string>();
-  const clean = (list: unknown): Skill[] =>
-    (Array.isArray(list) ? list : [])
-      .map((item) => cleanSkill(item, seen))
-      .filter((item): item is Skill => item !== undefined);
-
-  const skills = clean(value.skills).slice(0, MAX_SKILLS);
-  const linked = new Set<string>();
-  for (const skill of skills) {
-    if (!skill.linkedPriorityId) continue;
-    if (linked.has(skill.linkedPriorityId)) delete skill.linkedPriorityId;
-    else linked.add(skill.linkedPriorityId);
-  }
-
-  return {
-    skills,
-    // У архивных навыков привязка бессмысленна: они ничего не считают.
-    archived: clean(value.archived)
-      .slice(-MAX_ARCHIVED_SKILLS)
-      .map(({ linkedPriorityId: _drop, ...rest }) => rest),
-    ...(typeof value.foldedThrough === 'string' && MONTH_PATTERN.test(value.foldedThrough)
-      ? { foldedThrough: value.foldedThrough }
-      : {}),
-  };
 }
 
 /** Разбор компактной записи из хранилища. */
@@ -630,21 +403,6 @@ export async function saveSkillsMonth(clicks: ClicksMap, month: string): Promise
 
 // --- Достижения --------------------------------------------------------------
 
-/** Полученные достижения: id → день выдачи. Хранится плоско, это уже минимальная форма. */
-export type AwardMap = Record<string, DayKey>;
-
-export function sanitizeAwards(raw: unknown): AwardMap {
-  if (typeof raw !== 'object' || raw === null) return {};
-  const source = (raw as { g?: unknown }).g;
-  if (typeof source !== 'object' || source === null) return {};
-
-  const out: AwardMap = {};
-  for (const [id, day] of Object.entries(source as Record<string, unknown>)) {
-    if (typeof day === 'string' && DAY_PATTERN.test(day)) out[id] = day;
-  }
-  return out;
-}
-
 /**
  * Объединение двух наборов достижений: выдача необратима, поэтому берётся всё,
  * что есть хоть где-то, а при совпадении id — более ранняя дата. Иначе
@@ -681,6 +439,8 @@ export function serializeAwards(awards: AwardMap): string {
 export async function saveAwards(awards: AwardMap): Promise<void> {
   await setChecked(KEY_ACHIEVEMENTS, serializeAwards(awards));
 }
+
+// --- Уборка и сброс ----------------------------------------------------------
 
 /**
  * Что считается историей и стирается вместе с ней. Каталог навыков `mp:k` и
@@ -788,107 +548,7 @@ export async function clearEverything(): Promise<void> {
   await store.remove([KEY_SETTINGS, KEY_SKILLS, KEY_ACHIEVEMENTS]);
 }
 
-export interface SnapshotContents {
-  settings: Settings;
-  journal: Journal;
-  skills: SkillsState;
-  skillClicks: ClicksMap;
-  awards: AwardMap;
-}
-
-export interface Snapshot extends SnapshotContents {
-  app: 'my-priorities';
-  /** 2 — с навыками и достижениями. Копии версии 1 читаются как пустые каталоги. */
-  version: 2;
-  exportedAt: string;
-}
-
-/** Выгрузка всех данных: сброс необратим, поэтому копию надо уметь забрать заранее. */
-export function exportSnapshot(contents: SnapshotContents, now: Date = new Date()): string {
-  const snapshot: Snapshot = {
-    app: 'my-priorities',
-    version: 2,
-    exportedAt: now.toISOString(),
-    ...contents,
-  };
-  return JSON.stringify(snapshot, null, 2);
-}
-
-/**
- * Ошибка разбора копии несёт ключ строки, а не готовый текст: сообщение
- * показывается пользователю, значит его должен переводить тот, кто рисует,
- * а не слой хранения.
- */
-export class SnapshotError extends Error {
-  constructor(readonly key: StringKey) {
-    super(key);
-    this.name = 'SnapshotError';
-  }
-}
-
-/**
- * Разбор копии. Чужой или битый файл должен упасть с внятным сообщением,
- * а не втихую подменить данные пустышкой — восстановление делается ровно тогда,
- * когда терять уже нечего.
- */
-export function parseSnapshot(json: string): SnapshotContents {
-  let raw: unknown;
-  try {
-    raw = JSON.parse(json);
-  } catch {
-    throw new SnapshotError('import.notJson');
-  }
-
-  const snapshot = raw as Partial<Snapshot>;
-  if (snapshot?.app !== 'my-priorities') {
-    throw new SnapshotError('import.foreignFile');
-  }
-
-  const settings = sanitizeSettings(snapshot.settings);
-  if (!settings || settings.priorities.length === 0) {
-    throw new SnapshotError('import.noPriorities');
-  }
-
-  const journal = emptyJournal();
-  const source = (snapshot.journal ?? {}) as Partial<Journal>;
-
-  for (const [day, entry] of Object.entries(source.clicks ?? {})) {
-    if (!DAY_PATTERN.test(day) || !entry || typeof entry !== 'object') continue;
-    const clean: DayClicks = {};
-    for (const [id, count] of Object.entries(entry)) {
-      const n = Number(count);
-      if (Number.isFinite(n) && n > 0) clean[id] = Math.floor(n);
-    }
-    if (Object.keys(clean).length > 0) journal.clicks[day] = clean;
-  }
-
-  for (const [day, shifts] of Object.entries(source.battery ?? {})) {
-    if (!DAY_PATTERN.test(day)) continue;
-    const clean = sanitizeShifts(shifts);
-    if (clean.length > 0) journal.battery[day] = clean;
-  }
-
-  // Копия первой версии просто не содержит этих полей — это не ошибка, а
-  // файл, сделанный до появления модулей: читается как «навыков ещё не было».
-  const skillClicks: ClicksMap = {};
-  for (const [day, entry] of Object.entries(snapshot.skillClicks ?? {})) {
-    if (!DAY_PATTERN.test(day) || !entry || typeof entry !== 'object') continue;
-    const clean: DayClicks = {};
-    for (const [id, count] of Object.entries(entry)) {
-      const n = Number(count);
-      if (Number.isFinite(n) && n > 0) clean[id] = Math.floor(n);
-    }
-    if (Object.keys(clean).length > 0) skillClicks[day] = clean;
-  }
-
-  return {
-    settings,
-    journal,
-    skills: sanitizeSkills(snapshot.skills),
-    skillClicks,
-    awards: sanitizeAwards({ g: snapshot.awards }),
-  };
-}
+// --- Запись состояния целиком ------------------------------------------------
 
 /**
  * Записывает состояние целиком: настройки, каталоги и все месяцы, что есть в журналах.
@@ -1069,5 +729,3 @@ export async function foldExpiredMonths(
     return undefined;
   }
 }
-
-export type { DayKey };

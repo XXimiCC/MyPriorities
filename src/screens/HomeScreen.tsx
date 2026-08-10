@@ -9,7 +9,8 @@ import { DayPicker } from '../components/DayPicker';
 import { formatDayShort, formatMinutes, formatPercent } from '../domain/date';
 import { colorOf } from '../domain/palette';
 import { computeStats, periodDays } from '../domain/stats';
-import { PERIODS, blockMinutesOf, type DayKey, type PeriodId, type Priority } from '../domain/types';
+import { PERIODS, type PeriodId } from '../domain/periods';
+import { blockMinutesOf, type DayKey, type Priority } from '../domain/types';
 import { plural, t } from '../i18n';
 import { useStore } from '../store/useStore';
 import { haptics } from '../telegram/sdk';
@@ -123,50 +124,80 @@ export function HomeScreen({ onEdit }: Props): JSX.Element {
       <div className="app__sticky">
         <PeriodSwitch periods={HOME_PERIODS} value={periodId} onChange={setPeriodId} />
 
-        {stats.totalBlocks === 0 ? (
-          <p className="home__lead home__lead--empty">
-            {t('home.empty', { minutes: blockMinutes, unit: plural('minute', blockMinutes) })}
-          </p>
-        ) : (
-          <p className="home__lead">
-            {t('home.total', { scope })}
-            <strong>{formatMinutes(stats.totalMinutes)}</strong>
-            {/* Название подставляется как есть: склонять его в шаблоне нечем,
-                а «больше всего в работа» читается как ошибка. */}
-            {leader && leader.blocks > 0 && (
-              <>
-                {t('home.leader')}
-                <span style={{ color: colorOf(leader.priority.colorId).hex }}>
-                  {leader.priority.title}
-                </span>
-                , {formatPercent(leader.share)}
-              </>
-            )}
-          </p>
-        )}
+        {/*
+          Итог периода и кнопка записи в прошлый день стоят в одной строке:
+          кнопка справа, на уровне итога. Место у неё одно и то же и под
+          «Дописать», и под «Свернуть» — иначе управление лентой прыгало бы над
+          ней и под неё.
+        */}
+        <div className="home__head">
+          {stats.totalBlocks === 0 ? (
+            <p className="home__lead home__lead--empty">
+              {t('home.empty', { minutes: blockMinutes, unit: plural('minute', blockMinutes) })}
+            </p>
+          ) : (
+            <p className="home__lead">
+              {t('home.total', { scope })}
+              <strong>{formatMinutes(stats.totalMinutes)}</strong>
+              {/* Название подставляется как есть: склонять его в шаблоне нечем,
+                  а «больше всего в работа» читается как ошибка. */}
+              {leader && leader.blocks > 0 && (
+                <>
+                  {t('home.leader')}
+                  <span style={{ color: colorOf(leader.priority.colorId).hex }}>
+                    {leader.priority.title}
+                  </span>
+                  , {formatPercent(leader.share)}
+                </>
+              )}
+            </p>
+          )}
 
-        {pickerOpen || inPast ? (
-          <>
-            <DayPicker
-              value={writeDay}
-              hasEntries={(day) => {
-                const entry = journal.clicks[day];
-                return Boolean(entry && Object.values(entry).some((n) => n > 0));
-              }}
-              onChange={pickDay}
-            />
-            {/* Пока выбран сегодняшний день, «К сегодня» ниже не показывается, и
-                лента оставалась открытой без единого способа её убрать. */}
-            {!inPast && (
-              <button className="home__gaps" type="button" onClick={() => setPickerOpen(false)}>
-                {t('home.hidePicker')}
-              </button>
-            )}
-          </>
-        ) : (
-          <button className="home__gaps" type="button" onClick={() => setPickerOpen(true)}>
-            {t('home.fillGaps')}
-          </button>
+          {/* В режиме прошлого дня ленту закрывает «К сегодня» из предупреждения
+              ниже: вторая кнопка рядом означала бы два разных выхода из режима. */}
+          {!inPast && (
+            <button
+              className="home__gaps press"
+              type="button"
+              onClick={() => setPickerOpen(!pickerOpen)}
+            >
+              {pickerOpen ? (
+                t('home.hidePicker')
+              ) : (
+                <>
+                  {/* Стрелка против часовой: вернуться назад по времени и дописать. */}
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" aria-hidden="true">
+                    <path
+                      d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M3 3v5h5"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  {t('home.fillGaps')}
+                </>
+              )}
+            </button>
+          )}
+        </div>
+
+        {(pickerOpen || inPast) && (
+          <DayPicker
+            value={writeDay}
+            hasEntries={(day) => {
+              const entry = journal.clicks[day];
+              return Boolean(entry && Object.values(entry).some((n) => n > 0));
+            }}
+            onChange={pickDay}
+          />
         )}
 
         {inPast && (

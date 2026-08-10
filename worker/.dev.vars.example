@@ -1,0 +1,15 @@
+# Секреты для локального запуска: скопируйте в .dev.vars и подставьте свои.
+# На проде эти же значения ставятся отдельно и в файлах не живут:
+#   wrangler secret put TELEGRAM_BOT_TOKEN
+#   wrangler secret put JWT_SECRET
+#   wrangler secret put REPORT_CHAT_ID
+
+# Токен от @BotFather.
+TELEGRAM_BOT_TOKEN=123456:AAHreplace-me
+
+# Ключ подписи наших токенов. Любая длинная случайная строка, например:
+#   node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
+JWT_SECRET=replace-me
+
+# Куда слать ночной отчёт. Пусто — отчёт просто не отправляется.
+REPORT_CHAT_ID=

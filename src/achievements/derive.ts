@@ -17,7 +17,8 @@ import {
   periodDays,
   type PeriodStats,
 } from '../domain/stats';
-import { PERIODS, type DayKey, type Journal, type Settings } from '../domain/types';
+import { PERIODS } from '../domain/periods';
+import type { DayKey, Journal, Settings } from '../domain/types';
 
 const WEEK = PERIODS.find((p) => p.id === 'week')!;
 const MONTH = PERIODS.find((p) => p.id === 'month')!;

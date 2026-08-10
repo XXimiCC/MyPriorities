@@ -75,7 +75,11 @@ overlay: 'edit' | 'presets' | 'achievements' | null
 | Пороги лестницы | `src/skills/levels.ts` |
 | Условия достижений | `src/achievements/registry.ts` — декларативный реестр |
 | Предпосчёт для условий | `src/achievements/derive.ts` — один проход по истории |
-| Схема хранилища | `src/store/persistence.ts` |
+| Схема хранилища CloudStorage | `src/store/legacy/persistence.ts` |
+| Проверка данных | `src/domain/settings.ts`, `src/domain/battery.ts`, `src/skills/types.ts`, `src/achievements/types.ts` |
+| Формат копии данных | `src/domain/snapshot.ts` |
+| Локальная копия на устройстве | `src/store/local/db.ts` |
+| Журнал операций и слияние | `src/sync/` |
 
 Достижение — это условие и две строки, а не код. Реестр рассчитан на то, чтобы
 однажды стать настраиваемым.
@@ -114,7 +118,14 @@ overlay: 'edit' | 'presets' | 'achievements' | null
 
 | Файл | Что сторожит |
 |---|---|
-| `store/persistence.test.ts` | круговые рейсы, худший месяц в 4096 байт, копии данных, генерация идентификаторов |
+| `store/legacy/persistence.test.ts` | круговые рейсы через формат CloudStorage, худший месяц в 4096 байт, слияние двух копий |
+| `store/local/db.test.ts` | выбор хранилища на устройстве, перенос старой копии, отказ вместо устаревших данных |
+| `domain/settings.test.ts` | разбор настроек, генерация идентификаторов, разворачивание наборов |
+| `domain/snapshot.test.ts` | копия данных: круговой рейс, отказ на чужом файле, мусор внутри |
+| `skills/sanitize.test.ts` | инварианты каталога навыков |
+| `sync/project.test.ts` | коммутативность и идемпотентность журнала, снятие блока, барьер стирания |
+| `sync/hlc.test.ts` | монотонность метки при сбитых часах |
+| `sync/ops.test.ts` | разбор операции, пришедшей извне |
 | `domain/stats.test.ts` | окна периодов, нормализация заливки, переоценка блоков, серии, интервалы заряда через полночь и переход на летнее время |
 | `domain/insights.test.ts` | пороги и формулировки наблюдений |
 | `domain/__mockcheck.test.ts` | согласованность демо-генератора |

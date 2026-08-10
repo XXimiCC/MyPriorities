@@ -1,5 +1,3 @@
-import type { StringKey } from '../i18n';
-
 /** Один клик = один сфокусированный блок. Цена блока по умолчанию. */
 export const DEFAULT_BLOCK_MINUTES = 30;
 
@@ -149,19 +147,9 @@ export interface Journal {
   battery: Record<DayKey, BatteryShift[]>;
 }
 
-export type PeriodId = 'today' | 'week' | 'month' | 'all';
-
-export interface Period {
-  id: PeriodId;
-  /** Ключ строки, а не сама строка: подпись резолвится при рендере. */
-  labelKey: StringKey;
-  /** Длина окна в днях, включая сегодня. null — за всё время. */
-  days: number | null;
+export function emptyJournal(): Journal {
+  return { clicks: {}, battery: {} };
 }
 
-export const PERIODS: Period[] = [
-  { id: 'today', labelKey: 'period.today', days: 1 },
-  { id: 'week', labelKey: 'period.week', days: 7 },
-  { id: 'month', labelKey: 'period.month', days: 30 },
-  { id: 'all', labelKey: 'period.all', days: null },
-];
+/** Полученные достижения: id → день выдачи. Это уже минимальная форма. */
+export type AwardMap = Record<string, DayKey>;

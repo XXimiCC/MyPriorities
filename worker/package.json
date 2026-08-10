@@ -1,0 +1,20 @@
+{
+  "//": "Wrangler живёт здесь, а не в корне: он тянет workerd на ~80 МБ, и в корневом package.json это добавилось бы к каждой сборке приложения на Vercel. Тот же приём, что и с Playwright в tools/shots.",
+  "name": "my-priorities-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --local",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
+    "db:local": "wrangler d1 execute mypri --local --file=migrations/0001_init.sql",
+    "db:remote": "wrangler d1 execute mypri --remote --file=migrations/0001_init.sql",
+    "chat-id": "node scripts/chat-id.mjs",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260801.1",
+    "@types/node": "^22.10.5",
+    "typescript": "^5.6.3",
+    "wrangler": "^4.120.0"
+  }
+}

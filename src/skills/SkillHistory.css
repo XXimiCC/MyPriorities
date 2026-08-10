@@ -1,0 +1,99 @@
+/*
+ * Полоса дней. Столбики растут снизу, поэтому подложка выравнена по нижнему
+ * краю: пустой день и день с одним блоком отличаются высотой, а не положением.
+ */
+
+/* Раскладка блочная, а элементы строчные — см. комментарий в SkillHistory.tsx. */
+.shist {
+  display: block;
+}
+
+.shist__plot {
+  display: flex;
+  align-items: stretch;
+  gap: 3px;
+  height: 14px;
+}
+
+.shist__cell {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+
+/* Подложка пустого дня. Она заметно слабее заливки: ряд пустых дней должен
+   читаться как фон, а не как ещё одна полоса данных. */
+.shist__bar {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: flex-end;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.shist__fill {
+  width: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  box-shadow: 0 0 5px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+/*
+ * Сегодня обведено всегда — и когда блоки есть, и когда их нет. В этом весь
+ * смысл полосы: пустая рамка у правого края означает «сегодня ещё ничего», и
+ * найти её глазом можно не читая.
+ */
+.shist__cell--now .shist__bar {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+/* --- Подробный вид: шторка навыка --- */
+
+.shist--detailed .shist__plot {
+  height: 58px;
+  gap: 4px;
+}
+
+.shist--detailed .shist__cell {
+  gap: 5px;
+  transition: opacity 0.16s ease;
+}
+
+/*
+ * На высокой полосе подложка пустого дня не нужна: день и без неё отмечен
+ * подписью снизу, а четырнадцать тёмных прямоугольников в полный рост читались
+ * как данные — будто занимались каждый день понемногу.
+ */
+.shist--detailed .shist__bar {
+  background: none;
+}
+
+/* Приглушение включается только после выбора — как в столбиках статистики.
+   Иначе полоса по умолчанию выглядела бы выцветшей вокруг сегодняшнего дня. */
+.shist--detailed .shist__plot--has-pick .shist__cell:not(.shist__cell--on) {
+  opacity: 0.5;
+}
+
+.shist__tick {
+  flex: none;
+  font-size: 9px;
+  line-height: 1;
+  text-align: center;
+  color: var(--text-faint);
+}
+
+.shist__cell--on .shist__tick {
+  color: var(--text);
+}
+
+.shist__caption {
+  display: block;
+  margin-top: 10px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--text-dim);
+}

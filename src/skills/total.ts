@@ -80,6 +80,11 @@ export function skillBlocksIn(skill: Skill, ctx: SkillContext, days: DayKey[]): 
   return days.reduce((sum, day) => sum + skillBlocksOn(skill, ctx, day), 0);
 }
 
+/** Те же дни, но по отдельности — история для полосы дней. Порядок сохраняется. */
+export function skillBlocksByDay(skill: Skill, ctx: SkillContext, days: DayKey[]): number[] {
+  return days.map((day) => skillBlocksOn(skill, ctx, day));
+}
+
 export type SkillTarget = { kind: 'priority'; id: string } | { kind: 'skill' };
 
 /**

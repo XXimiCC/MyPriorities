@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import type { ClicksMap } from '../domain/types';
-import { skillBlocksIn, skillBlocksOn, skillMinutes, skillTotals, targetOf, totalMinutes } from './total';
+import {
+  skillBlocksByDay,
+  skillBlocksIn,
+  skillBlocksOn,
+  skillMinutes,
+  skillTotals,
+  targetOf,
+  totalMinutes,
+} from './total';
 import type { Skill } from './types';
 
 const skill = (patch: Partial<Skill> = {}): Skill => ({
@@ -123,6 +131,28 @@ describe('блоки за период', () => {
 
   it('пустое окно даёт ноль', () => {
     expect(skillBlocksIn(skill(), context, [])).toBe(0);
+  });
+});
+
+describe('история по дням', () => {
+  const context = ctx({
+    skillClicks: { '2026-07-01': { g1: 2 }, '2026-07-03': { g1: 1 } },
+    clicks: { '2026-07-02': { ab: 4 } },
+  });
+  const window = ['2026-07-01', '2026-07-02', '2026-07-03'];
+
+  it('сохраняет порядок дней и оставляет пустые нулями', () => {
+    expect(skillBlocksByDay(skill(), context, window)).toEqual([2, 0, 1]);
+  });
+
+  it('привязанные блоки попадают в свой день, а не в сумму', () => {
+    expect(skillBlocksByDay(skill({ linkedPriorityId: 'ab' }), context, window)).toEqual([2, 4, 1]);
+  });
+
+  it('сумма истории совпадает с окном за те же дни', () => {
+    const linked = skill({ linkedPriorityId: 'ab' });
+    const byDay = skillBlocksByDay(linked, context, window).reduce((sum, n) => sum + n, 0);
+    expect(byDay).toBe(skillBlocksIn(linked, context, window));
   });
 });
 

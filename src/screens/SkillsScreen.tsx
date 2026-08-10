@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { ColorPicker } from '../components/ColorPicker';
-import { DayPicker, DayPickerToggle, PastDayNotice } from '../components/DayPicker';
+import { BACK_DAYS, DayPicker, DayPickerToggle, PastDayNotice } from '../components/DayPicker';
 import { HeaderBattery } from '../components/HeaderBattery';
 import { Sheet } from '../components/Sheet';
 import { formatHoursCompact, formatMinutes, lastNDays, parseDayKey } from '../domain/date';
@@ -13,6 +13,7 @@ import { SkillSheet, type LinkTarget } from '../skills/SkillSheet';
 import { ALL_SUGGESTIONS, SKILL_SUGGESTIONS } from '../skills/catalogue';
 import { PACE_DAYS } from '../skills/pace';
 import {
+  skillBlocksByDay,
   skillBlocksIn,
   skillBlocksOn,
   skillTotals,
@@ -73,6 +74,18 @@ export function SkillsScreen(): JSX.Element {
     [skills.skills, ctx, recentDays, blockMinutes],
   );
   const recentTotal = [...recentMinutes.values()].reduce((sum, n) => sum + n, 0);
+
+  /*
+   * История по дням — хвост того же окна, а не отдельный отсчёт: два окна с
+   * разными краями рано или поздно разошлись бы на день. Глубина берётся у
+   * ленты дописывания: в полосе видно ровно те дни, которые ещё можно закрыть.
+   */
+  const historyDays = useMemo(() => recentDays.slice(-BACK_DAYS), [recentDays]);
+
+  const historyBlocks = useMemo(
+    () => new Map(skills.skills.map((skill) => [skill.id, skillBlocksByDay(skill, ctx, historyDays)])),
+    [skills.skills, ctx, historyDays],
+  );
 
   const activeIds = useMemo(
     () => new Set(settings.priorities.map((p) => p.id)),
@@ -237,6 +250,8 @@ export function SkillsScreen(): JSX.Element {
                   total={item}
                   dayBlocks={skillBlocksOn(item.skill, ctx, writeDay)}
                   recentMinutes={recentMinutes.get(item.skill.id) ?? 0}
+                  historyDays={historyDays}
+                  historyBlocks={historyBlocks.get(item.skill.id) ?? []}
                   blockMinutes={blockMinutes}
                   onAdd={() => addBlock(item.skill.id)}
                   onOpen={() => setOpenId(item.skill.id)}
@@ -285,6 +300,8 @@ export function SkillsScreen(): JSX.Element {
         day={writeDay}
         dayBlocks={openSkill ? skillBlocksOn(openSkill, ctx, writeDay) : 0}
         recentMinutes={openSkill ? recentMinutes.get(openSkill.id) ?? 0 : 0}
+        historyDays={historyDays}
+        historyBlocks={openSkill ? historyBlocks.get(openSkill.id) ?? [] : []}
         onAdd={() => openSkill && addBlock(openSkill.id)}
         onRemove={() => openSkill && removeBlock(openSkill.id)}
         targets={targets}

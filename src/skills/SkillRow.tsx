@@ -2,8 +2,10 @@ import { memo } from 'react';
 
 import { formatHoursCompact } from '../domain/date';
 import { colorOf } from '../domain/palette';
+import type { DayKey } from '../domain/types';
 import { t } from '../i18n';
 import { levelTitle } from './levels';
+import { SkillHistory } from './SkillHistory';
 import type { SkillTotal } from './total';
 import './SkillRow.css';
 
@@ -13,6 +15,9 @@ interface Props {
   dayBlocks: number;
   /** Сколько вложено за окно темпа — без стартового капитала. */
   recentMinutes: number;
+  /** Дни полосы истории и блоки по ним — от старых к новым. */
+  historyDays: DayKey[];
+  historyBlocks: number[];
   blockMinutes: number;
   onAdd(): void;
   onOpen(): void;
@@ -27,6 +32,8 @@ export const SkillRow = memo(function SkillRow({
   total,
   dayBlocks,
   recentMinutes,
+  historyDays,
+  historyBlocks,
   blockMinutes,
   onAdd,
   onOpen,
@@ -46,6 +53,10 @@ export const SkillRow = memo(function SkillRow({
         <span className="srow__track">
           <span className="srow__fill" style={{ width: `${progress.fraction * 100}%` }} />
         </span>
+
+        {/* Полоса дней идёт сразу под полосой прогресса: одна отвечает «сколько
+            всего», другая — «а на этой неделе». Обе про одно и то же время. */}
+        <SkillHistory days={historyDays} blocks={historyBlocks} blockMinutes={blockMinutes} />
 
         <span className="srow__foot">
           <span className="srow__hours">{formatHoursCompact(progress.minutes)}</span>

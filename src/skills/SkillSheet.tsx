@@ -9,6 +9,7 @@ import type { DayKey, Priority } from '../domain/types';
 import { count, plural, t } from '../i18n';
 import { LEVELS, levelTitle, rankTitle } from './levels';
 import { formatEta, paceOf, PACE_DAYS } from './pace';
+import { SkillHistory } from './SkillHistory';
 import { formatNumber } from './SkillRow';
 import type { SkillTotal } from './total';
 import './SkillSheet.css';
@@ -28,6 +29,9 @@ interface Props {
   dayBlocks: number;
   /** Сколько набрано за окно темпа — из этого считается прогноз ступени. */
   recentMinutes: number;
+  /** Дни полосы истории и блоки по ним — от старых к новым. */
+  historyDays: DayKey[];
+  historyBlocks: number[];
   /** Приоритеты, к которым можно привязаться, с пометкой уже занятых. */
   targets: LinkTarget[];
   /** Название привязанного приоритета; undefined — привязки нет. */
@@ -61,6 +65,8 @@ function SkillDetails({
   day,
   dayBlocks,
   recentMinutes,
+  historyDays,
+  historyBlocks,
   targets,
   linkedTitle,
   linkArchived,
@@ -158,6 +164,19 @@ function SkillDetails({
         }
         onAdd={onAdd}
         onRemove={onRemove}
+      />
+
+      {/* История стоит сразу за счётчиком, до лестницы: сначала «что было на
+          этой неделе», и только потом «куда это ведёт через тысячу часов». */}
+      <div className="divider-label">
+        <span>{t('skills.historyTitle', { days: historyDays.length })}</span>
+      </div>
+
+      <SkillHistory
+        days={historyDays}
+        blocks={historyBlocks}
+        blockMinutes={blockMinutes}
+        detailed
       />
 
       <div className="divider-label">

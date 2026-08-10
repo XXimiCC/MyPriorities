@@ -66,7 +66,7 @@ function worthSaving(contents: SnapshotContents): boolean {
  * Делается один раз: второй запуск уже не «до перехода», и перезаписывать ею
  * первую значило бы затереть единственное, что помнит состояние до него.
  */
-async function backupOnce(contents: SnapshotContents): Promise<void> {
+export async function backupOnce(contents: SnapshotContents): Promise<void> {
   if (!worthSaving(contents)) return;
   try {
     if (await opsLog.meta(BACKUP_KEY)) return;

@@ -12,8 +12,14 @@ import { DEFAULT_PRIORITIES } from './presets';
 import type { Priority, Settings } from './types';
 import { DEFAULT_BLOCK_MINUTES, DEFAULT_MODULES, MAX_PRIORITIES, sanitizeModules } from './types';
 
-/** Архив нужен только ради подписей в статистике, поэтому он ограничен. */
-export const MAX_ARCHIVED = 40;
+/**
+ * Архив нужен только ради подписей в статистике, поэтому он ограничен.
+ *
+ * Прежнее число упиралось в лимит значения CloudStorage; теперь ограничение
+ * только смысловое — имя приоритета, удалённого сто правок назад, статистике
+ * уже ничего не объясняет.
+ */
+export const MAX_ARCHIVED = 120;
 
 // --- Идентификаторы ----------------------------------------------------------
 

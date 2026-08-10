@@ -41,9 +41,12 @@ describe('каталог навыков', () => {
   });
 
   it('режет список по потолкам', () => {
+    // Длина входа считается от самих потолков: они перестали быть свойством
+    // хранилища и теперь свободно меняются, а тест обязан пережить их правку.
+    const many = Math.max(MAX_SKILLS, MAX_ARCHIVED_SKILLS) + 5;
     const state = sanitizeSkills({
-      skills: Array.from({ length: 40 }, (_, i) => plain(`s${i}`)),
-      archived: Array.from({ length: 40 }, (_, i) => plain(`a${i}`)),
+      skills: Array.from({ length: many }, (_, i) => plain(`s${i}`)),
+      archived: Array.from({ length: many }, (_, i) => plain(`a${i}`)),
     });
     expect(state.skills).toHaveLength(MAX_SKILLS);
     expect(state.archived).toHaveLength(MAX_ARCHIVED_SKILLS);

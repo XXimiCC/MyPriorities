@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest';
 
-import { serializeAwards } from '../store/legacy/persistence';
-import { VALUE_LIMIT } from '../telegram/cloudStorage';
 import { t } from '../i18n';
 import { noteOf } from './note';
 import { ACHIEVEMENTS } from './registry';
@@ -59,10 +57,5 @@ describe('реестр достижений', () => {
       if (item.group === 'skills') expect(item.needs).toBe('skills');
       else expect(item.needs).toBeUndefined();
     }
-  });
-
-  it('весь реестр, выданный разом, укладывается в лимит CloudStorage', () => {
-    const awards = Object.fromEntries(ACHIEVEMENTS.map((item) => [item.id, '2026-08-06']));
-    expect(serializeAwards(awards).length).toBeLessThan(VALUE_LIMIT);
   });
 });

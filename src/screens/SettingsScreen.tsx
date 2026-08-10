@@ -11,14 +11,12 @@ import { BLOCK_OPTIONS, blockMinutesOf, modulesOf } from '../domain/types';
 import { plural, t, type StringKey } from '../i18n';
 import { DEMO_MODE, GUEST_MODE } from '../demo/mode';
 import { SnapshotError } from '../domain/snapshot';
-import { RETENTION_MONTHS } from '../store/legacy/persistence';
 import { useStore } from '../store/useStore';
 import { store } from '../telegram/cloudStorage';
 import { alertDialog, clientInfo, confirmDialog, haptics, homeScreen, isTelegram } from '../telegram/sdk';
 import { buildLabel } from '../build';
 import { somethingToRestore } from '../sync/adopt';
 import { signIn, signOut, subscribeSync, syncState, type SyncState } from '../sync/auth';
-import { isMigrated } from '../sync/local';
 import { transport } from '../sync/transport';
 import { saveFile } from '../wallpaper/save';
 import './SettingsScreen.css';
@@ -52,7 +50,6 @@ export function SettingsScreen({ onPresets, onAchievements, onDemo }: Props): JS
   const [homeStatus, setHomeStatus] = useState<string>('unsupported');
   const [sync, setSync] = useState<SyncState>(syncState);
   const [server, setServer] = useState<string | undefined>(undefined);
-  const [migrated, setMigrated] = useState(false);
   const [hasBefore, setHasBefore] = useState(false);
 
   const blockMinutes = blockMinutesOf(settings);
@@ -73,10 +70,6 @@ export function SettingsScreen({ onPresets, onAchievements, onDemo }: Props): JS
 
   // Вход идёт фоном и может закончиться уже после того, как экран открыли.
   useEffect(() => subscribeSync(setSync), []);
-
-  useEffect(() => {
-    void isMigrated().then(setMigrated);
-  }, []);
 
   /*
    * Пересчитывается на каждое изменение состояния, а не один раз при открытии:
@@ -343,17 +336,12 @@ export function SettingsScreen({ onPresets, onAchievements, onDemo }: Props): JS
             <span>{t('settings.since')}</span>
             <b>{since ? formatDayShort(since) : t('common.nothing')}</b>
           </li>
-          {/* Горизонт хранения — свойство прежней схемы: тринадцать месяцев там
+          {/* Горизонт хранения был свойством прежней схемы: тринадцать месяцев
               брались из числа ключей в CloudStorage. У журнала такого предела
-              нет, и показывать старое число перешедшему значило бы пугать его
-              потерей данных, которой не будет. */}
+              нет, и с уходом записи в прежнее хранилище он исчез вовсе. */}
           <li>
             <span>{t('settings.retention')}</span>
-            <b>
-              {migrated
-                ? t('settings.retentionAll')
-                : `${RETENTION_MONTHS} ${plural('month', RETENTION_MONTHS)}`}
-            </b>
+            <b>{t('settings.retentionAll')}</b>
           </li>
           <li>
             <span>{t('settings.client')}</span>

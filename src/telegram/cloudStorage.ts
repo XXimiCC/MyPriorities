@@ -14,8 +14,6 @@ import { localStore } from '../store/local/db';
 import type { KeyValueStore, ValuePair } from '../store/kv';
 import { cloudStorage } from './sdk';
 
-export const VALUE_LIMIT = 4096;
-
 export type { KeyValueStore, ValuePair };
 
 /**

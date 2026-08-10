@@ -1,147 +1,21 @@
 /**
- * Тесты формата CloudStorage.
+ * Тесты прежнего формата хранения. Только чтение.
  *
- * Живут вместе с самим форматом и уйдут вместе с ним. Проверки домена —
- * настроек, каталога навыков, копии данных — переезд переживут и лежат рядом
- * со своими модулями.
+ * Проверок сериализации и запаса по лимиту в 4 КБ здесь больше нет: писать в
+ * это хранилище нечем, а значит и мериться с лимитом некому. Осталось то, что
+ * читает разовый перенос, — разбор компактной формы и слияние двух копий
+ * месяца. Уйдёт вместе с самим хранилищем, когда переедут все устройства.
  */
 
 import { describe, expect, it } from 'vitest';
 
-import { VALUE_LIMIT } from '../../telegram/cloudStorage';
-import { newShortId } from '../../domain/settings';
-import { MAX_PRIORITIES, type ClicksMap, type Journal } from '../../domain/types';
-import { MAX_ARCHIVED_SKILLS, MAX_SKILLS, MAX_SKILL_TITLE, type Skill } from '../../skills/types';
 import {
   MONTH_KEY_PATTERN,
   mergeAwards,
   mergeBatteryPayload,
   mergeClicksPayload,
   parseStoredSkills,
-  payloadSize,
-  serializeBatteryMonth,
-  serializeClicksMap,
-  serializeClicksMonth,
-  serializeSkills,
 } from './persistence';
-
-/** Разбор месячного блока не экспортируется — повторяем его через тот же формат. */
-function parseMonth(month: string, raw: string): Journal['clicks'] {
-  const parsed = JSON.parse(raw) as Record<string, Record<string, number>>;
-  const out: Journal['clicks'] = {};
-  for (const [day, entry] of Object.entries(parsed)) out[`${month}-${day}`] = entry;
-  return out;
-}
-
-describe('сериализация месяца', () => {
-  it('клики переживают круговой прогон', () => {
-    const journal: Journal = {
-      clicks: { '2026-07-01': { ab: 4, cd: 2 }, '2026-07-15': { ab: 1 } },
-      battery: {},
-    };
-    const raw = serializeClicksMonth(journal, '2026-07');
-    expect(parseMonth('2026-07', raw)).toEqual(journal.clicks);
-  });
-
-  it('в блок попадает только свой месяц', () => {
-    const journal: Journal = {
-      clicks: { '2026-07-31': { ab: 1 }, '2026-08-01': { ab: 9 } },
-      battery: {},
-    };
-    expect(JSON.parse(serializeClicksMonth(journal, '2026-07'))).toEqual({ '31': { ab: 1 } });
-  });
-
-  it('нули и пустые дни в хранилище не уезжают', () => {
-    const journal: Journal = {
-      clicks: { '2026-07-01': { ab: 0 }, '2026-07-02': { ab: 3, cd: 0 } },
-      battery: {},
-    };
-    expect(JSON.parse(serializeClicksMonth(journal, '2026-07'))).toEqual({ '02': { ab: 3 } });
-  });
-
-  it('переходы батареи переживают круговой прогон', () => {
-    const journal: Journal = {
-      clicks: {},
-      battery: { '2026-07-04': [[0, 3], [540, 2], [1200, 1]] },
-    };
-    expect(JSON.parse(serializeBatteryMonth(journal, '2026-07'))).toEqual({
-      '04': [[0, 3], [540, 2], [1200, 1]],
-    });
-  });
-});
-
-describe('запас по лимиту CloudStorage', () => {
-  it('худший месяц кликов укладывается в 4096 символов', () => {
-    // Все десять приоритетов, каждый день месяца, двузначные счётчики —
-    // такого в жизни не бывает, но именно этот случай должен помещаться.
-    const ids = Array.from({ length: MAX_PRIORITIES }, (_, i) => newShortId([]) + String(i));
-    const journal: Journal = { clicks: {}, battery: {} };
-    for (let day = 1; day <= 31; day += 1) {
-      const key = `2026-07-${String(day).padStart(2, '0')}`;
-      journal.clicks[key] = Object.fromEntries(ids.map((id) => [id, 48]));
-    }
-
-    const size = serializeClicksMonth(journal, '2026-07').length;
-    expect(size).toBeLessThan(VALUE_LIMIT);
-  });
-
-  it('худший месяц батареи укладывается в 4096 символов', () => {
-    // Двенадцать переключений в день — заметно больше любого реального поведения.
-    const journal: Journal = { clicks: {}, battery: {} };
-    for (let day = 1; day <= 31; day += 1) {
-      const key = `2026-07-${String(day).padStart(2, '0')}`;
-      journal.battery[key] = Array.from({ length: 12 }, (_, i) => [i * 120, ((i % 4) + 1) as 1 | 2 | 3 | 4]);
-    }
-
-    expect(serializeBatteryMonth(journal, '2026-07').length).toBeLessThan(VALUE_LIMIT);
-  });
-
-  it('худший месяц навыков укладывается в 4096 символов', () => {
-    // Двенадцать — это и есть MAX_SKILLS, и предел выбран именно по этому тесту:
-    // при шестнадцати навыках месяц уже не помещается.
-    const ids = Array.from({ length: MAX_SKILLS }, (_, i) => newShortId([]) + String(i));
-    const clicks: ClicksMap = {};
-    for (let day = 1; day <= 31; day += 1) {
-      clicks[`2026-07-${String(day).padStart(2, '0')}`] = Object.fromEntries(
-        ids.map((id) => [id, 48]),
-      );
-    }
-
-    expect(serializeClicksMap(clicks, '2026-07').length).toBeLessThan(VALUE_LIMIT);
-  });
-
-  it('худший каталог навыков укладывается в 4096 символов', () => {
-    // Все поля заполнены, названия предельной длины, архив полон.
-    const skill = (i: number): Skill => ({
-      id: `s${i}`,
-      title: 'Я'.repeat(MAX_SKILL_TITLE),
-      colorId: 9,
-      baseMinutes: 900_000,
-      carryBlocks: 9999,
-      linkedPriorityId: 'ab',
-      startedOn: '2004-06-01',
-    });
-
-    const size = payloadSize(
-      serializeSkills({
-        skills: Array.from({ length: MAX_SKILLS }, (_, i) => skill(i)),
-        archived: Array.from({ length: MAX_ARCHIVED_SKILLS }, (_, i) => skill(100 + i)),
-        foldedThrough: '2025-06',
-      }),
-    );
-
-    expect(size).toBeLessThan(VALUE_LIMIT);
-  });
-
-  it('размер меряется байтами UTF-8, а не длиной строки', () => {
-    // Кириллица весит два байта, и мерить длиной означало считать запас вдвое
-    // больше настоящего — ровно там, где кириллица и живёт: в названиях.
-    const cyrillic = 'Я'.repeat(100);
-    expect(cyrillic.length).toBe(100);
-    expect(payloadSize(cyrillic)).toBe(200);
-    expect(payloadSize('ab')).toBe(2);
-  });
-});
 
 describe('что считается историей', () => {
   it('месячные блоки кликов, батареи и навыков — история', () => {
@@ -160,8 +34,21 @@ describe('что считается историей', () => {
 });
 
 describe('компактная форма каталога навыков', () => {
-  it('переживает круговой прогон', () => {
-    const state = {
+  it('однобуквенные поля разворачиваются в обычные', () => {
+    /*
+     * Запись задана литералом, а не круговым прогоном через сериализацию: её
+     * больше нет, и проверять чтение собственной же записью значило бы сверять
+     * код сам с собой. А читать надо ровно то, что лежит на устройствах, —
+     * поэтому форма выписана здесь как есть.
+     */
+    expect(
+      parseStoredSkills({
+        v: 1,
+        s: [{ i: 'g1', t: 'Гитара', c: 3, b: 600, y: 4, d: '2014-06-01' }],
+        a: [{ i: 'x1', t: 'Шахматы', c: 0, b: 0, y: 0 }],
+        f: '2025-06',
+      }),
+    ).toEqual({
       skills: [
         {
           id: 'g1',
@@ -174,8 +61,7 @@ describe('компактная форма каталога навыков', () =
       ],
       archived: [{ id: 'x1', title: 'Шахматы', colorId: 0, baseMinutes: 0, carryBlocks: 0 }],
       foldedThrough: '2025-06',
-    };
-    expect(parseStoredSkills(JSON.parse(serializeSkills(state)))).toEqual(state);
+    });
   });
 
   it('битая запись читается как пустой каталог, а не падает', () => {

@@ -28,7 +28,7 @@ import { exportSnapshot, parseSnapshot } from '../domain/snapshot';
 import type { ClicksMap, Priority, Settings } from '../domain/types';
 import { opsLog } from '../store/local/db';
 import { readDocs, settingsDoc, skillsDoc, type ReadDocs } from './documents';
-import { contribute, syncOnce, type EngineDeps } from './engine';
+import { contribute, rewindCursor, syncOnce, type EngineDeps } from './engine';
 import { opsToFill } from './fill';
 import { readLocalBase, writeLocalDocs } from './local';
 import type { Op, Stamper } from './ops';
@@ -191,6 +191,13 @@ export async function restoreBeforeSync(
 ): Promise<Adopted | undefined> {
   const raw = await backupBeforeSync();
   if (raw === undefined) return undefined;
+
+  /*
+   * Перечитываем сервер с нуля. Возврат зовут, когда на устройстве что-то
+   * пошло не так, и доверять курсору в этот момент нельзя: он утверждает, что
+   * всё чужое уже прочитано, а журнала может не быть вовсе.
+   */
+  await rewindCursor();
   return joinServer(parseSnapshot(raw), stamp, true, deps);
 }
 

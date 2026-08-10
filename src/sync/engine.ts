@@ -65,6 +65,18 @@ async function advanceCursor(seq: number): Promise<void> {
   await opsLog.setMeta(CURSOR_KEY, seq);
 }
 
+/**
+ * Перечитать сервер с нуля при следующем обмене.
+ *
+ * Нужно там, где локальный журнал перестал соответствовать курсору, — например
+ * при возврате данных после сбоя. Курсор говорит «всё это у меня уже есть», и
+ * если журнала на самом деле нет, устройство молча остаётся без чужой истории
+ * навсегда. Перечитывание безвредно: повтор по `opId` журнал отсекает сам.
+ */
+export async function rewindCursor(): Promise<void> {
+  await opsLog.setMeta(CURSOR_KEY, 0);
+}
+
 export interface EngineDeps {
   transport: SyncTransport;
   session(): Promise<{ access: string } | undefined>;

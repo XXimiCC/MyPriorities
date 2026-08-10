@@ -289,6 +289,34 @@ describe('переход на сервер', () => {
     expect(server.stored).toHaveLength(0);
   });
 
+  it('неудачная попытка не оставляет копию пустоты', async () => {
+    /*
+     * Ловушка, которую я сам себе и поставил. Копия делается один раз и
+     * навсегда. Если снимать её при каждой попытке, то первая же — без сети, на
+     * запуске, когда человек ещё ничего не завёл, — запомнит пустоту и займёт
+     * место настоящей. Возвращать будет нечего ровно тогда, когда понадобится.
+     */
+    const server = fakeServer();
+    server.breakNext(new TransportError(0, 'offline'));
+    await adoptServerState(longUsed(), stamper('phone'), deps(server));
+    expect(await backupBeforeSync()).toBeUndefined();
+
+    // И новое устройство, которому терять нечего, копию тоже не заводит.
+    const blank: SnapshotContents = {
+      settings: emptySettings(),
+      journal: { clicks: {}, battery: {} },
+      skills: emptySkills(),
+      skillClicks: {},
+      awards: {},
+    };
+    await adoptServerState(blank, stamper('fresh'), deps(server));
+    expect(await backupBeforeSync()).toBeUndefined();
+
+    // А устройство с историей — заводит.
+    await adoptServerState(longUsed(), stamper('phone'), deps(server));
+    expect(await backupBeforeSync()).toBeDefined();
+  });
+
   it('копия снимается до перехода и только один раз', async () => {
     const server = fakeServer();
     const stamp = stamper('phone');

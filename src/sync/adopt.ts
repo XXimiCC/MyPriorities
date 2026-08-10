@@ -44,12 +44,30 @@ export interface Adopted extends Projected, ReadDocs {
 }
 
 /**
+ * Есть ли что спасать.
+ *
+ * Устройство без истории и без приоритетов — новое: терять ему нечего, а копия
+ * пустоты хуже, чем её отсутствие. Она делается один раз и навсегда, поэтому
+ * пустая заняла бы место настоящей — и возвращать оказалось бы нечего именно
+ * тогда, когда понадобится.
+ */
+function worthSaving(contents: SnapshotContents): boolean {
+  return (
+    contents.settings.priorities.length > 0 ||
+    Object.keys(contents.journal.clicks).length > 0 ||
+    Object.keys(contents.journal.battery).length > 0 ||
+    Object.keys(contents.skillClicks).length > 0
+  );
+}
+
+/**
  * Копия локальных данных перед первым переходом.
  *
  * Делается один раз: второй запуск уже не «до перехода», и перезаписывать ею
  * первую значило бы затереть единственное, что помнит состояние до него.
  */
 async function backupOnce(contents: SnapshotContents): Promise<void> {
+  if (!worthSaving(contents)) return;
   try {
     if (await opsLog.meta(BACKUP_KEY)) return;
     await opsLog.setMeta(BACKUP_KEY, exportSnapshot(contents));
@@ -118,6 +136,18 @@ async function joinServer(
    */
   const pull = await syncOnce(deps);
   if (!pull.ok) return undefined;
+
+  /*
+   * Копия снимается здесь, а не раньше.
+   *
+   * Раньше значило бы «при каждой попытке», в том числе неудачной, — а попытка
+   * без сети случается на первом же запуске, когда человек ещё ничего не завёл.
+   * Копия делается один раз и навсегда, и такая пустая заняла бы место
+   * настоящей. Содержимое при этом прочитано до всякого обмена: `local` пришёл
+   * аргументом и здешним `syncOnce` не тронут.
+   */
+  await backupOnce(local);
+
   if (pull.docs.length > 0) await writeLocalDocs(pull.docs);
   const theirs = readDocs(pull.docs);
 
@@ -171,7 +201,6 @@ export async function adoptServerState(
   stamp: Stamper,
   deps?: EngineDeps,
 ): Promise<Adopted | undefined> {
-  await backupOnce(local);
   return joinServer(local, stamp, false, deps);
 }
 

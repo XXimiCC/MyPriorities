@@ -25,6 +25,7 @@
 
 import type { SnapshotContents } from '../domain/snapshot';
 import { exportSnapshot, parseSnapshot } from '../domain/snapshot';
+import type { ClicksMap, Priority, Settings } from '../domain/types';
 import { opsLog } from '../store/local/db';
 import { readDocs, settingsDoc, skillsDoc, type ReadDocs } from './documents';
 import { contribute, syncOnce, type EngineDeps } from './engine';
@@ -65,6 +66,39 @@ export async function backupBeforeSync(): Promise<string | undefined> {
 }
 
 /**
+ * Приоритеты, на которые ссылается история, обязаны остаться в списке.
+ *
+ * Блок в истории — это пара «день + id приоритета». Настройки же документ
+ * цельный, и побеждает один. Если у устройств разные наборы id — а они разные,
+ * потому что CloudStorage никогда не работал и каждое заводило приоритеты само,
+ * — то победивший список оставляет чужую историю без имён. Блоки при этом целы
+ * и лежат на сервере, но на экране их нет: показать блок не к чему.
+ *
+ * Поэтому в список дописываются те чужие приоритеты, **на которые есть
+ * ссылки**. Не весь чужой список: приоритет, которым ни разу не пользовались,
+ * ничего не прячет, а лишние строки — та же потеря, только наоборот.
+ */
+function withReferenced(base: Settings, extra: Priority[], clicks: ClicksMap): Settings {
+  const referenced = new Set<string>();
+  for (const entry of Object.values(clicks)) {
+    for (const [id, count] of Object.entries(entry)) if (count > 0) referenced.add(id);
+  }
+
+  const known = new Set(base.priorities.map((item) => item.id));
+  const missing = extra.filter((item) => referenced.has(item.id) && !known.has(item.id));
+  return missing.length === 0 ? base : { ...base, priorities: [...base.priorities, ...missing] };
+}
+
+/** Объединение карт кликов — только чтобы узнать, какие id вообще встречаются. */
+function bothClicks(a: ClicksMap, b: ClicksMap): ClicksMap {
+  const out: ClicksMap = {};
+  for (const source of [a, b]) {
+    for (const [day, entry] of Object.entries(source)) out[day] = { ...out[day], ...entry };
+  }
+  return out;
+}
+
+/**
  * Общая часть перехода и восстановления: забрать чужое, долить своё, отдать
  * получившееся.
  *
@@ -95,8 +129,18 @@ async function joinServer(
    * настройки и не быть каталога навыков, и «раз настройки есть, значит всё
    * есть» оставило бы каталог на устройстве навсегда.
    */
+  const seen = bothClicks(before.journal.clicks, local.journal.clicks);
+  const settings = docsAnyway
+    ? withReferenced(local.settings, theirs.settings?.priorities ?? [], seen)
+    : withReferenced(theirs.settings ?? local.settings, local.settings.priorities, seen);
+
   const docs: SyncDoc[] = [];
-  if (docsAnyway || !theirs.settings) docs.push(settingsDoc(local.settings, stamp));
+  // Список отправляется, если он наш или если мы его дополнили: молча оставить
+  // дополненный только у себя значило бы, что на другом устройстве история
+  // снова без имён.
+  if (docsAnyway || !theirs.settings || settings !== theirs.settings) {
+    docs.push(settingsDoc(settings, stamp));
+  }
   if (docsAnyway || !theirs.skills) docs.push(skillsDoc(local.skills, stamp));
   // Локально те же документы с той же меткой: разойдись метки — и своя же
   // запись выглядела бы то новее, то старее самой себя.
@@ -110,8 +154,7 @@ async function joinServer(
   const projected = project(await readLocalBase(), await opsLog.all());
   return {
     ...projected,
-    // При восстановлении своё главнее пришедшего, при переходе — наоборот.
-    settings: docsAnyway ? (mine.settings ?? theirs.settings) : (theirs.settings ?? mine.settings),
+    settings,
     skills: docsAnyway ? (mine.skills ?? theirs.skills) : (theirs.skills ?? mine.skills),
     filled: ops.length,
   };

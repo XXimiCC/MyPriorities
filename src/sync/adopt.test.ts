@@ -191,6 +191,84 @@ describe('переход на сервер', () => {
     expect(second!.journal.clicks['2026-01-15']).toEqual({ ia: 5 });
   });
 
+  it('история не остаётся без имён, когда у устройств разные приоритеты', async () => {
+    /*
+     * Тоже из живых данных: у телефона и компьютера наборы приоритетов
+     * оказались разными — CloudStorage никогда не работал, и каждое устройство
+     * заводило их само. Настройки же документ цельный, побеждает один. Без
+     * дописывания чужих приоритетов история второго устройства осталась бы на
+     * сервере целой, но невидимой: блок есть, показать его не к чему.
+     */
+    const server = fakeServer();
+    const first: SnapshotContents = {
+      ...longUsed(),
+      settings: {
+        ...emptySettings(),
+        onboarded: true,
+        priorities: [{ id: 'ia', title: 'Работа', colorId: 1 }],
+      },
+    };
+    await adoptServerState(first, stamper('phone'), deps(server));
+
+    resetBackendForTests();
+    globalThis.indexedDB = new IDBFactory();
+
+    const second: SnapshotContents = {
+      settings: {
+        ...emptySettings(),
+        onboarded: true,
+        priorities: [{ id: 'rm', title: 'Здоровье', colorId: 0 }],
+      },
+      journal: { clicks: { '2026-01-15': { rm: 5 } }, battery: {} },
+      skills: emptySkills(),
+      skillClicks: {},
+      awards: {},
+    };
+    const joined = await adoptServerState(second, stamper('desktop'), deps(server));
+
+    expect(joined).toBeDefined();
+    const ids = joined!.settings!.priorities.map((item) => item.id);
+    expect(ids).toContain('ia');
+    expect(ids).toContain('rm');
+  });
+
+  it('свой приоритет без истории в чужой список не лезет', async () => {
+    // Дописываются только те, на которые есть ссылки: приоритет, которым ни
+    // разу не пользовались, ничего не прячет, а лишняя строка в списке — та же
+    // потеря, только наоборот.
+    const server = fakeServer();
+    const first: SnapshotContents = {
+      ...longUsed(),
+      settings: {
+        ...emptySettings(),
+        onboarded: true,
+        priorities: [{ id: 'ia', title: 'Работа', colorId: 1 }],
+      },
+    };
+    await adoptServerState(first, stamper('phone'), deps(server));
+
+    resetBackendForTests();
+    globalThis.indexedDB = new IDBFactory();
+
+    const second: SnapshotContents = {
+      settings: {
+        ...emptySettings(),
+        onboarded: true,
+        priorities: [
+          { id: 'rm', title: 'Здоровье', colorId: 0 },
+          { id: 'zz', title: 'Нетронутый', colorId: 5 },
+        ],
+      },
+      journal: { clicks: { '2026-01-15': { rm: 5 } }, battery: {} },
+      skills: emptySkills(),
+      skillClicks: {},
+      awards: {},
+    };
+    const joined = await adoptServerState(second, stamper('desktop'), deps(server));
+
+    expect(joined!.settings!.priorities.map((item) => item.id)).toEqual(['ia', 'rm']);
+  });
+
   it('повторный переход не удваивает счётчики', async () => {
     const server = fakeServer();
     const stamp = stamper('phone');

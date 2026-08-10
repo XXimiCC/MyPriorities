@@ -14,7 +14,12 @@ import { emptySettings } from '../domain/settings';
 import type { SnapshotContents } from '../domain/snapshot';
 import { emptySkills } from '../skills/types';
 import { opsLog, resetBackendForTests } from '../store/local/db';
-import { adoptServerState, backupBeforeSync, restoreBeforeSync } from './adopt';
+import {
+  adoptServerState,
+  backupBeforeSync,
+  restoreBeforeSync,
+  somethingToRestore,
+} from './adopt';
 import type { EngineDeps } from './engine';
 import { formatStamp } from './hlc';
 import type { Op, Stamper } from './ops';
@@ -394,5 +399,51 @@ describe('возврат к тому, что было до переезда', ()
   it('без копии возвращать нечего', async () => {
     const server = fakeServer();
     expect(await restoreBeforeSync(stamper('phone'), deps(server))).toBeUndefined();
+  });
+
+  it('предлагается только пока есть что возвращать', async () => {
+    /*
+     * Кнопка, обещающая уже сделанное, пугает не меньше пропажи данных.
+     * Поэтому спрашиваем не «есть ли копия» — она остаётся навсегда, — а «есть
+     * ли в ней то, чего сейчас нет».
+     */
+    const server = fakeServer();
+    const stamp = stamper('phone');
+    const local = longUsed();
+    const empty: SnapshotContents = {
+      settings: emptySettings(),
+      journal: { clicks: {}, battery: {} },
+      skills: emptySkills(),
+      skillClicks: {},
+      awards: {},
+    };
+
+    await adoptServerState(local, stamp, deps(server));
+    // Всё на месте — предлагать нечего.
+    expect(await somethingToRestore(local)).toBe(false);
+
+    // Данные пропали — предлагаем.
+    expect(await somethingToRestore(empty)).toBe(true);
+
+    // Вернули — снова нечего.
+    const back = await restoreBeforeSync(stamp, deps(server));
+    expect(
+      await somethingToRestore({
+        ...local,
+        settings: back!.settings!,
+        journal: back!.journal,
+        skillClicks: back!.skillClicks,
+        awards: back!.awards,
+      }),
+    ).toBe(false);
+  });
+
+  it('снятое вручную достижение кнопку не держит', async () => {
+    // Иначе она осталась бы на экране навсегда у любого, кто убрал отметку.
+    const server = fakeServer();
+    const local = longUsed();
+    await adoptServerState(local, stamper('phone'), deps(server));
+
+    expect(await somethingToRestore({ ...local, awards: {} })).toBe(false);
   });
 });

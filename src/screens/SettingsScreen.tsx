@@ -16,7 +16,7 @@ import { useStore } from '../store/useStore';
 import { store } from '../telegram/cloudStorage';
 import { alertDialog, clientInfo, confirmDialog, haptics, homeScreen, isTelegram } from '../telegram/sdk';
 import { buildLabel } from '../build';
-import { backupBeforeSync } from '../sync/adopt';
+import { somethingToRestore } from '../sync/adopt';
 import { signIn, signOut, subscribeSync, syncState, type SyncState } from '../sync/auth';
 import { isMigrated } from '../sync/local';
 import { transport } from '../sync/transport';
@@ -46,7 +46,7 @@ interface Props {
 }
 
 export function SettingsScreen({ onPresets, onAchievements }: Props): JSX.Element {
-  const { settings, journal, awards, actions } = useStore();
+  const { settings, journal, skills, skillClicks, awards, actions } = useStore();
   const [busy, setBusy] = useState(false);
   const [homeStatus, setHomeStatus] = useState<string>('unsupported');
   const [sync, setSync] = useState<SyncState>(syncState);
@@ -75,8 +75,16 @@ export function SettingsScreen({ onPresets, onAchievements }: Props): JSX.Elemen
 
   useEffect(() => {
     void isMigrated().then(setMigrated);
-    void backupBeforeSync().then((copy) => setHasBefore(copy !== undefined));
   }, []);
+
+  /*
+   * Пересчитывается на каждое изменение состояния, а не один раз при открытии:
+   * иначе кнопка возврата оставалась бы на экране сразу после того, как им
+   * воспользовались, — то есть обещала бы уже сделанное.
+   */
+  useEffect(() => {
+    void somethingToRestore({ settings, journal, skills, skillClicks, awards }).then(setHasBefore);
+  }, [settings, journal, skills, skillClicks, awards]);
 
   // Версию сервера спрашиваем при открытии экрана: она меняется реже, чем его
   // открывают, а держать её в памяти всё равно негде.

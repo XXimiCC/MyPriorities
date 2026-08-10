@@ -84,6 +84,44 @@ export async function backupBeforeSync(): Promise<string | undefined> {
 }
 
 /**
+ * Стоит ли вообще предлагать возврат.
+ *
+ * Не «есть ли копия», а «есть ли в ней то, чего сейчас нет». Разница видна
+ * сразу после удачного возврата: копия никуда не делась и не денется — она
+ * последнее, что помнит состояние до переезда, — но предлагать вернуть уже
+ * вернувшееся значит пугать человека кнопкой, которая обещает несделанное.
+ *
+ * Сравнение целиком местное, без сети: те же правила, что у доливки. Поэтому
+ * кнопка сама появится снова, если данные снова пропадут, и сама исчезнет,
+ * когда они на месте.
+ *
+ * Достижения в счёт не идут: снятое вручную держало бы кнопку вечно. Вернуть
+ * их возврат всё равно вернёт — вопрос лишь в том, ради чего его предлагать.
+ */
+export async function somethingToRestore(current: SnapshotContents): Promise<boolean> {
+  const raw = await backupBeforeSync();
+  if (raw === undefined) return false;
+
+  let saved: SnapshotContents;
+  try {
+    saved = parseSnapshot(raw);
+  } catch {
+    // Копия не читается — предлагать её нечестно.
+    return false;
+  }
+
+  const have: Projected = {
+    journal: current.journal,
+    skillClicks: current.skillClicks,
+    awards: current.awards,
+  };
+  if (opsToFill(saved, have, () => '').some((op) => op.kind !== 'award')) return true;
+
+  const known = new Set(current.settings.priorities.map((item) => item.id));
+  return saved.settings.priorities.some((item) => !known.has(item.id));
+}
+
+/**
  * Приоритеты, на которые ссылается история, обязаны остаться в списке.
  *
  * Блок в истории — это пара «день + id приоритета». Настройки же документ

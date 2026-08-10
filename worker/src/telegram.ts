@@ -15,8 +15,20 @@
 
 import { hmacSha256, timingSafeEqual, toHex, utf8 } from './crypto';
 
-/** Сколько живёт подпись. Старую не принимаем: перехваченная строка иначе вечна. */
-export const INIT_DATA_MAX_AGE_SECONDS = 300;
+/**
+ * Сколько живёт подпись.
+ *
+ * Сутки, а не минуты, и это не послабление, а исправление ошибки. `auth_date`
+ * проставляется в момент ЗАПУСКА мини-аппа, а не запроса, и дальше не меняется
+ * весь сеанс. Telegram Desktop держит вебвью живым часами; при пятиминутном
+ * окне человек, вернувшийся к открытому приложению, войти уже не мог.
+ *
+ * Срок здесь защищает только от повторного использования утёкшей строки —
+ * подлинность даёт подпись. А утечь ей особо неоткуда: она уходит по HTTPS
+ * прямо сюда и нигде не оседает. К тому же нужна она один раз на устройство:
+ * дальше живут свои токены с их собственным продлением.
+ */
+export const INIT_DATA_MAX_AGE_SECONDS = 24 * 60 * 60;
 
 export interface TelegramUser {
   id: number;
@@ -50,6 +62,66 @@ export class InitDataError extends Error {
 /** Форма токена от BotFather: номер бота, двоеточие, секрет. */
 const TOKEN_PATTERN = /^\d+:[A-Za-z0-9_-]+$/;
 
+/**
+ * Когда подпись не сошлась, спрашиваем не «почему», а «а как бы сошлась».
+ *
+ * Причин расхождения ровно две: не тот ключ или не так собранная строка
+ * проверки. Различить их снаружи нельзя, а гадать дорого — поэтому перебираем
+ * несколько заведомо возможных прочтений и сообщаем, какое подошло. Название
+ * прочтения и есть диагноз; данные пользователя при этом никуда не попадают.
+ */
+async function whichReadingMatches(
+  initData: string,
+  botToken: string,
+  hash: string,
+): Promise<string | undefined> {
+  // Пары как есть, без раскодирования: вдруг Telegram считает подпись по ним.
+  const rawPairs: string[] = [];
+  // Раскодирование через decodeURIComponent: оно, в отличие от URLSearchParams,
+  // не превращает «+» в пробел.
+  const uriPairs: string[] = [];
+  for (const chunk of initData.split('&')) {
+    const eq = chunk.indexOf('=');
+    if (eq < 0) continue;
+    const key = chunk.slice(0, eq);
+    if (key === 'hash' || key === 'signature') continue;
+    rawPairs.push(chunk);
+    try {
+      uriPairs.push(`${key}=${decodeURIComponent(chunk.slice(eq + 1))}`);
+    } catch {
+      uriPairs.push(chunk);
+    }
+  }
+  rawPairs.sort();
+  uriPairs.sort();
+
+  // То же, что сейчас, но БЕЗ signature. Однажды я так и делал, и это стоило
+  // долгих поисков; пусть проверка сама скажет, если маятник качнётся обратно.
+  const withoutSignature: string[] = [];
+  for (const [key, value] of new URLSearchParams(initData)) {
+    if (key !== 'hash' && key !== 'signature') withoutSignature.push(`${key}=${value}`);
+  }
+  withoutSignature.sort();
+
+  const webApp = await hmacSha256(utf8('WebAppData'), botToken);
+  // Ключ по правилам виджета входа на сайт: SHA-256 от токена, а не HMAC.
+  const widget = new Uint8Array(
+    await crypto.subtle.digest('SHA-256', utf8(botToken) as unknown as ArrayBuffer),
+  );
+
+  const attempts: Array<[string, Uint8Array, string]> = [
+    ['значения без раскодирования', webApp, rawPairs.join('\n')],
+    ['decodeURIComponent вместо URLSearchParams', webApp, uriPairs.join('\n')],
+    ['без поля signature в строке', webApp, withoutSignature.join('\n')],
+    ['ключ виджета входа (SHA-256 токена)', widget, rawPairs.join('\n')],
+  ];
+
+  for (const [name, key, message] of attempts) {
+    if (timingSafeEqual(toHex(await hmacSha256(key, message)), hash)) return name;
+  }
+  return undefined;
+}
+
 export async function verifyInitData(
   initData: string,
   rawToken: string,
@@ -74,14 +146,21 @@ export async function verifyInitData(
   if (!hash) throw new InitDataError('no-hash');
 
   /*
-   * В строку проверки идут все поля, кроме hash и signature. Signature
-   * исключается по требованию Telegram: он появился позже и в исходный расчёт
-   * hash не входит, так что оставить его — значит не сойтись подписью на новых
-   * клиентах.
+   * В строку проверки идут ВСЕ поля, кроме самого hash. В том числе signature.
+   *
+   * Здесь легко ошибиться, и я ошибся: у Telegram две разные проверки, и они
+   * исключают разное. Ed25519-проверка по полю `signature` — та, что позволяет
+   * обойтись без токена бота, — исключает и `hash`, и `signature`. А вот
+   * HMAC-проверка по `hash`, которая здесь, исключает только `hash`: signature
+   * для неё обычное поле, пришедшее вместе с остальными.
+   *
+   * Перепутать их означает не сходиться подписью ровно на тех клиентах, что
+   * присылают signature, то есть на всех новых. Снаружи это выглядит как «не
+   * тот токен», и ищется очень долго.
    */
   const pairs: string[] = [];
   for (const [key, value] of params) {
-    if (key === 'hash' || key === 'signature') continue;
+    if (key === 'hash') continue;
     pairs.push(`${key}=${value}`);
   }
   pairs.sort();
@@ -92,12 +171,15 @@ export async function verifyInitData(
   if (!timingSafeEqual(expected, hash.toLowerCase())) {
     const botId = botToken.split(':')[0] ?? '?';
     const keys = pairs.map((pair) => pair.slice(0, pair.indexOf('='))).join(',');
-    // Форма токена в подсказку: кривой токен и чужой токен снаружи выглядят
-    // одинаково, а чинятся по-разному.
     const shape = TOKEN_PATTERN.test(botToken)
       ? `${botToken.length} симв.`
       : `ФОРМА ТОКЕНА НЕВЕРНА, ${botToken.length} симв.`;
-    throw new InitDataError('bad-signature', `бот ${botId} (${shape}), поля: ${keys}`);
+
+    const other = await whichReadingMatches(initData, botToken, hash.toLowerCase());
+    throw new InitDataError(
+      'bad-signature',
+      `бот ${botId} (${shape}), поля: ${keys}${other ? `, СОШЛОСЬ ПРОЧТЕНИЕ: ${other}` : ''}`,
+    );
   }
 
   const authDate = Number(params.get('auth_date'));

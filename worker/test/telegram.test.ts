@@ -46,11 +46,23 @@ describe('проверка initData', () => {
     });
   });
 
-  it('поле signature в расчёт не идёт', async () => {
-    // Оно появилось позже hash и в его расчёт не входит: учтёшь — и подпись
-    // перестанет сходиться на новых клиентах.
-    const signed = `${sign(fields())}&signature=${encodeURIComponent('чужое')}`;
-    await expect(verifyInitData(signed, TOKEN, NOW)).resolves.toMatchObject({ id: 4242 });
+  it('поле signature входит в расчёт наравне с остальными', async () => {
+    /*
+     * Здесь у Telegram две разные проверки, и раньше этот тест утверждал
+     * обратное — потому что я перепутал их. Ed25519-проверка по полю signature
+     * исключает и hash, и signature; HMAC-проверка по hash исключает только
+     * hash. Ошибка стоила долгих поисков: снаружи она выглядела как «не тот
+     * токен», ведь подпись не сходилась ровно на тех клиентах, что присылают
+     * signature, — то есть на всех новых.
+     */
+    const withSignature = sign(fields({ signature: 'ed25519-подпись-клиента' }));
+    await expect(verifyInitData(withSignature, TOKEN, NOW)).resolves.toMatchObject({ id: 4242 });
+  });
+
+  it('подделанное signature ломает подпись, а не проходит мимо', async () => {
+    const params = new URLSearchParams(sign(fields({ signature: 'настоящая' })));
+    params.set('signature', 'подменённая');
+    await expect(verifyInitData(params.toString(), TOKEN, NOW)).rejects.toThrow('bad-signature');
   });
 
   it('подделанное поле не проходит', async () => {

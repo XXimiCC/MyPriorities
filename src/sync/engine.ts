@@ -174,11 +174,41 @@ async function pullAll(deps: EngineDeps, access: string): Promise<{ ops: Op[]; d
 }
 
 /**
+ * Дописать в журнал своё и отнести на сервер.
+ *
+ * Именно дописать. Стирания здесь нет намеренно: эта функция вызывается на
+ * устройстве, где история копилась годами мимо журнала, и любое «сначала
+ * очистим» означало бы, что при отказе посреди отправки не останется ни того,
+ * ни другого.
+ *
+ * Операции идут абсолютной установкой, поэтому повторный вызов с тем же
+ * состоянием ничего не удваивает.
+ */
+export async function contribute(
+  ops: Op[],
+  docs: SyncDoc[],
+  deps: EngineDeps = REAL,
+): Promise<boolean> {
+  if (!deps.transport.configured) return false;
+  const session = await deps.session();
+  if (!session) return false;
+
+  try {
+    if (ops.length > 0) await opsLog.append(ops);
+    await pushPending(deps, session.access, docs);
+    return true;
+  } catch (error) {
+    console.warn('[sync] отправка своего состояния не удалась', error);
+    return false;
+  }
+}
+
+/**
  * Отправка состояния целиком: барьер и итоги по каждой ячейке.
  *
- * Нужна ровно один раз — когда на сервере ещё пусто, а на устройстве уже есть
- * история. Операциями её не выразить: журнал начали вести недавно, а история
- * копилась годами, и в нём лежит только хвост.
+ * Замена, а не дополнение, поэтому вызывается только там, где человек прямо
+ * этого просил, — восстановление копии «как было». Переход на сервер ею больше
+ * не пользуется: там нужна доливка, см. `adoptServerState`.
  */
 export async function seedServer(
   ops: Op[],
@@ -197,20 +227,5 @@ export async function seedServer(
   } catch (error) {
     console.warn('[sync] засев сервера не удался', error);
     return false;
-  }
-}
-
-/** Пусто ли на сервере. Отвечает на единственный вопрос: нужен ли засев. */
-export async function serverIsEmpty(deps: EngineDeps = REAL): Promise<boolean | undefined> {
-  if (!deps.transport.configured) return undefined;
-  const session = await deps.session();
-  if (!session) return undefined;
-
-  try {
-    const result = await deps.transport.bootstrap(session.access);
-    return result.ops.length === 0 && result.docs.length === 0;
-  } catch {
-    // Не узнали — значит, не знаем. Засев по догадке хуже отложенного засева.
-    return undefined;
   }
 }

@@ -433,6 +433,12 @@ export const ruStrings = {
   'settings.importConfirm': 'Восстановить данные из копии? Текущие приоритеты и вся история будут заменены содержимым файла.',
   'settings.importDone': 'Готово: {priorities} {pUnit}, {days} {dUnit} истории.',
   'settings.importFailed': 'Не удалось прочитать копию.',
+  'settings.restoreBefore': 'Вернуть данные, бывшие до переезда',
+  'settings.restoreBeforeConfirm':
+    'Приложение само сняло копию перед переездом на сервер. Вернуть из неё историю? Ничего не пропадёт: данные не заменяются, а дополняются — то, что уже есть, останется.',
+  'settings.restoreBeforeDone': 'Готово. Данные, бывшие до переезда, на месте.',
+  'settings.restoreBeforeUnavailable':
+    'Пока не получилось: нет связи с сервером. Попробуйте ещё раз, когда появится сеть, — копия никуда не денется.',
   'import.notJson': 'Файл не читается: это не JSON.',
   'import.foreignFile': 'Это копия не от «Моих Приоритетов».',
   'import.noPriorities': 'В копии нет списка приоритетов.',

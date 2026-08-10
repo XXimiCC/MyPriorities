@@ -60,7 +60,7 @@ import {
   saveSkillsMonth,
   writeAll,
 } from './legacy/persistence';
-import { adoptServerState } from '../sync/adopt';
+import { adoptServerState, restoreBeforeSync } from '../sync/adopt';
 import { ensureSession } from '../sync/auth';
 import { deviceId, newDeviceId } from '../sync/device';
 import { readDocs, settingsDoc, skillsDoc, type ReadDocs } from '../sync/documents';
@@ -153,6 +153,13 @@ export interface StoreActions {
   exportData(): string;
   /** Восстановление из такой копии. Бросает, если файл не тот или повреждён. */
   importData(json: string): Promise<SnapshotContents>;
+  /**
+   * Вернуть данные, какими они были до переезда на сервер.
+   *
+   * Отвечает числом долитых операций либо undefined, если копии нет или обмен
+   * не удался. Во втором случае не изменилось ничего.
+   */
+  restoreBeforeSync(): Promise<number | undefined>;
 }
 
 interface StoreValue extends State {
@@ -760,7 +767,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           awards: adopted.awards,
           skillsLoaded: true,
         });
-        console.info(adopted.seeded ? '[sync] сервер засеян' : '[sync] состояние взято с сервера');
+        console.info(`[sync] переход состоялся, долито операций: ${adopted.filled}`);
       })();
     })();
 
@@ -1227,6 +1234,30 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
 
         commit({ type: 'hydrate', ...restored, skillsLoaded: true });
         return restored;
+      },
+
+      async restoreBeforeSync() {
+        /*
+         * Возврат к тому, что было до переезда на сервер.
+         *
+         * Идёт доливкой, а не заменой: переезд мог обидеть не одно устройство,
+         * и барьер здесь означал бы, что вернувший данные последним стирает
+         * вернувшего первым. Подробности — в `sync/adopt.ts`.
+         */
+        const restored = await restoreBeforeSync(stamp);
+        if (!restored) return undefined;
+
+        const { settings, skills } = latest.current;
+        commit({
+          type: 'hydrate',
+          settings: restored.settings ?? settings,
+          journal: restored.journal,
+          skills: restored.skills ?? skills,
+          skillClicks: restored.skillClicks,
+          awards: restored.awards,
+          skillsLoaded: true,
+        });
+        return restored.filled;
       },
     };
   }, [

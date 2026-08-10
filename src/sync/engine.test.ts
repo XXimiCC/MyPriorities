@@ -2,7 +2,7 @@ import { IDBFactory } from 'fake-indexeddb';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { opsLog, resetBackendForTests } from '../store/local/db';
-import { seedServer, serverIsEmpty, syncOnce, type EngineDeps } from './engine';
+import { contribute, seedServer, syncOnce, type EngineDeps } from './engine';
 import { formatStamp } from './hlc';
 import type { Op } from './ops';
 import { TransportError, type PullResult, type SyncDoc, type SyncTransport } from './transport';
@@ -235,18 +235,31 @@ describe('засев сервера', () => {
     expect(await opsLog.all()).toHaveLength(3);
   });
 
-  it('пустой сервер отличается от непустого', async () => {
-    const server = fakeServer();
-    expect(await serverIsEmpty(deps(server))).toBe(true);
+});
 
-    server.stored.push(op(1));
-    expect(await serverIsEmpty(deps(server))).toBe(false);
+describe('доливка своего', () => {
+  it('дописывает в журнал, а не заменяет его', async () => {
+    /*
+     * Разница с засевом принципиальная и оплачена потерей данных на живом
+     * устройстве. Засев заменяет — он для восстановления копии «как было».
+     * Доливка дописывает: ею пользуется переход на сервер, где стирать чужое
+     * (и своё) нельзя.
+     */
+    const server = fakeServer();
+    await opsLog.append([op(1), op(2)]);
+
+    expect(await contribute([op(10), op(11)], [], deps(server))).toBe(true);
+
+    expect(await opsLog.all()).toHaveLength(4);
+    expect(server.stored).toHaveLength(4);
   });
 
-  it('не дозвонились — не знаем, а не «пусто»', async () => {
-    // Засев по догадке затёр бы чужую историю. Лучше отложить.
+  it('без сети ничего не теряет и говорит об отказе', async () => {
     const server = fakeServer();
     server.breakNext(new TransportError(0, 'offline'));
-    expect(await serverIsEmpty(deps(server))).toBeUndefined();
+
+    expect(await contribute([op(10)], [], deps(server))).toBe(false);
+    // Операция осталась в журнале неотправленной: следующий заход её донесёт.
+    expect(await opsLog.pending()).toHaveLength(1);
   });
 });

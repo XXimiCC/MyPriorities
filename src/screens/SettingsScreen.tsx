@@ -16,6 +16,7 @@ import { useStore } from '../store/useStore';
 import { store } from '../telegram/cloudStorage';
 import { alertDialog, clientInfo, confirmDialog, haptics, homeScreen, isTelegram } from '../telegram/sdk';
 import { buildLabel } from '../build';
+import { backupBeforeSync } from '../sync/adopt';
 import { signIn, signOut, subscribeSync, syncState, type SyncState } from '../sync/auth';
 import { isMigrated } from '../sync/local';
 import { transport } from '../sync/transport';
@@ -51,6 +52,7 @@ export function SettingsScreen({ onPresets, onAchievements }: Props): JSX.Elemen
   const [sync, setSync] = useState<SyncState>(syncState);
   const [server, setServer] = useState<string | undefined>(undefined);
   const [migrated, setMigrated] = useState(false);
+  const [hasBefore, setHasBefore] = useState(false);
 
   const blockMinutes = blockMinutesOf(settings);
   const modules = modulesOf(settings);
@@ -73,6 +75,7 @@ export function SettingsScreen({ onPresets, onAchievements }: Props): JSX.Elemen
 
   useEffect(() => {
     void isMigrated().then(setMigrated);
+    void backupBeforeSync().then((copy) => setHasBefore(copy !== undefined));
   }, []);
 
   // Версию сервера спрашиваем при открытии экрана: она меняется реже, чем его
@@ -131,6 +134,26 @@ export function SettingsScreen({ onPresets, onAchievements }: Props): JSX.Elemen
         await alertDialog(t('settings.exportCopied'));
       } catch {
         await alertDialog(t('settings.exportFailed'));
+      }
+    });
+
+  const restoreBefore = (): void =>
+    run(async () => {
+      const ok = await confirmDialog(t('settings.restoreBeforeConfirm'));
+      if (!ok) return;
+      try {
+        const filled = await actions.restoreBeforeSync();
+        if (filled === undefined) {
+          await alertDialog(t('settings.restoreBeforeUnavailable'));
+          return;
+        }
+        haptics.success();
+        await alertDialog(t('settings.restoreBeforeDone'));
+      } catch (error) {
+        haptics.warning();
+        await alertDialog(
+          error instanceof SnapshotError ? t(error.key) : t('settings.importFailed'),
+        );
       }
     });
 
@@ -353,6 +376,19 @@ export function SettingsScreen({ onPresets, onAchievements }: Props): JSX.Elemen
         <button className="edit__add press" type="button" disabled={busy} onClick={exportData}>
           {t('settings.export')}
         </button>
+
+        {/* Появляется только там, где есть что возвращать: копия снимается
+            один раз, перед самым переходом на сервер. */}
+        {hasBefore && (
+          <button
+            className="edit__add press sset__gap"
+            type="button"
+            disabled={busy}
+            onClick={restoreBefore}
+          >
+            {t('settings.restoreBefore')}
+          </button>
+        )}
 
         <label className="edit__add press sset__gap sset__file">
           {t('settings.import')}

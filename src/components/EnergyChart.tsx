@@ -225,7 +225,7 @@ export function EnergyChart({ days, battery }: Props): JSX.Element {
             <ul className="dbars__list">
               {BATTERY_LEVELS.filter((level) => selected.minutes[level] > 0).map((level) => (
                 <li key={level} style={{ '--accent': batteryTheme(level).hex } as React.CSSProperties}>
-                  <span className="erow__swatch" />
+                  <span className="swatch" />
                   <span className="dbars__name">{batteryTitle(level)}</span>
                   <span className="dbars__time">{formatMinutes(selected.minutes[level])}</span>
                 </li>

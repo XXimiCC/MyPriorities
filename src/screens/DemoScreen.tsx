@@ -68,7 +68,7 @@ export function DemoScreen(): JSX.Element {
           ))}
         </ul>
 
-        <p className="sset__note">{t('demo.note')}</p>
+        <p className="note">{t('demo.note')}</p>
       </div>
     </>
   );

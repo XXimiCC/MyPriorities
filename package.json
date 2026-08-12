@@ -13,9 +13,18 @@
     "docs:build": "npm --prefix docs run build",
     "docs:serve": "npm --prefix docs run preview",
     "shots:setup": "npm --prefix tools/shots install && npm --prefix tools/shots exec -- playwright install chromium",
-    "docs:shots": "node tools/shots/capture.mjs"
+    "docs:shots": "node tools/shots/capture.mjs",
+    "brand": "node tools/shots/brand.mjs",
+    "landing:dev": "npm --prefix landing run dev",
+    "landing:build": "npm --prefix landing run build",
+    "landing:sync": "node tools/landing/sync.mjs",
+    "devkit:sync": "node tools/devkit/build.mjs",
+    "tickets:pull": "node tools/tickets/pull.mjs",
+    "tickets:list": "node tools/tickets/pull.mjs --list",
+    "tickets:close": "node tools/tickets/close.mjs"
   },
   "dependencies": {
+    "modern-screenshot": "^4.7.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

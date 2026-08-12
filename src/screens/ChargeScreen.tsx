@@ -186,7 +186,7 @@ export function ChargeScreen(): JSX.Element {
         )}
 
         <button
-          className="edit__add press charge__wallpaper"
+          className="btn press charge__wallpaper"
           type="button"
           onClick={() => setEditing({ minute: defaultMinute, level: level ?? 3 })}
         >
@@ -199,7 +199,7 @@ export function ChargeScreen(): JSX.Element {
 
         <p className="charge__note">{t('charge.wallpaperNote')}</p>
 
-        <button className="edit__add press charge__wallpaper" type="button" onClick={() => setWallpaperOpen(true)}>
+        <button className="btn press charge__wallpaper" type="button" onClick={() => setWallpaperOpen(true)}>
           {t('charge.wallpaperAction')}
         </button>
       </div>

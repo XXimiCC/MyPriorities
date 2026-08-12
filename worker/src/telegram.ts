@@ -231,3 +231,50 @@ export async function sendMessage(
     return false;
   }
 }
+
+/**
+ * Картинка от бота — уведомление о новом тикете. Тот же договор, что и у
+ * sendMessage: отказ ничего не роняет, потеряно наблюдение, а не данные.
+ *
+ * Подпись без parse_mode: она собрана из текста человека, и разметка в ней
+ * означала бы, что случайная угловая скобка ломает доставку.
+ */
+export async function sendPhoto(
+  botToken: string,
+  chatId: string,
+  photo: ArrayBuffer,
+  mime: string,
+  caption: string,
+): Promise<boolean> {
+  try {
+    const body = new FormData();
+    body.append('chat_id', chatId);
+    body.append('caption', caption.slice(0, 1024));
+    body.append('photo', new Blob([photo], { type: mime }), 'shot');
+
+    const response = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+      method: 'POST',
+      body,
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+/** Новый тикет в чат разработчика. Без кадра — просто текстом. */
+export async function notifyTicket(
+  env: { TELEGRAM_BOT_TOKEN: string; REPORT_CHAT_ID?: string },
+  notice: { caption: string; shot?: { bytes: ArrayBuffer; mime: string } },
+): Promise<void> {
+  // Адресат — тот же секрет, что и у ночного отчёта: это уже «куда смотрит
+  // разработчик», а второй канал был бы второй вещью, которую надо настроить.
+  const chatId = env.REPORT_CHAT_ID;
+  if (!chatId) return;
+
+  if (notice.shot) {
+    await sendPhoto(env.TELEGRAM_BOT_TOKEN, chatId, notice.shot.bytes, notice.shot.mime, notice.caption);
+    return;
+  }
+  await sendMessage(env.TELEGRAM_BOT_TOKEN, chatId, notice.caption);
+}

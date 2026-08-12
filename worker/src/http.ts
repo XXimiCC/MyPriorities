@@ -23,7 +23,13 @@ export function corsHeaders(request: Request, env: Env): Record<string, string> 
   return {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    /*
+     * X-Devkit-Invite здесь есть, а X-Devkit-Token — нет, и это не описка.
+     * Первый живёт в ссылке тестировщика и по определению приезжает из
+     * браузера. Второй — ключ командной строки; разрешить его здесь значило бы
+     * пригласить браузер его прислать.
+     */
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Devkit-Invite',
     'Access-Control-Max-Age': '86400',
     // Один и тот же URL отвечает разными заголовками разным origin — без Vary
     // кэш отдал бы чужой ответ.

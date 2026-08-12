@@ -87,12 +87,4 @@
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
-.bshift__delete {
-  padding: 13px;
-  border-radius: var(--r-md);
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--battery-low);
-  background: color-mix(in srgb, var(--battery-low) 7%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--battery-low) 34%, transparent);
-}
+/* Кнопка удаления — общий .btn-danger из styles/ui.css. */

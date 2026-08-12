@@ -39,7 +39,7 @@
   margin-top: 14px;
 }
 
-.drain__own .pform__input {
+.drain__own .field {
   padding: 12px 14px;
   font-size: 16px; /* меньше 16px — и iOS зумит страницу при фокусе */
 }

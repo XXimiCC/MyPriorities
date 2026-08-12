@@ -10,7 +10,7 @@
  * а на совпадении держатся и скриншоты документации, и тест.
  */
 
-import { addDays, dayKey } from '../domain/date';
+import { addDays, dayKey, minuteOfDay } from '../domain/date';
 import { DEFAULT_PRIORITIES, findPreset, type PresetPriority } from '../domain/presets';
 import { MAX_ARCHIVED } from '../domain/settings';
 import type { SnapshotContents } from '../domain/snapshot';
@@ -281,6 +281,18 @@ function buildBattery(
   for (let back = script.spanDays - 1; back >= 0; back -= 1) {
     if (!random.chance(plan.days)) continue;
 
+    /*
+     * Сегодняшний день обрывается на «сейчас»: у демо не должно быть будущего.
+     *
+     * Это не косметика. «Текущий заряд» — это последняя отметка дня
+     * (`currentBatteryLevel` в domain/stats.ts), и вечерняя отметка, выданная в
+     * полдень, становится «текущей». Живое переключение заряда после этого не
+     * меняло на экране ничего: новая отметка ложилась в середину списка, а
+     * последней оставалась всё та же вечерняя. Демо выглядело сломанным именно
+     * в том месте, ради которого его и открывают.
+     */
+    const ceiling = back === 0 ? Math.min(BEDTIME, minuteOfDay(now)) : BEDTIME;
+
     const shifts: BatteryShift[] = [];
     // Ночное начало — не украшение: «Сова» и «Жаворонок» считаются по минуте
     // первой отметки, и без разброса ни одно из двух не выдаётся никогда.
@@ -288,7 +300,7 @@ function buildBattery(
       ? random.between(70, 290)
       : random.between(plan.wake[0], plan.wake[1]);
 
-    while (minute < BEDTIME) {
+    while (minute < ceiling) {
       const level = random.chance(plan.charging) ? 4 : pickLevel(plan.levels, random);
       // Ответ приписывается только к «на нуле»: спрашивают ровно там.
       const answer =

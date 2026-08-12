@@ -26,14 +26,23 @@ npm run dev                 # http://127.0.0.1:8799
 ```sh
 npx wrangler login
 npx wrangler d1 create mypri        # id из вывода — в wrangler.toml
-npm run db:remote                   # создать таблицы на проде
+npx wrangler kv namespace create SHOTS  # id из вывода — тоже в wrangler.toml
+npm run db:remote                   # применить миграции на проде
 
 npx wrangler secret put TELEGRAM_BOT_TOKEN
 npx wrangler secret put JWT_SECRET     # node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
 npx wrangler secret put REPORT_CHAT_ID # куда слать ночной отчёт, см. ниже
+npx wrangler secret put DEVKIT_TOKEN   # ключ командной строки для тикетов
 
 npm run deploy
 ```
+
+`db:remote` и `db:local` применяют **всю** папку `migrations/`, а не один файл:
+добавленная миграция подхватывается сама, и забыть её нельзя.
+
+Кому можно заводить тикеты из [панели отладки](../docs/dev/devkit.md), задаётся
+в `wrangler.toml` переменной `DEVKIT_ALLOW` — номера Telegram через запятую.
+Пусто — нельзя никому.
 
 ## Куда слать отчёт
 
@@ -61,13 +70,18 @@ TELEGRAM_BOT_TOKEN=<настоящий> npm run chat-id
 | Файл | О чём |
 |---|---|
 | `migrations/0001_init.sql` | Схема: профили, устройства, сессии, документы, журнал операций, свёртки |
-| `src/telegram.ts` | Проверка подписи `initData` и отправка сообщений ботом |
+| `migrations/0002_tickets.sql` | Тикеты из встроенной панели отладки |
+| `src/telegram.ts` | Проверка подписи `initData`, сообщения и картинки от бота |
 | `src/jwt.ts` | Свои токены на HS256 |
 | `src/auth.ts` | Вход, продление, выход |
+| `src/devkit.ts` | Тикеты: приём, выдача командной строке, закрытие, уборка |
 | `src/report.ts` | Ночной отчёт о занятом месте |
 | `src/index.ts` | Маршруты |
 
-Обмен операциями (`/sync/*`) появится следующим этапом.
+У `/devkit/*` две двери, и это не недосмотр: приложение приходит с обычным
+токеном сессии (общий ключ попал бы в бандл и перестал быть ключом), а
+командная строка — с `DEVKIT_TOKEN` в своём заголовке (`initData` ей взять
+неоткуда: подпись выдаёт клиент Telegram, а не терминал).
 
 ## Решения, которые стоит помнить
 

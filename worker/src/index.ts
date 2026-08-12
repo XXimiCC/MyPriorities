@@ -10,13 +10,26 @@
  */
 
 import { handleLogout, handleRefresh, handleTelegramLogin } from './auth';
+import {
+  callerOrGuest,
+  closeTicket,
+  handleCreateTicket,
+  hasDevkitToken,
+  inviteOf,
+  isAllowed,
+  listTickets,
+  readTicket,
+  readTicketShot,
+  requireDevkitToken,
+} from './devkit';
 import type { Env } from './env';
 import { HttpError, corsHeaders, json, readJson } from './http';
 import { runNightlyMaintenance } from './report';
 import { authenticate } from './session';
+import { notifyTicket } from './telegram';
 import { handleBootstrap, handlePull, handlePush } from './sync';
 
-async function route(request: Request, env: Env): Promise<Response> {
+async function route(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const url = new URL(request.url);
   const path = url.pathname.replace(/\/+$/, '') || '/';
   const method = request.method.toUpperCase();
@@ -56,11 +69,52 @@ async function route(request: Request, env: Env): Promise<Response> {
     }
   }
 
+  /*
+   * Две двери в одну комнату, и проверка поэтому не выносится наверх одной
+   * строкой, как у /sync/. У мини-аппа нет и не может быть DEVKIT_TOKEN: он
+   * попал бы в бандл и перестал быть ключом. У командной строки нет и не может
+   * быть initData: подпись выдаёт клиент Telegram, а не терминал.
+   */
+  if (path.startsWith('/devkit')) {
+    if (method === 'POST' && path === '/devkit/tickets') {
+      const created = await handleCreateTicket(env, await callerOrGuest(request, env), request);
+      // Уведомление не висит на критическом пути: человек уже нажал «Отправить».
+      ctx.waitUntil(notifyTicket(env, created.notify));
+      return json({ id: created.id, status: created.status }, { status: 201 });
+    }
+
+    if (method === 'GET' && path === '/devkit/allowed') {
+      const caller = await callerOrGuest(request, env);
+      return json({
+        allowed: await isAllowed(env, caller?.userId, inviteOf(request), hasDevkitToken(request, env)),
+      });
+    }
+
+    // Дальше — только командная строка.
+    requireDevkitToken(request, env);
+
+    if (method === 'GET' && path === '/devkit/tickets') {
+      const status = url.searchParams.get('status') ?? 'open';
+      const limit = Number(url.searchParams.get('limit') ?? 20);
+      return json({ tickets: await listTickets(env, status, Number.isFinite(limit) ? limit : 20) });
+    }
+
+    const one = /^\/devkit\/tickets\/([\w-]{4,64})(\/shot|\/close)?$/.exec(path);
+    if (one) {
+      const id = one[1] as string;
+      if (method === 'GET' && one[2] === '/shot') return readTicketShot(env, id);
+      if (method === 'POST' && one[2] === '/close') {
+        return json(await closeTicket(env, id, (await readJson(request)) as Record<string, unknown>));
+      }
+      if (method === 'GET' && !one[2]) return json(await readTicket(env, id));
+    }
+  }
+
   throw new HttpError(404, 'not-found');
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const cors = corsHeaders(request, env);
 
     if (request.method.toUpperCase() === 'OPTIONS') {
@@ -70,7 +124,7 @@ export default {
     }
 
     try {
-      const response = await route(request, env);
+      const response = await route(request, env, ctx);
       for (const [key, value] of Object.entries(cors)) response.headers.set(key, value);
       return response;
     } catch (error) {

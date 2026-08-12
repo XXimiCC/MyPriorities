@@ -95,7 +95,6 @@
   color: var(--text-faint);
 }
 
-.ppreview .pform__submit {
-  width: 100%;
+.ppreview__apply {
   margin-top: 6px;
 }

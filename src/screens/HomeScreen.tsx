@@ -141,6 +141,7 @@ export function HomeScreen({ onEdit }: Props): JSX.Element {
               <strong>{formatMinutes(stats.totalMinutes)}</strong>
               {/* Название подставляется как есть: склонять его в шаблоне нечем,
                   а «больше всего в работа» читается как ошибка. */}
+              <br/>
               {leader && leader.blocks > 0 && (
                 <>
                   {t('home.leader')}

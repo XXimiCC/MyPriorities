@@ -139,7 +139,17 @@ async function openApp(context, url) {
   page.on('dialog', (dialog) => void dialog.accept());
 
   await page.clock.setFixedTime(FIXED_TIME);
-  await page.goto(`${BASE}${url}`, { waitUntil: 'domcontentloaded' });
+
+  /*
+   * Панель отладки выключается явно. На локальном адресе она считает машину
+   * своей и показывает кнопку «Отладка» всегда (src/devkit/access.ts) — то
+   * есть ровно там, где идёт съёмка. На проде её нет, а в кадрах документации
+   * она появлялась в углу каждого экрана и уезжала на сайт как часть
+   * интерфейса, которой у читателя не будет.
+   */
+  const target = new URL(`${BASE}${url}`);
+  target.searchParams.set('devkit', '0');
+  await page.goto(target.toString(), { waitUntil: 'domcontentloaded' });
 
   // Единственный надёжный маркер готовности: класс app--loading снимается
   // только после того, как стор отдал ready (src/App.tsx:79). networkidle тут

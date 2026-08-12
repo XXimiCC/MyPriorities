@@ -190,7 +190,7 @@ export function StatsScreen(): JSX.Element {
               <ul className="blist">
                 {drains.map((row) => (
                   <li key={row.id} style={{ '--accent': row.hex } as React.CSSProperties}>
-                    <span className="erow__swatch" />
+                    <span className="swatch" />
                     <span className="blist__title">{row.title}</span>
                     <span className="blist__share">
                       {/* Считаются переходы, а не дни: «3 раза», а не «3 дня». */}
@@ -230,8 +230,8 @@ function StatBar({ stat }: { stat: PriorityStat }): JSX.Element {
           <span className="sbar__share">{formatPercent(stat.share)}</span>
         </span>
       </div>
-      <span className="prow__track">
-        <span className="prow__fill" style={{ width: `${stat.fill * 100}%` }} />
+      <span className="bar">
+        <span className="bar__fill" style={{ width: `${stat.fill * 100}%` }} />
       </span>
     </li>
   );

@@ -196,14 +196,8 @@
   box-shadow: inset 0 0 0 1px var(--hairline-strong);
 }
 
+/* Сама кнопка — общий .btn-danger из styles/ui.css, здесь только её место в
+   колонке шторки. */
 .sksheet__delete {
-  width: 100%;
   margin-top: 8px;
-  padding: 13px;
-  border-radius: var(--r-md);
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--battery-low);
-  background: color-mix(in srgb, var(--battery-low) 7%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--battery-low) 34%, transparent);
 }

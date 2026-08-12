@@ -57,7 +57,7 @@ const openEdit = (page) => page.getByRole('button', { name: s('home.edit') }).cl
 async function addPriority(page, title) {
   await page.getByRole('button', { name: s('edit.add') }).click();
   const form = sheet(page, s('edit.newTitle'));
-  await form.locator('.pform__input').fill(title);
+  await form.locator('.field').fill(title);
   await form.getByRole('button', { name: s('common.add') }).click();
   await form.waitFor({ state: 'detached' });
 }
@@ -365,13 +365,13 @@ const demo = [
     name: 'settings-reset',
     note: 'Две опасные кнопки и приписка о том, что сброс задевает облако',
     setup: (page) => goTab(page, 'tab.settings'),
-    scrollTo: '.sset__danger',
+    scrollTo: '.btn-danger',
   },
   {
     name: 'settings-demo-row',
     note: 'Строка «Демо-аккаунты» в настройках: показать приложение, не показывая себя',
     setup: (page) => goTab(page, 'tab.settings'),
-    scrollTo: '.sset__row',
+    scrollTo: '.navrow',
   },
   {
     name: 'demo-list',
@@ -566,9 +566,33 @@ const guest = [
   },
 ];
 
+// --- Прогон E: «Максимум» без плашки --------------------------------------
+
+/*
+ * Те же данные, что у гостевого прогона, но входом `?mock=`, а не `?demo=`:
+ * плашки «Демо · Максимум» сверху нет.
+ *
+ * Нужен ровно для кадров, где плашка мешает содержанию. `achievements-all`
+ * снимается на профиле «Артём», где открыто три отметки из семидесяти пяти, и
+ * показывает почти сплошь запертые карточки — по ним не понять, что в реестре
+ * вообще бывает. А в гостевом прогоне поверх заголовка висит плашка.
+ */
+const maxed = [
+  {
+    name: 'achievements-full',
+    note: 'Набранный реестр: все семьдесят пять отметок с датами',
+    setup: async (page) => {
+      await goTab(page, 'tab.settings');
+      await page.getByRole('button', { name: s('settings.achievementsRow') }).click();
+      await page.locator('.ach__grid').first().waitFor();
+    },
+  },
+];
+
 export const RUNS = [
   { id: 'demo', url: '/?mock=1', shots: demo },
   { id: 'empty', url: '/', shots: empty },
   { id: 'tg', url: '/?mock=1', telegram: true, shots: telegram },
   { id: 'guest', url: '/?demo=max', shots: guest },
+  { id: 'maxed', url: '/?mock=max', shots: maxed },
 ];

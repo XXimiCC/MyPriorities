@@ -56,6 +56,7 @@ const sidebar = [
     items: [
       { text: 'Локальный запуск', link: '/dev/setup' },
       { text: 'Демо-режим', link: '/dev/mock' },
+      { text: 'Панель отладки', link: '/dev/devkit' },
       { text: 'Архитектура', link: '/dev/architecture' },
       { text: 'Строки интерфейса', link: '/dev/i18n' },
       { text: 'Скриншоты', link: '/dev/screenshots' },
@@ -83,6 +84,28 @@ export default defineConfig({
   head: [
     ['meta', { name: 'theme-color', content: '#000000' }],
     ['meta', { name: 'color-scheme', content: 'dark' }],
+    /*
+     * Панель отладки: Ctrl+Shift+Q показывает значок, значок открывает панель.
+     * Опечатка в тексте страницы ловится тем же способом, что и баг в
+     * приложении, — кадром с разметкой, а не пересказом по памяти.
+     *
+     * Файл собран заранее (`npm run devkit:sync`) и лежит в public/: сюда, в
+     * отдельный проект Vercel, каталог src/ приложения не доезжает. Модуль
+     * весит около трёх килобайт сжатыми; React и съёмка кадра приезжают
+     * отдельным куском только при первом открытии панели.
+     *
+     * Тикет отсюда уходит с ключом приглашения: `?test=<ключ>` в адресе, один
+     * раз на вкладку. См. /dev/devkit.
+     */
+    [
+      'script',
+      {
+        type: 'module',
+        src: '/devkit/devkit.js',
+        'data-devkit-url': 'https://mypri.mypri.workers.dev',
+        'data-devkit-app': 'docs',
+      },
+    ],
   ],
 
   markdown: {
@@ -129,6 +152,6 @@ export default defineConfig({
     returnToTopLabel: 'Наверх',
     sidebarMenuLabel: 'Разделы',
     externalLinkIcon: true,
-    footer: { message: 'Мои Приоритеты — Telegram Mini App без бэкенда' },
+    footer: { message: 'Мои Приоритеты — Telegram Mini App, который работает и в браузере' },
   },
 });

@@ -2,23 +2,15 @@
  * Батарея из референсов, один компонент на всё приложение: шапка, шторка выбора,
  * статистика, превью обоев.
  *
- * Пропорции сняты с references/high.jpg и заданы в долях корпуса, поэтому
- * иконка одинаково честно выглядит и в 22 пикселя, и во весь экран.
- * Те же самые доли повторяет canvas-рендер обоев в wallpaper/render.ts.
+ * Пропорции лежат отдельным модулем batteryGeometry.ts: теми же долями рисуются
+ * canvas-обои (wallpaper/render.ts) и иконки приложения (tools/shots/brand.mjs),
+ * а им компонент со своим CSS не нужен.
  */
 
 import { batteryTheme, batteryTitle } from '../domain/palette';
 import type { BatteryLevel } from '../domain/types';
+import { BATTERY_GEOMETRY, BOLT_PATH } from './batteryGeometry';
 import './BatteryIcon.css';
-
-export const BATTERY_GEOMETRY = {
-  viewWidth: 112,
-  viewHeight: 53,
-  body: { x: 1.4, y: 1.4, w: 100, h: 50, rx: 8.5 },
-  stroke: 2.4,
-  nub: { w: 8.5, h: 22, rx: 3 },
-  cell: { insetX: 7.5, insetY: 6.4, w: 24.8, gap: 5.3, rx: 4 },
-} as const;
 
 const G = BATTERY_GEOMETRY;
 const CELL_Y = G.body.y + G.cell.insetY;
@@ -27,9 +19,6 @@ const CELL_X = (index: number): number => G.body.x + G.cell.insetX + index * (G.
 
 const NUB_Y = G.body.y + (G.body.h - G.nub.h) / 2;
 const NUB_X = G.body.x + G.body.w;
-
-/** Молния поверх залитых ячеек — единственное, что отличает зарядку от полного заряда. */
-const BOLT_PATH = 'M56 9 L38.5 30.5 H49 L46 45 L63.5 23.5 H53 Z';
 
 interface Props {
   level: BatteryLevel;

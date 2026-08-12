@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 
 import { AchievementToast } from './achievements/AchievementToast';
 import { Watcher } from './achievements/Watcher';
+import { BRAND_ASKED } from './brandkit/entry';
 import { BatteryPromptProvider } from './components/BatteryPrompt';
 import { DemoBar } from './components/DemoBar';
 import { AchievementsScreen } from './screens/AchievementsScreen';
@@ -18,6 +19,12 @@ import { modulesOf } from './domain/types';
 import { t, type StringKey } from './i18n';
 import { useStore } from './store/useStore';
 import { backButton, haptics } from './telegram/sdk';
+
+/*
+ * Брендкит грузится отдельным куском: восемнадцать разделов справочника нужны
+ * разработчику раз в неделю, а вес основного бандла платят все и всегда.
+ */
+const BrandKit = lazy(() => import('./brandkit/BrandKit').then((m) => ({ default: m.BrandKit })));
 
 type Tab = 'home' | 'stats' | 'charge' | 'skills' | 'settings';
 
@@ -72,19 +79,34 @@ const TABS: Array<{ id: Tab; labelKey: StringKey; icon: string[] }> = [
 ];
 
 /** Вложенные экраны поверх вкладок. */
-type Overlay = 'edit' | 'presets' | 'achievements' | 'demo' | null;
+type Overlay = 'edit' | 'presets' | 'achievements' | 'demo' | 'brand' | null;
+
+/*
+ * Куда смотрит человек — для панели отладки и только для неё.
+ *
+ * Модульная переменная, а не контекст: панель живёт в отдельном корне React
+ * намеренно, чтобы пережить падение этого дерева, и до контекста ей не
+ * дотянуться. Роутера в приложении нет, второго тут тоже не появляется —
+ * это одна строка присваивания при рендере.
+ */
+let route = 'home';
+
+export function readCurrentRoute(): string {
+  return route;
+}
 
 const OVERLAY_ACTION: Record<Exclude<Overlay, null>, StringKey> = {
   edit: 'common.done',
   presets: 'common.back',
   achievements: 'common.back',
   demo: 'common.back',
+  brand: 'common.back',
 };
 
 export function App(): JSX.Element {
   const { ready, settings } = useStore();
   const [tab, setTab] = useState<Tab>('home');
-  const [overlay, setOverlay] = useState<Overlay>(null);
+  const [overlay, setOverlay] = useState<Overlay>(BRAND_ASKED ? 'brand' : null);
 
   // На вложенном экране системная «назад» возвращает к вкладкам, а не закрывает мини-апп.
   useEffect(() => {
@@ -94,11 +116,14 @@ export function App(): JSX.Element {
 
   const onboarding = !settings.onboarded && settings.priorities.length === 0;
   const modules = modulesOf(settings);
+  route = overlay ?? (onboarding ? 'onboarding' : tab);
   const tabs = TABS.filter((item) => item.id !== 'skills' || modules.skills);
 
-  // Полный сброс возвращает к онбордингу — вложенный экран поверх него не нужен.
+  /* Полный сброс возвращает к онбордингу — вложенный экран поверх него не нужен.
+     Брендкит исключение: его открывают адресом, и на пустом кабинете он нужен
+     ровно так же, как на полном. */
   useEffect(() => {
-    if (onboarding) setOverlay(null);
+    if (onboarding) setOverlay((current) => (current === 'brand' ? current : null));
   }, [onboarding]);
 
   // Выключенный модуль не должен оставить пользователя на исчезнувшей вкладке.
@@ -118,17 +143,8 @@ export function App(): JSX.Element {
     );
   }
 
-  /* Плашка демо стоит и здесь: изнутри демо до онбординга доводит «сбросить
-     кабинет», и оставить гостя там без выхода нельзя. */
-  if (onboarding) {
-    return (
-      <div className="app">
-        <DemoBar />
-        <OnboardingScreen />
-      </div>
-    );
-  }
-
+  /* Вложенный экран стоит выше онбординга: брендкит открывают адресом, и
+     справочник по стилям нужен ровно так же на пустом кабинете, как на полном. */
   if (overlay) {
     return (
       <div className="app">
@@ -137,12 +153,28 @@ export function App(): JSX.Element {
         {overlay === 'presets' && <PresetsScreen onApplied={() => setOverlay(null)} />}
         {overlay === 'achievements' && <AchievementsScreen />}
         {overlay === 'demo' && <DemoScreen />}
+        {overlay === 'brand' && (
+          <Suspense fallback={<span className="wp__spinner" aria-label={t('app.loading')} />}>
+            <BrandKit />
+          </Suspense>
+        )}
         <div className="app__footer">
           <button type="button" onClick={() => setOverlay(null)}>
             {t(OVERLAY_ACTION[overlay])}
           </button>
         </div>
         {modules.achievements && <Watcher />}
+      </div>
+    );
+  }
+
+  /* Плашка демо стоит и здесь: изнутри демо до онбординга доводит «сбросить
+     кабинет», и оставить гостя там без выхода нельзя. */
+  if (onboarding) {
+    return (
+      <div className="app">
+        <DemoBar />
+        <OnboardingScreen />
       </div>
     );
   }
@@ -162,6 +194,7 @@ export function App(): JSX.Element {
             onPresets={() => setOverlay('presets')}
             onAchievements={() => setOverlay('achievements')}
             onDemo={() => setOverlay('demo')}
+            onBrand={() => setOverlay('brand')}
           />
         )}
 

@@ -82,7 +82,7 @@ export function AchievementSheet({ item, gotOn, note, onClose, onMark, onUnmark 
           {item.kind === 'manual' &&
             (gotOn ? (
               <button
-                className="edit__add press"
+                className="btn press"
                 type="button"
                 onClick={() => {
                   haptics.tap();
@@ -93,7 +93,7 @@ export function AchievementSheet({ item, gotOn, note, onClose, onMark, onUnmark 
               </button>
             ) : (
               <button
-                className="edit__add press"
+                className="btn press"
                 type="button"
                 onClick={() => {
                   void (async () => {
@@ -109,7 +109,7 @@ export function AchievementSheet({ item, gotOn, note, onClose, onMark, onUnmark 
             ))}
 
           {gotOn && (
-            <button className="edit__add press achs__gap" type="button" disabled={busy} onClick={share}>
+            <button className="btn press achs__gap" type="button" disabled={busy} onClick={share}>
               {t('ach.share')}
             </button>
           )}

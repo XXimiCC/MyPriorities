@@ -81,7 +81,7 @@ export function DrainSheet({ open, priorities, onAnswer, onSkip }: Props): JSX.E
                 onAnswer(priority.id);
               }}
             >
-              <span className="erow__swatch" />
+              <span className="swatch" />
               {priority.title}
             </button>
           </li>
@@ -113,7 +113,7 @@ export function DrainSheet({ open, priorities, onAnswer, onSkip }: Props): JSX.E
         }}
       >
         <input
-          className="pform__input"
+          className="field"
           type="text"
           value={text}
           maxLength={DRAIN_TEXT_MAX}

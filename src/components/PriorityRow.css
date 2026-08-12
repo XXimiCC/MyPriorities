@@ -1,10 +1,7 @@
 /*
  * Строка приоритета: название и время сверху, под ними неоновая полоса,
- * справа кнопка «+30 минут».
- *
- * Текст намеренно вынесен НАД полосой, а не положен поверх заливки: на ярко-жёлтом
- * или зелёном неоне любая надпись теряет контраст, и полоса перестаёт читаться
- * как чистый цветной прямоугольник из референсов.
+ * справа кнопка «+30 минут». Сама полоса — общий .bar из styles/ui.css: её
+ * повторяют статистика и онбординг.
  */
 
 .prow {
@@ -52,27 +49,6 @@
   color: var(--text-dim);
 }
 
-.prow__track {
-  position: relative;
-  display: block;
-  height: 18px;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--accent) 9%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 26%, transparent);
-  overflow: hidden;
-}
-
-.prow__fill {
-  position: absolute;
-  inset: 0 auto 0 0;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--accent) 0%, var(--accent-soft) 100%);
-  box-shadow:
-    0 0 6px color-mix(in srgb, var(--accent) 75%, transparent),
-    0 0 18px color-mix(in srgb, var(--accent) 45%, transparent);
-  transition: width 0.42s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
 .prow__add {
   position: relative;
   flex: none;
@@ -86,12 +62,9 @@
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
-.prow__add:active {
-  background: color-mix(in srgb, var(--accent) 22%, transparent);
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--accent) 70%, transparent),
-    0 0 14px color-mix(in srgb, var(--accent) 45%, transparent);
-}
+/* Своего :active у кнопки нет: отклик на палец даёт общий .press, и он один на
+   все кнопки приложения. Прежняя вспышка подложкой и свечением выбивалась из
+   ряда — одинаковые по форме кнопки нажимались по-разному. */
 
 .prow__add svg {
   filter: drop-shadow(0 0 5px currentColor);

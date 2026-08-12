@@ -33,8 +33,8 @@ function BarsArt(): JSX.Element {
             className="onb__bar"
             style={{ '--accent': color.hex, '--accent-soft': color.soft } as React.CSSProperties}
           >
-            <span className="prow__track">
-              <span className="prow__fill" style={{ width: `${bar.fill * 100}%` }} />
+            <span className="bar">
+              <span className="bar__fill" style={{ width: `${bar.fill * 100}%` }} />
             </span>
           </div>
         );

@@ -55,7 +55,7 @@ export function EditPrioritiesScreen(): JSX.Element {
                 </span>
 
                 <button className="erow__body" type="button" onClick={() => setEditing(priority)}>
-                  <span className="erow__swatch" />
+                  <span className="swatch" />
                   <span className="erow__title">{priority.title}</span>
                 </button>
 
@@ -112,7 +112,7 @@ export function EditPrioritiesScreen(): JSX.Element {
         </ul>
 
         <button
-          className="edit__add press"
+          className="btn press"
           type="button"
           disabled={atLimit}
           onClick={() => setAdding(true)}
@@ -134,7 +134,7 @@ export function EditPrioritiesScreen(): JSX.Element {
             <ul className="edit__archive">
               {settings.archived.map((priority) => (
                 <li key={priority.id} style={{ '--accent': colorOf(priority.colorId).hex } as React.CSSProperties}>
-                  <span className="erow__swatch" />
+                  <span className="swatch" />
                   {priority.title}
                 </li>
               ))}
@@ -245,7 +245,7 @@ function PriorityForm({
       }}
     >
       <input
-        className="pform__input"
+        className="field"
         value={title}
         maxLength={24}
         autoComplete="off"
@@ -255,7 +255,7 @@ function PriorityForm({
 
       {!hideColor && <ColorPicker value={colorId} onChange={setColorId} />}
 
-      <button className="pform__submit press" type="submit" disabled={!canSubmit}>
+      <button className="btn-accent press" type="submit" disabled={!canSubmit}>
         {submitLabel}
       </button>
     </form>

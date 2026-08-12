@@ -11,5 +11,10 @@ TELEGRAM_BOT_TOKEN=123456:AAHreplace-me
 #   node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
 JWT_SECRET=replace-me
 
-# Куда слать ночной отчёт. Пусто — отчёт просто не отправляется.
+# Куда слать ночной отчёт и уведомления о новых тикетах. Пусто — не шлём.
 REPORT_CHAT_ID=
+
+# Ключ командной строки для тикетов: им `npm run tickets:pull` доказывает, что
+# это свои. В бандл приложения не попадает никогда — у панели другая дверь.
+#   node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"
+DEVKIT_TOKEN=

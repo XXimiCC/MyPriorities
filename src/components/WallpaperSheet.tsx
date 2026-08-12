@@ -128,7 +128,7 @@ function WallpaperMaker({ initialLevel }: { initialLevel: BatteryLevel }): JSX.E
       </div>
 
       <button
-        className="pform__submit press wp__save"
+        className="btn-accent press wp__save"
         type="button"
         disabled={!preview}
         onClick={() => {
@@ -156,7 +156,7 @@ function WallpaperMaker({ initialLevel }: { initialLevel: BatteryLevel }): JSX.E
             <p>{t('wallpaper.manual')}</p>
             <img src={preview.url} alt={t('wallpaper.manualAlt')} />
             <button
-              className="edit__add"
+              className="btn"
               type="button"
               onClick={() => {
                 setManual(false);

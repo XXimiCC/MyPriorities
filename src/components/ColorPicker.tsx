@@ -8,7 +8,7 @@ interface Props {
   onChange(colorId: number): void;
 }
 
-/** Палитра из десяти неоновых цветов. Общая для приоритетов и навыков. */
+/** Палитра из шестнадцати неоновых цветов. Общая для приоритетов и навыков. */
 export function ColorPicker({ value, onChange }: Props): JSX.Element {
   return (
     <div className="picker">

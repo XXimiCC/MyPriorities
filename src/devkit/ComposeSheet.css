@@ -1,0 +1,83 @@
+.dkc {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.dkc__scroll {
+  flex: 1;
+  min-height: 0;
+  padding: 12px;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.dkc__preview {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  background: transparent;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.dkc__preview img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.dkc__warn {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid rgba(255, 120, 120, 0.35);
+  border-radius: 12px;
+  color: #ff8f8f;
+  font-size: 13px;
+}
+
+.dkc__note {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  font: inherit;
+  resize: none;
+}
+
+.dkc__note:focus {
+  outline: none;
+  border-color: #35e0ff;
+}
+
+.dkc__meta,
+.dkc__privacy {
+  margin: 10px 0 0;
+  color: #8a8f98;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.dkc__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  padding-bottom: max(10px, var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dkc__status {
+  flex: 1;
+  color: #8a8f98;
+  font-size: 12px;
+  text-align: center;
+}

@@ -18,6 +18,7 @@ import {
   type ReactNode,
 } from 'react';
 
+import { writeDiagnosticSnapshot } from '../devkitHost';
 import { minuteOfDay, todayKey } from '../domain/date';
 import { nextFreeColorId } from '../domain/palette';
 import { PRESETS } from '../domain/presets';
@@ -948,6 +949,13 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       },
     };
   }, [commit, stamp, queueDoc, scheduleSync, runSync, dropPendingWrites]);
+
+  /* Панель отладки читает состояние отсюда, из модульной ячейки: она живёт в
+     отдельном корне React и до контекста не дотягивается. Уходят только числа —
+     см. devkitHost.ts, там же и объяснение почему. */
+  useEffect(() => {
+    writeDiagnosticSnapshot(state);
+  }, [state]);
 
   const value = useMemo<StoreValue>(
     () => ({ ...state, today, actions }),

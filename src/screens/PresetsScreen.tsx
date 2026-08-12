@@ -71,13 +71,13 @@ export function PresetsScreen({ onApplied, intro = false }: Props): JSX.Element 
               {preview.priorities.map((item, index) => (
                 <li key={item.title} style={{ '--accent': colorOf(item.colorId).hex } as React.CSSProperties}>
                   <span className="ppreview__index">{index + 1}</span>
-                  <span className="erow__swatch" />
+                  <span className="swatch" />
                   {item.title}
                 </li>
               ))}
             </ol>
 
-            <button className="pform__submit press" type="button" onClick={() => apply(preview)}>
+            <button className="btn-accent press ppreview__apply" type="button" onClick={() => apply(preview)}>
               {t('presets.apply')}
             </button>
           </div>

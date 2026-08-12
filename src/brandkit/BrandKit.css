@@ -1,0 +1,521 @@
+/*
+ * Оформление витрины. Ни один из этих классов в приложении не используется и
+ * использоваться не должен: рамка обязана быть скучнее того, что показывает,
+ * иначе образец не отличить от подложки под ним.
+ *
+ * Поэтому здесь нет ни одного неона и почти нет цвета — только поверхности,
+ * волосяные линии и приглушённый текст из тех же токенов.
+ */
+
+.bk {
+  padding-bottom: 40px;
+}
+
+.bk__intro,
+.bk__lead,
+.bk__text {
+  margin: 0 0 12px;
+  font-size: var(--fs-xs);
+  line-height: 1.55;
+  color: var(--text-dim);
+}
+
+.bk__intro {
+  margin: 12px 0 4px;
+}
+
+.bk__section {
+  margin-bottom: 12px;
+}
+
+.bk__block {
+  margin: 16px 0;
+}
+
+.bk__sub {
+  margin-bottom: 8px;
+}
+
+.bk__gap {
+  margin-top: 10px;
+}
+
+/* Снимает верхний отступ у элементов, у которых он есть по умолчанию: внутри
+   витрины они стоят в начале блока, а не следом за списком. */
+.bk__flush {
+  margin-top: 0;
+}
+
+/* --- Полоса разделов --- */
+
+.bk__nav {
+  display: flex;
+  gap: var(--s-2);
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: var(--s-3);
+}
+
+.bk__nav::-webkit-scrollbar {
+  display: none;
+}
+
+.bk__nav-item {
+  flex: none;
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: var(--fs-2xs);
+  white-space: nowrap;
+  color: var(--text-dim);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+.bk__nav-item:active {
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+}
+
+/* --- Образцы --- */
+
+.bk__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--s-3);
+  margin-bottom: var(--s-4);
+}
+
+.bk__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+.bk__item--wide {
+  grid-column: 1 / -1;
+  margin-bottom: var(--s-4);
+}
+
+/* Площадка образца: та же подложка, что у карточек приложения, но без обводки —
+   рамка вокруг рамки читается как часть образца. */
+.bk__stage {
+  display: grid;
+  place-items: center;
+  min-height: 84px;
+  padding: var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  overflow: hidden;
+}
+
+.bk__code {
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-dim);
+  word-break: break-word;
+}
+
+/* Внутри абзаца имя класса — не блок, а слово в строке. */
+.bk__text .bk__code,
+.bk__lead .bk__code,
+.bk__intro .bk__code {
+  display: inline;
+  color: var(--text);
+}
+
+.bk__note {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-faint);
+}
+
+.bk__box {
+  width: 56px;
+  height: 56px;
+  background: var(--surface-2);
+}
+
+.bk__list {
+  display: flex;
+  flex-direction: column;
+}
+
+.bk__swatch-row {
+  display: flex;
+  gap: var(--s-3);
+}
+
+/* --- Справочник «имя — значение» --- */
+
+.bk__facts {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: var(--s-4);
+}
+
+/* Пояснение уходит на свою строку, а не жмётся третьей колонкой: имена
+   ключевых кадров длиннее половины экрана, и в три колонки строка рассыпалась. */
+.bk__fact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px var(--s-3);
+  padding: 9px 12px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+}
+
+.bk__fact code {
+  flex: none;
+  max-width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.bk__fact-value {
+  flex: 1 1 auto;
+  min-width: 40%;
+  font-size: var(--fs-2xs);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--text-dim);
+  word-break: break-word;
+}
+
+.bk__fact small {
+  flex: 1 0 100%;
+  font-size: 11px;
+  text-align: right;
+  color: var(--text-faint);
+}
+
+/* --- Плашка цвета --- */
+
+.bk__color {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  margin-bottom: var(--s-1);
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+}
+
+.bk__color-chip {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--s-3);
+  /* Обводка обязательна: у --bg и --surface нет края, и без неё плашка чёрного
+     цвета выглядела бы дырой в списке, а не образцом. */
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+}
+
+.bk__color-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.bk__color-body code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--fs-2xs);
+  color: var(--text);
+}
+
+.bk__color-value {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+  word-break: break-all;
+}
+
+.bk__color-body small {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.bk__badge {
+  flex: none;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--battery-high);
+  background: color-mix(in srgb, var(--battery-high) var(--tint-bg), transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--battery-high) 30%, transparent);
+}
+
+.bk__badge--off {
+  color: var(--battery-mid);
+  background: color-mix(in srgb, var(--battery-mid) var(--tint-bg), transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--battery-mid) 30%, transparent);
+}
+
+/* --- Подмес акцента --- */
+
+.bk__picker {
+  margin-bottom: var(--s-5);
+}
+
+.bk__tints {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  margin-bottom: var(--s-4);
+}
+
+.bk__tint {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  padding: 8px 12px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+}
+
+.bk__tint code {
+  flex: none;
+  width: 44px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.bk__tint small {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.bk__tint-chip {
+  flex: none;
+  width: 44px;
+  height: 26px;
+  border-radius: var(--s-2);
+}
+
+/* --- Типографика --- */
+
+.bk__type-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-4);
+  padding: 8px 12px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  margin-bottom: 2px;
+}
+
+.bk__type-sample {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.2;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bk__type-row code {
+  flex: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.bk__type-size {
+  flex: none;
+  width: 42px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--text-faint);
+}
+
+/* --- Движение --- */
+
+.bk__moves {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  margin: var(--s-4) 0;
+}
+
+.bk__move {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+}
+
+.bk__move-track {
+  position: relative;
+  flex: none;
+  width: 92px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+.bk__move-dot {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  animation: bk-move var(--bk-duration) var(--bk-ease) both;
+}
+
+@keyframes bk-move {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(78px);
+  }
+}
+
+.bk__move code {
+  flex: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: var(--text);
+}
+
+.bk__move-value {
+  flex: none;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+}
+
+.bk__move small {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  text-align: right;
+  color: var(--text-faint);
+}
+
+/* --- Значки --- */
+
+.bk__icons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  margin-bottom: var(--s-3);
+}
+
+.bk__icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+.bk__icon svg {
+  width: 24px;
+  height: 24px;
+  filter: drop-shadow(0 0 5px currentColor);
+}
+
+/* --- Тон голоса --- */
+
+.bk__voice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+
+.bk__voice b {
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  color: var(--text);
+}
+
+.bk__voice-good,
+.bk__voice-bad {
+  display: flex;
+  gap: var(--s-3);
+  font-size: var(--fs-2xs);
+  line-height: 1.4;
+}
+
+.bk__voice-good::before {
+  content: 'так';
+  flex: none;
+  width: 52px;
+  font-size: 9px;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  color: var(--battery-high);
+}
+
+.bk__voice-good {
+  color: var(--text);
+}
+
+.bk__voice-bad::before {
+  content: 'не так';
+  flex: none;
+  width: 52px;
+  font-size: 9px;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  color: var(--battery-low);
+}
+
+.bk__voice-bad {
+  color: var(--text-faint);
+  text-decoration: line-through;
+  text-decoration-color: var(--text-faint);
+}
+
+/* --- Плашка достижения на витрине ---
+   У настоящей плашки position: fixed — она обязана висеть над таб-баром. Здесь
+   она нужна лежащей в потоке, поэтому показывается только сама табличка. */
+
+.bk__toast {
+  position: relative;
+  margin-bottom: var(--s-3);
+}
+
+/* --- Нативные поля --- */
+
+.bk__native {
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: var(--r-sm);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  outline: none;
+}

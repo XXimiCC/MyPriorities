@@ -93,7 +93,7 @@ export function DayBars({ breakdown, blockMinutes }: Props): JSX.Element {
                   key={segment.priority.id}
                   style={{ '--accent': colorOf(segment.priority.colorId).hex } as React.CSSProperties}
                 >
-                  <span className="erow__swatch" />
+                  <span className="swatch" />
                   <span className="dbars__name">{segment.priority.title}</span>
                   <span className="dbars__time">
                     {formatHoursCompact(segment.blocks * blockMinutes)}

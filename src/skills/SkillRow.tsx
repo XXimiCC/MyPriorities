@@ -50,8 +50,8 @@ export const SkillRow = memo(function SkillRow({
           <span className="srow__level">{levelTitle(progress.level)}</span>
         </span>
 
-        <span className="srow__track">
-          <span className="srow__fill" style={{ width: `${progress.fraction * 100}%` }} />
+        <span className="bar bar--thin">
+          <span className="bar__fill" style={{ width: `${progress.fraction * 100}%` }} />
         </span>
 
         {/* Полоса дней идёт сразу под полосой прогресса: одна отвечает «сколько

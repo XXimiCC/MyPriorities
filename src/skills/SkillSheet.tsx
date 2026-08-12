@@ -210,7 +210,7 @@ function SkillDetails({
       </div>
 
       <input
-        className="pform__input"
+        className="field"
         value={title}
         maxLength={24}
         autoComplete="off"
@@ -280,7 +280,7 @@ function SkillDetails({
               style={{ '--accent': colorOf(priority.colorId).hex } as React.CSSProperties}
               onClick={() => onLink(priority.id)}
             >
-              <span className="erow__swatch" />
+              <span className="swatch" />
               <span>{priority.title}</span>
               {heldBy && <small>{t('skills.linkTaken', { skill: heldBy })}</small>}
             </button>
@@ -293,7 +293,7 @@ function SkillDetails({
         {total.blocks > 0 && ` ${count('block', total.blocks)} — ${formatHoursCompact(total.blocks * blockMinutes)}.`}
       </p>
 
-      <button className="sksheet__delete press" type="button" onClick={onDelete}>
+      <button className="btn-danger sksheet__delete press" type="button" onClick={onDelete}>
         {t('skills.delete')}
       </button>
     </div>

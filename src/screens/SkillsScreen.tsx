@@ -263,7 +263,7 @@ export function SkillsScreen(): JSX.Element {
         )}
 
         <button
-          className="edit__add press"
+          className="btn press"
           type="button"
           disabled={atLimit}
           onClick={() => setAdding(true)}
@@ -440,7 +440,7 @@ function AddSkillForm({
         </label>
       ) : (
         <input
-          className="pform__input"
+          className="field"
           value={title}
           maxLength={24}
           autoComplete="off"
@@ -465,7 +465,7 @@ function AddSkillForm({
       </label>
       <p className="sksheet__note">{t('skills.baseNote')}</p>
 
-      <button className="pform__submit press" type="submit" disabled={!canSubmit}>
+      <button className="btn-accent press" type="submit" disabled={!canSubmit}>
         {t('common.add')}
       </button>
     </form>

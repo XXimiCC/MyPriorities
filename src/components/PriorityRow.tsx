@@ -51,8 +51,8 @@ export const PriorityRow = memo(function PriorityRow({
           <span className="prow__value">{stat.minutes > 0 ? formatHoursCompact(stat.minutes) : '—'}</span>
         </span>
 
-        <span className="prow__track">
-          <span className="prow__fill" style={{ width: `${stat.fill * 100}%` }} />
+        <span className="bar">
+          <span className="bar__fill" style={{ width: `${stat.fill * 100}%` }} />
         </span>
       </button>
 

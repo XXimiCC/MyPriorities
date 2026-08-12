@@ -11,6 +11,7 @@
  */
 
 import { compactAll } from './compact';
+import { countOpenTickets, purgeOldTickets } from './devkit';
 import type { Env } from './env';
 import { sendMessage } from './telegram';
 
@@ -26,6 +27,8 @@ export interface Usage {
   snapshots: number;
   /** Оценка по числу строк: точного размера D1 изнутри не отдаёт. */
   estimatedBytes: number;
+  /** Сколько тикетов из панели отладки ждёт разбора. */
+  openTickets: number;
 }
 
 /** Средний вес строки журнала с индексами. Проверяется по факту, а не гадается вечно. */
@@ -38,11 +41,12 @@ export async function collectUsage(env: Env): Promise<Usage> {
     return Number(row?.n ?? 0);
   };
 
-  const [users, devices, ops, snapshots] = await Promise.all([
+  const [users, devices, ops, snapshots, openTickets] = await Promise.all([
     one('select count(*) as n from profiles'),
     one('select count(*) as n from devices'),
     one('select count(*) as n from ops'),
     one('select count(*) as n from month_snapshots'),
+    countOpenTickets(env),
   ]);
 
   return {
@@ -51,6 +55,7 @@ export async function collectUsage(env: Env): Promise<Usage> {
     ops,
     snapshots,
     estimatedBytes: ops * BYTES_PER_OP + snapshots * BYTES_PER_SNAPSHOT,
+    openTickets,
   };
 }
 
@@ -70,6 +75,9 @@ export function formatReport(usage: Usage): string {
     `Занято примерно ${mb(usage.estimatedBytes)} из 5 ГБ (${(share * 100).toFixed(1)} %)`,
   ];
   if (usage.users > 0) lines.push(`На человека — около ${(perUser / 1024).toFixed(0)} КБ`);
+  // Строка появляется только когда есть о чём говорить: «тикетов 0» каждую ночь
+  // приучает не читать отчёт целиком.
+  if (usage.openTickets > 0) lines.push(`Тикетов открыто: ${usage.openTickets}`);
   if (share >= WARN_AT) {
     lines.push('', 'Пора включать свёртку журнала или расширять тариф.');
   }
@@ -89,6 +97,17 @@ export async function runNightlyMaintenance(env: Env): Promise<void> {
   } catch (error) {
     console.warn('[compact] свёртка не удалась', error);
   }
+
+  /* Кадры гасит сам KV по сроку хранения, здесь остаются строки. Уборка стоит
+     рядом со свёрткой намеренно: и то и другое — про то, чтобы база не росла
+     вечно, и разносить их по разным местам значит однажды забыть про одно. */
+  try {
+    const gone = await purgeOldTickets(env);
+    if (gone > 0) console.info(`[devkit] убрано старых тикетов: ${gone}`);
+  } catch (error) {
+    console.warn('[devkit] уборка тикетов не удалась', error);
+  }
+
   await runNightlyReport(env);
 }
 

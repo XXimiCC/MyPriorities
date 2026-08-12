@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "wrangler dev --local",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
-    "db:local": "wrangler d1 execute mypri --local --file=migrations/0001_init.sql",
-    "db:remote": "wrangler d1 execute mypri --remote --file=migrations/0001_init.sql",
+    "db:local": "wrangler d1 migrations apply mypri --local",
+    "db:remote": "wrangler d1 migrations apply mypri --remote",
     "chat-id": "node scripts/chat-id.mjs",
     "deploy": "wrangler deploy"
   },

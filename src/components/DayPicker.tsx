@@ -4,6 +4,7 @@ import { addDays, dayKey, formatDayShort, todayKey, weekdayShort } from '../doma
 import type { DayKey } from '../domain/types';
 import { t } from '../i18n';
 import { haptics } from '../telegram/sdk';
+import { revealInStrip } from './strip';
 import './DayPicker.css';
 
 interface Props {
@@ -59,7 +60,10 @@ export function DayPicker({ value, hasEntries, onChange }: Props): JSX.Element {
             type="button"
             aria-selected={day === value}
             className={`dpick__day${marked ? ' dpick__day--marked' : ''}`}
-            onClick={() => {
+            onClick={(event) => {
+              // Сначала лента, потом выбор: подрезанный краем день надо
+              // довести до видимости, даже если он уже выбран.
+              revealInStrip(event.currentTarget);
               if (day === value) return;
               haptics.select();
               onChange(day);

@@ -99,7 +99,7 @@ function ShiftForm({
       </ul>
 
       <button
-        className="pform__submit press"
+        className="btn-accent press"
         type="button"
         disabled={minute === undefined}
         onClick={() => {
@@ -113,7 +113,7 @@ function ShiftForm({
 
       {shift.at !== undefined && (
         <button
-          className="bshift__delete press"
+          className="btn-danger press"
           type="button"
           onClick={() => {
             haptics.warning();

@@ -1,0 +1,269 @@
+/*
+ * Общий слой: рецепты, которые уже де-факто были общими, но лежали в чужих
+ * файлах. Кнопка «Добавить» жила в стилях экрана правки приоритетов, а нажимали
+ * её в настройках, заряде, достижениях и навыках; поле ввода звалось
+ * .pform__input и стояло в четырёх местах, из которых форма приоритета — одно.
+ * Из-за порядка загрузки соседям приходилось поднимать специфичность
+ * (.achs .edit__add, .ppreview .pform__submit, .app__body .charge__wallpaper) —
+ * то есть бороться со своим же общим слоем.
+ *
+ * Этот файл подключается сразу после токенов и раньше всех стилей компонентов
+ * (см. global.css) — значит, любой экран переопределяет его обычным классом,
+ * без утяжеления селектора.
+ *
+ * Компонентов здесь нет намеренно: у приложения нет ни <Button>, ни <Input>, и
+ * заводить их ради двух свойств значило бы прятать разметку за обёрткой. Класс
+ * на <button> честнее и виден в брендките как есть.
+ */
+
+/* --- Кнопки ---
+ *
+ * Три отдельных класса, а не .btn с модификаторами: посадка у них разная.
+ * У широкой есть верхний отступ (она всегда завершает список), у главной его
+ * нет (она стоит в колонке формы, где зазор задаёт родитель), — и запись
+ * «btn btn--accent» добавляла бы шестнадцать лишних пикселей там, где их быть
+ * не должно. Один класс на кнопку, как и было.
+ */
+
+/* Вторичная широкая кнопка: «Добавить приоритет», «Выгрузить», «Обои». */
+.btn {
+  width: 100%;
+  margin-top: var(--s-5);
+  padding: 15px;
+  border-radius: var(--r-md);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+}
+
+.btn:disabled {
+  color: var(--text-faint);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+/*
+ * Главное действие формы: единственная сплошная заливка в приложении.
+ *
+ * Текст тёмный, потому что заливка — неон, и белое по неону не читается ни на
+ * одном из шестнадцати цветов палитры. Но не чистый чёрный: плоский #000 на
+ * светящейся плашке выглядит вырезанной в ней дырой. Подмешанные к нему
+ * двадцать процентов самого акцента дают буквам ту же температуру, что и фон
+ * под ними, — контраст остаётся предельным, а кнопка перестаёт быть аппликацией.
+ *
+ * Заливка чуть темнеет книзу, и сверху её обводит светлая волосяная линия: это
+ * не украшение, а объём. Ровный прямоугольник неона в интерфейсе, где всё
+ * остальное — контуры на чёрном, читался как засвеченное место, а не как
+ * предмет, который можно нажать.
+ */
+.btn-accent {
+  width: 100%;
+  padding: 15px;
+  border-radius: var(--r-md);
+  font-size: var(--fs-body);
+  font-weight: var(--fw-semibold);
+  color: color-mix(in srgb, var(--accent) 20%, #000);
+  background: linear-gradient(
+    180deg,
+    var(--accent) 0%,
+    color-mix(in srgb, var(--accent) 86%, #000) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    0 0 24px color-mix(in srgb, var(--accent) var(--tint-line), transparent);
+}
+
+.btn-accent:disabled {
+  color: var(--text-faint);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+/*
+ * Опасное действие: красным подсвечен только контур. Сплошная заливка на чёрном
+ * читается как основное действие, а это последнее, что стоит нажимать случайно.
+ */
+.btn-danger {
+  width: 100%;
+  padding: 13px;
+  border-radius: var(--r-md);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--battery-low);
+  background: color-mix(in srgb, var(--battery-low) 7%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--battery-low) 34%, transparent);
+}
+
+.btn-danger:disabled {
+  opacity: 0.5;
+}
+
+/* Вариант с подписью: «Стереть историю» и «Стереть всё» объясняют себя второй
+   строкой — без неё разница между ними стоила бы пользователю данных. */
+.btn-danger--stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  margin-bottom: 10px;
+  padding: 14px 16px;
+  text-align: left;
+  /* Вес возвращается к обычному: полужирным здесь набран только заголовок, а
+     унаследованные от .btn-danger шестьсот делали подпись шире строки, и она
+     переносилась на второе слово. */
+  font-weight: var(--fw-regular);
+}
+
+.btn-danger--stack b {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.btn-danger--stack small {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--text-faint);
+}
+
+/* --- Поле ввода --- */
+
+.field {
+  width: 100%;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: var(--r-md);
+  font-size: var(--fs-input); /* меньше 16px — и iOS зумит страницу при фокусе */
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+  outline: none;
+}
+
+.field:focus {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+.field::placeholder {
+  color: var(--text-faint);
+}
+
+/* --- Строка-переход: значок, две строки текста, шеврон справа --- */
+
+.navrow {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  padding: 14px 16px;
+  border-radius: var(--r-md);
+  text-align: left;
+  color: var(--text-faint);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+/* Значок слева. Подсвечен, чтобы строку было видно среди одинаковых по форме
+   тумблеров: перехода в списке переключателей иначе никто не замечает. */
+.navrow__icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-sm);
+  color: var(--battery-mid);
+  background: color-mix(in srgb, var(--battery-mid) var(--tint-bg-on), transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--battery-mid) 34%, transparent);
+}
+
+.navrow__icon svg {
+  width: 19px;
+  height: 19px;
+  filter: drop-shadow(0 0 5px currentColor);
+}
+
+.navrow__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.navrow__text b {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text);
+}
+
+.navrow__text small {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--text-faint);
+}
+
+/* --- Полоса заполнения ---
+ *
+ * Текст всегда стоит НАД полосой, а не поверх заливки: на ярко-жёлтом или
+ * зелёном неоне любая надпись теряет контраст, и полоса перестаёт читаться как
+ * чистый цветной прямоугольник из референсов.
+ */
+
+.bar {
+  position: relative;
+  display: block;
+  height: 18px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) var(--tint-bg), transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 26%, transparent);
+  overflow: hidden;
+}
+
+.bar__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent) 0%, var(--accent-soft) 100%);
+  box-shadow:
+    0 0 6px color-mix(in srgb, var(--accent) 75%, transparent),
+    0 0 18px color-mix(in srgb, var(--accent) var(--tint-glow), transparent);
+  transition: width var(--t-fill) var(--ease-move);
+}
+
+/* Тонкий вариант — у навыка. Дальнее свечение снято: строка навыка ниже строки
+   приоритета, и ореол в восемнадцать пикселей заливал бы соседние строки. */
+.bar--thin {
+  height: var(--s-3);
+  border-radius: 4px;
+}
+
+.bar--thin .bar__fill {
+  box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 75%, transparent);
+}
+
+/* --- Мелочи --- */
+
+/* Точка цвета приоритета. Стоит там, где название приоритета названо, но полосы
+   рядом нет: список расходов, разбор дня, состав набора, связки навыка. */
+.swatch {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+}
+
+/* Пояснение под блоком: тише основного текста и всегда после того, что поясняет. */
+.note {
+  margin: var(--s-4) 2px 0;
+  font-size: var(--fs-2xs);
+  line-height: 1.5;
+  color: var(--text-faint);
+}
+
+/* Жёлтый — цвет «обратите внимание», не «ошибка»: красный в приложении занят
+   низким зарядом и опасными кнопками. */
+.warn {
+  color: var(--battery-mid);
+}

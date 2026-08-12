@@ -45,24 +45,7 @@
   color: var(--accent);
 }
 
-.srow__track {
-  position: relative;
-  display: block;
-  height: 8px;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--accent) 9%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 26%, transparent);
-  overflow: hidden;
-}
-
-.srow__fill {
-  position: absolute;
-  inset: 0 auto 0 0;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--accent) 0%, var(--accent-soft) 100%);
-  box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 75%, transparent);
-  transition: width 0.42s cubic-bezier(0.22, 1, 0.36, 1);
-}
+/* Полоса навыка — общий .bar.bar--thin из styles/ui.css. */
 
 .srow__foot {
   display: flex;
@@ -101,12 +84,7 @@
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
-.srow__add:active {
-  background: color-mix(in srgb, var(--accent) 22%, transparent);
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--accent) 70%, transparent),
-    0 0 14px color-mix(in srgb, var(--accent) 45%, transparent);
-}
+/* Как и у .prow__add: отклик даёт общий .press, своего :active нет. */
 
 .srow__add svg {
   filter: drop-shadow(0 0 5px currentColor);

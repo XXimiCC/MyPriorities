@@ -1,0 +1,728 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="color-scheme" content="dark" />
+
+    <title>Мои Приоритеты — узнай, куда на самом деле уходит твоя жизнь</title>
+    <meta
+      name="description"
+      content="Через 7 дней ты увидишь, как живёшь и что на самом деле является твоим главным приоритетом. Без регистрации и смс."
+    />
+    <link rel="canonical" href="{{SELF}}/" />
+
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- og:image и og:url обязаны быть абсолютными, иначе превью не соберётся. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="ru_RU" />
+    <meta property="og:site_name" content="Мои Приоритеты" />
+    <meta property="og:title" content="Узнай, куда на самом деле уходит твоя жизнь" />
+    <meta
+      property="og:description"
+      content="Через 7 дней ты увидишь, как живёшь и что на самом деле является твоим главным приоритетом."
+    />
+    <meta property="og:url" content="{{SELF}}/" />
+    <meta property="og:image" content="{{SELF}}/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <link rel="stylesheet" href="/src/tokens.css" />
+    <link rel="stylesheet" href="/src/landing.css" />
+    <script type="module" src="/src/demo.js"></script>
+    <script type="module" src="/src/mini.js"></script>
+    <script type="module" src="/src/motion.js"></script>
+
+    <!--
+      Панель отладки: Ctrl+Shift+Q показывает значок, значок открывает панель.
+      Собирается заранее (`npm run devkit:sync`) и лежит в public/ — каталог
+      src/ приложения в этот проект Vercel не доезжает. Около трёх килобайт
+      сжатыми; всё тяжёлое приезжает только при первом открытии.
+    -->
+    <script
+      type="module"
+      src="/devkit/devkit.js"
+      data-devkit-url="{{DEVKIT}}"
+      data-devkit-app="landing"
+    ></script>
+  </head>
+
+  <body>
+    <a class="skip-link" href="#main">К содержанию</a>
+
+    <!-- Свечение за содержимым. Декорация, поэтому пустой div, а не картинка. -->
+    <div class="aurora" aria-hidden="true"></div>
+
+    <header class="top">
+      <div class="wrap top__inner">
+        <a class="top__brand" href="#main" aria-label="Мои Приоритеты">
+          <svg class="mark" viewBox="0 0 112 53" aria-hidden="true" focusable="false">
+            <use href="#bat-3" />
+          </svg>
+          <span>Мои&nbsp;Приоритеты</span>
+        </a>
+
+        <nav class="top__nav">
+          <a class="top__tg" href="{{BOT}}" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                d="M9.04 15.35 8.87 19c.5 0 .72-.22.98-.48l2.35-2.25 4.87 3.57c.9.5 1.53.24 1.77-.83l3.21-15.05c.29-1.33-.48-1.85-1.35-1.53L1.6 9.32c-1.3.5-1.28 1.22-.22 1.55l4.95 1.54L17.8 5.6c.54-.36 1.03-.16.63.2z"
+                fill="currentColor"
+              />
+            </svg>
+            <span>@MyMainPriorityBot</span>
+          </a>
+          <a class="btn btn--enter press" href="{{APP}}/">Войти</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <!-- ── 1. Герой ─────────────────────────────────────────────────── -->
+      <section class="hero wrap" data-reveal>
+        <!--
+          Неоновое поле за героем: сетка волосяных линий, которая видна только
+          там, куда наведён курсор, плюс зелёное пятно за ним. Координаты ведёт
+          motion.js через --px/--py; без указателя пятно медленно ходит само.
+        -->
+        <div class="field" data-field aria-hidden="true">
+          <div class="field__grid"></div>
+          <div class="field__glow"></div>
+        </div>
+
+        <div class="hero__text">
+          <p class="eyebrow">Приложение: Мои Приоритеты</p>
+          <h1 class="hero__title">Узнай куда на&nbsp;самом деле уходит твоя жизнь</h1>
+          <p class="hero__lead">
+            Через 7 дней ты увидишь как живёшь и что на самом деле является твоим главным
+            приоритетом
+          </p>
+
+          <div class="hero__actions">
+            <a class="btn btn--go btn--big press" href="{{APP}}/">Попробовать бесплатно</a>
+          </div>
+
+          <p class="hero__note">Без регистрации и СМС :)</p>
+        </div>
+
+        <!--
+          Два разных демо, и это не дублирование.
+
+          На широком экране — рамка телефона с настоящим приложением во фрейме
+          (src/demo.js). В рамку идёт ?mock=max, а не ?demo=max: данные те же,
+          но без плашки «Демо · Выйти», которая внутри рамки уводила бы в пустое
+          приложение с онбордингом. Ссылка наружу, наоборот, ?demo= — там плашка
+          и есть способ вернуться.
+
+          На телефоне фрейма нет вовсе. Вложенная прокручиваемая область на
+          сенсорном экране забирает жест себе, и страница перестаёт скроллиться
+          пальцем — платить этим за встроенное приложение нельзя. Вместо него
+          свой маленький пример на четыре приоритета: он помещается в один
+          экран, тапается по-настоящему и показывает главное правило продукта —
+          полоса меряется относительно лидера, а не суток. Живое приложение
+          остаётся одной ссылкой ниже.
+        -->
+        <div class="slot" data-demo-frame data-src="{{APP}}/?mock=max" data-away="{{APP}}/?demo=max">
+          <div class="phone">
+            <div class="phone__screen">
+              <img
+                class="phone__poster"
+                src="/shots/home-today.png"
+                width="390"
+                height="844"
+                alt="Главный экран: список приоритетов с неоновыми полосами за сегодня"
+                fetchpriority="high"
+              />
+              <div class="phone__veil">
+                <span class="phone__spinner"></span>
+                <p class="phone__hint">Поднимаю живое приложение…</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Компактный пример для телефона. Значения ведёт src/mini.js. -->
+          <div class="mini" data-mini>
+            <p class="mini__head">
+              <span class="mini__eyebrow">Сегодня</span>
+              <span class="mini__sum" data-mini-sum></span>
+            </p>
+
+            <div class="mini__rows">
+              <div class="mini__row" data-mini-row data-title="Работа" data-blocks="4" style="--accent: var(--p5); --accent-soft: #ff5f6b"></div>
+              <div class="mini__row" data-mini-row data-title="Семья" data-blocks="2" style="--accent: var(--p0); --accent-soft: #6bf58f"></div>
+              <div class="mini__row" data-mini-row data-title="Здоровье" data-blocks="1" style="--accent: var(--p1); --accent-soft: #8df0ff"></div>
+              <div class="mini__row" data-mini-row data-title="Своё" data-blocks="0" style="--accent: var(--p7); --accent-soft: #ffe23f"></div>
+            </div>
+
+            <p class="mini__foot">
+              <span data-mini-hint>Нажми «+» — это полчаса твоей жизни</span>
+              <button class="slot__link" type="button" data-mini-reset hidden>↻ Заново</button>
+            </p>
+          </div>
+
+          <!-- Под рамкой, а не в ней: внутри кнопки накрывали бы панель вкладок. -->
+          <p class="slot__under" data-demo-after hidden>
+            <button class="slot__link" type="button" data-demo-reload>↻ Заново</button>
+            <a class="slot__link" href="{{APP}}/?demo=max" target="_blank" rel="noopener">
+              Во весь экран ↗
+            </a>
+          </p>
+
+          <p class="slot__away">
+            <a href="{{APP}}/?demo=max" target="_blank" rel="noopener">
+              Открыть полную версию ↗
+            </a>
+          </p>
+        </div>
+      </section>
+
+      <!-- ── 2. Проверка реальности ───────────────────────────────────── -->
+      <section class="wrap section" data-reveal>
+        <p class="divider-label"><span>Зачем это вообще</span></p>
+        <h2 class="section__title">Сделай проверку своей реальности</h2>
+        <p class="section__lead">
+          Узнай на что реально ты тратишь время, что забирает и даёт энергию, и какие навыки ты
+          реально прокачиваешь. Научись фокусироваться на главном.
+        </p>
+
+        <div class="pains">
+          <article class="pain" style="--accent: var(--p5); --accent-soft: #ff5f6b">
+            <p class="pain__q">«Год прошёл, а на что — непонятно»</p>
+            <p class="pain__a">
+              Планы врут, отметки — нет. Ты думаешь, что живёшь ради семьи, а неделя отметок
+              показывает, что две трети ушло в работу. Это не упрёк, это цифра, которую нельзя
+              переспорить.
+            </p>
+          </article>
+
+          <article class="pain" style="--accent: var(--p6); --accent-soft: #ffab6b">
+            <p class="pain__q">«Устал, а от чего — не вспомнить»</p>
+            <p class="pain__a">
+              Четыре часа работы на полном заряде и четыре часа на нуле — это разные четыре часа.
+              Приложение спрашивает, что посадило батарею, и через месяц у тебя список: каждый раз
+              одно и то же.
+            </p>
+          </article>
+
+          <article class="pain" style="--accent: var(--p3); --accent-soft: #c9a5ff">
+            <p class="pain__q">«Вложены годы, а гордиться нечем»</p>
+            <p class="pain__a">
+              Если замечать пройденное, идти становится легче. Часы, вложенные в навык, перестают
+              быть ощущением и становятся ступенью, до следующей — конкретное число.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <!-- ── 3. В чём идея ────────────────────────────────────────────── -->
+      <section class="wrap section" data-reveal>
+        <p class="divider-label"><span>Замысел</span></p>
+        <h2 class="section__title">В чём идея приложения</h2>
+        <p class="section__lead">
+          Отмечай, куда инвестируешь время и энергию. Через неделю получишь картину и первые
+          выводы, настроишь по ним свою жизнь и начнёшь двигаться туда, куда действительно хотел.
+          Через месяц вернёшься — и настроишь заново.
+        </p>
+
+        <!--
+          Цикл, а не список: последний шаг возвращает к первому, и именно это в
+          продукте главное. Разовая проверка ничего не меняет — меняет привычка
+          возвращаться к ней.
+        -->
+        <ol class="loop">
+          <li class="loop__step" style="--accent: var(--p0)">
+            <span class="loop__n">1</span>
+            <h3 class="loop__title">Отмечай</h3>
+            <p class="loop__text">
+              Куда ушли полчаса, какой сейчас заряд, чем занимался по навыку. Один тап на событие —
+              ничего заполнять не нужно.
+            </p>
+          </li>
+          <li class="loop__step" style="--accent: var(--p1)">
+            <span class="loop__n">2</span>
+            <h3 class="loop__title">Получай инсайты</h3>
+            <p class="loop__text">
+              Через 7 дней видно картину: где перекос, что забирает энергию, где ты на самом деле
+              растёшь. Не мнение — твои же цифры.
+            </p>
+          </li>
+          <li class="loop__step" style="--accent: var(--p7)">
+            <span class="loop__n">3</span>
+            <h3 class="loop__title">Настраивай жизнь</h3>
+            <p class="loop__text">
+              Меняешь не приложение, а расклад: убираешь то, что съедает без отдачи, и добавляешь
+              то, ради чего всё затевалось.
+            </p>
+          </li>
+          <li class="loop__step" style="--accent: var(--p3)">
+            <span class="loop__n">4</span>
+            <h3 class="loop__title">Достигай нового</h3>
+            <p class="loop__text">
+              Направление стало твоим, а не случайным. Навыки поднимаются по ступеням, энергия
+              перестаёт уходить в никуда.
+            </p>
+          </li>
+        </ol>
+
+        <p class="loop__again">
+          ↺ Через месяц — повторный анализ и новая настройка приоритетов. Жизнь меняется, расклад
+          должен меняться вместе с ней
+        </p>
+
+        <h3 class="section__sub">За 7–30 дней ты ответишь себе на четыре вопроса</h3>
+
+        <div class="asks">
+          <article class="ask" style="--accent: var(--p5)">
+            <p class="ask__q">На что я реально трачу своё время?</p>
+            <p class="ask__a">
+              Полосы по направлениям за день, неделю и месяц. Лидер всегда во всю ширину, поэтому
+              перекос виден без подсчётов.
+            </p>
+          </article>
+
+          <article class="ask" style="--accent: var(--p6)">
+            <p class="ask__q">Что забирает энергию, а что её даёт?</p>
+            <p class="ask__a">
+              Каждый раз, когда ты уходишь «на нуль», приложение спрашивает почему. Через месяц
+              ответы складываются в список — и сверху обычно одна и та же строка.
+            </p>
+          </article>
+
+          <article class="ask" style="--accent: var(--battery-charge)">
+            <p class="ask__q">Сколько у меня энергии в течение дня и как она меняется?</p>
+            <p class="ask__a">
+              Сколько часов ты прожил в каждом состоянии, во сколько обычно садится батарея и как
+              менялся средний заряд от недели к неделе.
+            </p>
+          </article>
+
+          <article class="ask" style="--accent: var(--p3)">
+            <p class="ask__q">Какими навыками я обладаю и на каком уровне?</p>
+            <p class="ask__a">
+              Ступень от новичка до мастера по каждому навыку, накопленные часы и темп за 30 дней —
+              включая те годы, что были до приложения.
+            </p>
+          </article>
+        </div>
+
+        <!--
+          Полоса приоритета вживую, а не картинкой: самый узнаваемый элемент
+          продукта. Ширина лежит в data-width, а не в style, потому что её
+          заполняет motion.js в момент, когда блок доезжает до экрана —
+          заполнение и есть демонстрация правила «относительно лидера». Без
+          скрипта и при prefers-reduced-motion полосы рисуются сразу полными.
+        -->
+        <figure class="bars" data-bars>
+          <div class="bar" style="--accent: var(--p5); --accent-soft: #ff5f6b">
+            <span class="bar__name">Работа</span>
+            <span class="bar__track"><span class="bar__fill" data-width="100"></span></span>
+            <span class="bar__value">48 ч</span>
+          </div>
+          <div class="bar" style="--accent: var(--p0); --accent-soft: #6bf58f">
+            <span class="bar__name">Семья</span>
+            <span class="bar__track"><span class="bar__fill" data-width="41"></span></span>
+            <span class="bar__value">12 ч</span>
+          </div>
+          <div class="bar" style="--accent: var(--p1); --accent-soft: #8df0ff">
+            <span class="bar__name">Хобби</span>
+            <span class="bar__track"><span class="bar__fill" data-width="16"></span></span>
+            <span class="bar__value">2 ч</span>
+          </div>
+          <div class="bar" style="--accent: var(--p7); --accent-soft: #ffe23f">
+            <span class="bar__name">Здоровье</span>
+            <span class="bar__track"><span class="bar__fill" data-width="8"></span></span>
+            <span class="bar__value">30 мин</span>
+          </div>
+          <figcaption>Обычная неделя. Перекос видно без объяснений</figcaption>
+        </figure>
+
+        <p class="creed">
+          Движение к целям теперь реально видно.
+        </p>
+      </section>
+
+      <!-- ── 4. Четыре состояния ──────────────────────────────────────── -->
+      <section class="wrap section" data-reveal>
+        <p class="divider-label"><span>Личная энергия</span></p>
+        <h2 class="section__title">Четыре состояния</h2>
+        <p class="section__lead">
+          Сколько реально у тебя энергии в течение дня и что именно эту энергию забирает?
+        </p>
+
+        <div class="levels">
+          <article class="level" style="--accent: var(--battery-high); --accent-soft: #6bf58f">
+            <svg class="level__mark" viewBox="0 0 112 53" aria-hidden="true"><use href="#bat-3" /></svg>
+            <p class="level__label">HIGH</p>
+            <h3 class="level__title">Полный заряд</h3>
+            <p class="level__text">Есть силы на сложное. Берись за то, что требует головы.</p>
+          </article>
+
+          <article class="level" style="--accent: var(--battery-mid); --accent-soft: #ffe23f">
+            <svg class="level__mark" viewBox="0 0 112 53" aria-hidden="true"><use href="#bat-2" /></svg>
+            <p class="level__label">MEDIUM</p>
+            <h3 class="level__title">Средний</h3>
+            <p class="level__text">Рабочее состояние. Тянешь рутину, но не подвиги.</p>
+          </article>
+
+          <article class="level" style="--accent: var(--battery-low); --accent-soft: #ff5f6b">
+            <svg class="level__mark" viewBox="0 0 112 53" aria-hidden="true"><use href="#bat-1" /></svg>
+            <p class="level__label">LOW</p>
+            <h3 class="level__title">На нуле</h3>
+            <p class="level__text">Ресурс кончился. Всё, что сейчас делается, делается через силу.</p>
+          </article>
+
+          <article class="level" style="--accent: var(--battery-charge); --accent-soft: #8df0ff">
+            <svg class="level__mark" viewBox="0 0 112 53" aria-hidden="true"><use href="#bat-4" /></svg>
+            <p class="level__label">CHARGING</p>
+            <h3 class="level__title">Заряжаюсь</h3>
+            <p class="level__text">Восстанавливаешься: сон, тишина, прогулка, ничегонеделание.</p>
+          </article>
+        </div>
+
+        <p class="creed">
+          Каждый раз, когда ты уходишь «на нуль», приложение спрашивает: что съело энергию? Через
+          месяц ответы складываются в список, и обычно в нём одна и та же строка сверху.
+        </p>
+      </section>
+
+      <!-- ── 5. Функции ───────────────────────────────────────────────── -->
+      <section class="wrap section" data-reveal>
+        <p class="divider-label"><span>Что ты получишь</span></p>
+        <h2 class="section__title">Функции</h2>
+        <p class="section__lead">
+          Мои Приоритеты, Мой Заряд, Мои Навыки, Моя статистика и наблюдения, Мои достижения.
+        </p>
+
+        <div class="feats">
+          <article class="feat" style="--accent: var(--p1)">
+            <div class="feat__text">
+              <p class="eyebrow">Мои Приоритеты</p>
+              <h3 class="feat__title">Куда ушли сегодня, неделя, месяц</h3>
+              <dl class="spec">
+                <dt>Зачем это тебе</dt>
+                <dd>
+                  Понять, где на самом деле проходит жизнь, — не по ощущению в конце года, а по
+                  отметкам, которые нельзя переспорить.
+                </dd>
+                <dt>Что ты получишь</dt>
+                <dd>
+                  Честную картину за неделю: кто лидер, кому не досталось ничего и насколько
+                  перекос велик.
+                </dd>
+                <dt>Что это стоит</dt>
+                <dd>Просто пару раз в день зайти и за 10 секунд отметить чем ты занимался за день, куда инвестировал свое время.</dd>
+              </dl>
+            </div>
+            <div class="feat__shot">
+              <img src="/shots/home-today.png" width="390" height="844" alt="Экран приоритетов за сегодня" loading="lazy" decoding="async" />
+            </div>
+          </article>
+
+          <article class="feat feat--flip" style="--accent: var(--battery-high)">
+            <div class="feat__text">
+              <p class="eyebrow">Мой Заряд</p>
+              <h3 class="feat__title">Как ты себя чувствуешь на самом деле</h3>
+              <dl class="spec">
+                <dt>Зачем это тебе</dt>
+                <dd>
+                  Осознаешь свой ритм жизни, свои рабочие часы — и научишься ими управлять.
+                </dd>
+                <dt>Что ты получишь</dt>
+                <dd>
+                  Узнаешь во сколько обычно садится твоя личная батарея и
+                  что именно её сажает.
+                </dd>
+                <dt>Что это стоит</dt>
+                <dd>Тап, когда состояние изменилось. Три-четыре раза в день.</dd>
+              </dl>
+            </div>
+            <div class="feat__shot">
+              <img src="/shots/charge-list.png" width="390" height="844" alt="Экран заряда: четыре состояния со временем за сегодня" loading="lazy" decoding="async" />
+            </div>
+          </article>
+
+          <article class="feat" style="--accent: var(--p3)">
+            <div class="feat__text">
+              <p class="eyebrow">Мои Навыки</p>
+              <h3 class="feat__title">Семнадцать ступеней мастерства</h3>
+              <dl class="spec">
+                <dt>Зачем это тебе</dt>
+                <dd>
+                  Долгие вложения не ощущаются. Гитара, английский, код — годы есть, а чувства
+                  движения нет.
+                </dd>
+                <dt>Что ты получишь</dt>
+                <dd>
+                  Ступень от новичка до мастера, накопленные часы (включая те, что были до
+                  приложения), темп за 30 дней и дату, когда при нём будет следующая ступень.
+                </dd>
+                <dt>Что это стоит</dt>
+                <dd>
+                  Тот же тап. А если привязать навык к приоритету — вообще ничего, он растёт сам.
+                </dd>
+              </dl>
+            </div>
+            <div class="feat__shot">
+              <img src="/shots/skills-list.png" width="390" height="844" alt="Список навыков: ступень, накопленные часы и прибавка за тридцать дней" loading="lazy" decoding="async" />
+            </div>
+          </article>
+
+          <article class="feat feat--flip" style="--accent: var(--p4)">
+            <div class="feat__text">
+              <p class="eyebrow">Моя статистика и наблюдения</p>
+              <h3 class="feat__title">Делай выводы на основе собранных данных</h3>
+              <dl class="spec">
+                <dt>Зачем это тебе</dt>
+                <dd>
+                  Цифры не врут. С ними невозможно спорить. Именно такая прозрачность тебе и нужна.
+                </dd>
+                <dt>Что ты получишь</dt>
+                <dd>
+                  Наблюдения из своих же отметок. Факты и точка.
+                </dd>
+                <dt>Что это стоит</dt>
+                <dd>Ничего. Считается само из того, что ты уже наотмечал.</dd>
+              </dl>
+            </div>
+            <div class="feat__shot feat__shot--pair">
+              <img src="/shots/stats-week.png" width="390" height="844" alt="Статистика за неделю: итоги, наблюдения и куда уходит время" loading="lazy" decoding="async" />
+              <img src="/shots/stats-drains.png" width="390" height="844" alt="Список того, что чаще всего сажает батарею" loading="lazy" decoding="async" />
+            </div>
+          </article>
+
+          <article class="feat" style="--accent: var(--p7)">
+            <div class="feat__text">
+              <p class="eyebrow">Мои достижения</p>
+              <h3 class="feat__title">Семьдесят пять отметок</h3>
+              <dl class="spec">
+                <dt>Зачем это тебе</dt>
+                <dd>
+                  На длинной дистанции без вех не обойтись: чтобы идти было легче, нужно замечать
+                  и фиксировать уже пройденное.
+                </dd>
+              </dl>
+            </div>
+            <div class="feat__shot">
+              <img src="/shots/achievements-full.png" width="390" height="844" alt="Набранный реестр достижений: все семьдесят пять с датами" loading="lazy" decoding="async" />
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ── 6. Чужая жизнь ───────────────────────────────────────────── -->
+      <section class="wrap section" data-reveal>
+        <p class="divider-label"><span>Хочешь попробовать?</span></p>
+        <h2 class="section__title">Примерь чужую жизнь</h2>
+        <p class="section__lead">
+          Три готовые истории — то же самое приложение, только заполненное за тебя. Открой ту, что
+          на тебя похожа, и посмотри на неё со стороны.
+        </p>
+
+        <!--
+          Портрет вместо описания. Полосы и батарея нарисованы прямо здесь из
+          тех же токенов, что в приложении: расклад «работа съела всё» видно
+          быстрее, чем читается фраза о нём. Скриншотов на каждый профиль нет
+          намеренно — это три новых кадра в документации ради трёх карточек.
+        -->
+        <div class="roles">
+          <a class="role press" href="{{APP}}/?demo=m" style="--accent: var(--p5); --accent-soft: #ff5f6b; --bat: var(--battery-mid)">
+            <span class="role__head">
+              <span class="role__name">Артём</span>
+              <span class="role__span">45 дней</span>
+            </span>
+
+            <span class="role__chart" aria-hidden="true">
+              <span class="role__bar" style="--w: 100%"></span>
+              <span class="role__bar" style="--w: 28%"></span>
+              <span class="role__bar" style="--w: 16%"></span>
+              <span class="role__bar" style="--w: 7%"></span>
+            </span>
+
+            <span class="role__state">
+              <svg viewBox="0 0 112 53" aria-hidden="true"><use href="#bat-2" /></svg>
+              <span>чаще всего — средний заряд</span>
+            </span>
+
+            <span class="role__title">Работа съела почти всё</span>
+            <span class="role__line">
+              Самый вероятный сценарий: живёшь вроде бы ради семьи, а две трети недели уходит в
+              одну полосу. Посмотри, как это выглядит со стороны.
+            </span>
+            <span class="role__go">Открыть эту жизнь →</span>
+          </a>
+
+          <a class="role press" href="{{APP}}/?demo=burnout" style="--accent: var(--p6); --accent-soft: #ffab6b; --bat: var(--battery-low)">
+            <span class="role__head">
+              <span class="role__name">Выгорание</span>
+              <span class="role__span">4 месяца</span>
+            </span>
+
+            <span class="role__chart" aria-hidden="true">
+              <span class="role__bar" style="--w: 100%"></span>
+              <span class="role__bar" style="--w: 62%"></span>
+              <span class="role__bar" style="--w: 40%"></span>
+              <span class="role__bar" style="--w: 12%"></span>
+            </span>
+
+            <span class="role__state">
+              <svg viewBox="0 0 112 53" aria-hidden="true"><use href="#bat-1" /></svg>
+              <span>чаще всего — на нуле</span>
+            </span>
+
+            <span class="role__title">Заряд внизу, причина одна и та же</span>
+            <span class="role__line">
+              Времени вроде хватает, а сил нет. Здесь видно, во сколько обычно садится батарея и
+              какая строка каждый раз стоит первой в списке причин.
+            </span>
+            <span class="role__go">Открыть эту жизнь →</span>
+          </a>
+
+          <a class="role press" href="{{APP}}/?demo=f" style="--accent: var(--p0); --accent-soft: #6bf58f; --bat: var(--battery-high)">
+            <span class="role__head">
+              <span class="role__name">Марина</span>
+              <span class="role__span">8 месяцев</span>
+            </span>
+
+            <span class="role__chart" aria-hidden="true">
+              <span class="role__bar" style="--w: 100%"></span>
+              <span class="role__bar" style="--w: 84%"></span>
+              <span class="role__bar" style="--w: 66%"></span>
+              <span class="role__bar" style="--w: 52%"></span>
+            </span>
+
+            <span class="role__state">
+              <svg viewBox="0 0 112 53" aria-hidden="true"><use href="#bat-3" /></svg>
+              <span>чаще всего — полный заряд</span>
+            </span>
+
+            <span class="role__title">Так выглядит, когда получилось</span>
+            <span class="role__line">
+              Дом, дети и своё — без перекоса в одну сторону, восемь месяцев подряд. Ради этой
+              картинки всё и затевается.
+            </span>
+            <span class="role__go">Открыть эту жизнь →</span>
+          </a>
+        </div>
+      </section>
+
+      <!-- ── 7. Финал ─────────────────────────────────────────────────── -->
+      <!--
+        Батарея живая: перебирает те же четыре состояния, что и приложение,
+        цветами из src/domain/palette.ts. Подпись под ней английская — как в
+        BatteryCaption, где это часть оформления, а не текст интерфейса.
+        При prefers-reduced-motion перебор не запускается вовсе, см. motion.js.
+      -->
+      <section class="wrap final" data-reveal>
+        <svg class="final__mark" viewBox="0 0 112 53" aria-hidden="true" focusable="false">
+          <use href="#bat-3" data-battery-shape />
+        </svg>
+        <div class="divider-label final__caption">
+          <span data-battery-label>HIGH</span>
+        </div>
+
+        <h2 class="final__title">Через неделю ты будешь знать о себе больше, чем узнал за прошлый год</h2>
+
+        <div class="final__actions">
+          <a class="btn btn--go btn--big press" href="{{APP}}/">Попробовать бесплатно</a>
+          <a class="btn btn--ghost press" href="{{BOT}}">Открыть в Telegram</a>
+        </div>
+
+        <p class="final__note">Без регистрации и СМС :)</p>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <div class="wrap foot__inner">
+        <a class="top__brand" href="#main" aria-label="Мои Приоритеты">
+          <svg class="mark mark--small" viewBox="0 0 112 53" aria-hidden="true" focusable="false">
+            <use href="#bat-3" />
+          </svg>
+          <span>Мои&nbsp;Приоритеты</span>
+        </a>
+        <span class="foot__links">
+          <a href="{{DOCS}}/guide/what">Документация</a>
+          <a href="{{BOT}}">@MyMainPriorityBot</a>
+        </span>
+      </div>
+    </footer>
+
+    <!--
+      Батарея из references/high.jpg. Геометрия — та же, что в приложении
+      (src/components/batteryGeometry.ts) и в иконках: корпус 100×50 с радиусом
+      8.5, носик тремя внешними сторонами, три ячейки по 24.8 с зазором 5.3.
+
+      Четыре символа вместо одного с параметром: SVG не умеет параметров, а
+      ячеек всего три, и явные варианты честнее любой генерации.
+
+      Цвет приходит через currentColor и наследуется в теневое дерево <use>.
+      Градиента с цветом уровня здесь нет намеренно: ссылка url(#…) на градиент
+      разрешается в контексте самого градиента, а не места вставки, поэтому
+      custom properties в его stop-color не сработали бы, и все батареи вышли
+      бы одного цвета. Вместо этого — бесцветный блик поверх заливки: он даёт
+      ту же «ячейка светлее сверху», что и градиент в приложении, но при любом
+      currentColor.
+    -->
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <defs>
+        <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.4" />
+          <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+        </linearGradient>
+
+        <g id="bat-shell" fill="none">
+          <rect x="1.4" y="1.4" width="100" height="50" rx="8.5" stroke="currentColor" stroke-width="2.4" />
+          <path
+            d="M101.4 15.4 h5.5 a3 3 0 0 1 3 3 v16 a3 3 0 0 1 -3 3 h-5.5"
+            stroke="currentColor"
+            stroke-width="2.4"
+            stroke-linecap="round"
+          />
+        </g>
+
+        <g id="bat-1">
+          <use href="#bat-shell" />
+          <rect x="8.9" y="7.8" width="24.8" height="37.2" rx="4" fill="currentColor" />
+          <rect x="8.9" y="7.8" width="24.8" height="37.2" rx="4" fill="url(#sheen)" />
+          <rect x="39" y="7.8" width="24.8" height="37.2" rx="4" fill="none" stroke="currentColor" stroke-width="1.8" opacity="0.45" />
+          <rect x="69.1" y="7.8" width="24.8" height="37.2" rx="4" fill="none" stroke="currentColor" stroke-width="1.8" opacity="0.45" />
+        </g>
+
+        <g id="bat-2">
+          <use href="#bat-shell" />
+          <rect x="8.9" y="7.8" width="24.8" height="37.2" rx="4" fill="currentColor" />
+          <rect x="8.9" y="7.8" width="24.8" height="37.2" rx="4" fill="url(#sheen)" />
+          <rect x="39" y="7.8" width="24.8" height="37.2" rx="4" fill="currentColor" />
+          <rect x="39" y="7.8" width="24.8" height="37.2" rx="4" fill="url(#sheen)" />
+          <rect x="69.1" y="7.8" width="24.8" height="37.2" rx="4" fill="none" stroke="currentColor" stroke-width="1.8" opacity="0.45" />
+        </g>
+
+        <g id="bat-3">
+          <use href="#bat-shell" />
+          <rect x="8.9" y="7.8" width="24.8" height="37.2" rx="4" fill="currentColor" />
+          <rect x="8.9" y="7.8" width="24.8" height="37.2" rx="4" fill="url(#sheen)" />
+          <rect x="39" y="7.8" width="24.8" height="37.2" rx="4" fill="currentColor" />
+          <rect x="39" y="7.8" width="24.8" height="37.2" rx="4" fill="url(#sheen)" />
+          <rect x="69.1" y="7.8" width="24.8" height="37.2" rx="4" fill="currentColor" />
+          <rect x="69.1" y="7.8" width="24.8" height="37.2" rx="4" fill="url(#sheen)" />
+        </g>
+
+        <!-- Молния поверх залитых ячеек — единственное, что отличает зарядку от полного заряда. -->
+        <g id="bat-4">
+          <use href="#bat-3" />
+          <path
+            d="M56 9 L38.5 30.5 H49 L46 45 L63.5 23.5 H53 Z"
+            fill="#000000"
+            stroke="currentColor"
+            stroke-width="2.16"
+            stroke-linejoin="round"
+          />
+        </g>
+      </defs>
+    </svg>
+  </body>
+</html>

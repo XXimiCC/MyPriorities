@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import { awardProgress } from '../achievements/evaluate';
+import { BRAND_ROW } from '../brandkit/entry';
 import { HeaderBattery } from '../components/HeaderBattery';
 import { Toggle } from '../components/Toggle';
 import { formatDayShort, formatMinutes } from '../domain/date';
@@ -42,9 +43,10 @@ interface Props {
   onPresets(): void;
   onAchievements(): void;
   onDemo(): void;
+  onBrand(): void;
 }
 
-export function SettingsScreen({ onPresets, onAchievements, onDemo }: Props): JSX.Element {
+export function SettingsScreen({ onPresets, onAchievements, onDemo, onBrand }: Props): JSX.Element {
   const { settings, journal, skills, skillClicks, awards, actions } = useStore();
   const [busy, setBusy] = useState(false);
   const [homeStatus, setHomeStatus] = useState<string>('unsupported');
@@ -199,8 +201,8 @@ export function SettingsScreen({ onPresets, onAchievements, onDemo }: Props): JS
           <span>{t('settings.prioritiesTitle')}</span>
         </div>
 
-        <button className="sset__row press" type="button" onClick={onPresets}>
-          <span className="sset__row-text">
+        <button className="navrow press" type="button" onClick={onPresets}>
+          <span className="navrow__text">
             <b>{t('settings.presetsRow')}</b>
             <small>
               {current ? t('settings.presetsCurrent', { name: current.name }) : t('settings.presetsNone')}
@@ -235,17 +237,17 @@ export function SettingsScreen({ onPresets, onAchievements, onDemo }: Props): JS
         />
 
         {modules.achievements && (
-          <button className="sset__row press sset__gap" type="button" onClick={onAchievements}>
+          <button className="navrow press sset__gap" type="button" onClick={onAchievements}>
             {/* Значок нужен, чтобы строка не терялась среди тумблеров: достижения
                 живут только здесь, и найти их должно быть легко. */}
-            <span className="sset__icon" aria-hidden="true">
+            <span className="navrow__icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M8 4h8v5a4 4 0 01-8 0z" />
                 <path d="M8 5H5v2a3 3 0 003 3M16 5h3v2a3 3 0 01-3 3" />
                 <path d="M12 13v4M9 20h6M10 17h4l1 3H9z" />
               </svg>
             </span>
-            <span className="sset__row-text">
+            <span className="navrow__text">
               <b>{t('settings.achievementsRow')}</b>
               <small>{t('settings.achievementsCount', achievements)}</small>
             </span>
@@ -255,7 +257,7 @@ export function SettingsScreen({ onPresets, onAchievements, onDemo }: Props): JS
           </button>
         )}
 
-        <p className="sset__note">{t('settings.moduleOff')}</p>
+        <p className="note">{t('settings.moduleOff')}</p>
 
         <div className="divider-label">
           <span>{t('settings.blockTitle')}</span>
@@ -278,7 +280,7 @@ export function SettingsScreen({ onPresets, onAchievements, onDemo }: Props): JS
             </button>
           ))}
         </div>
-        <p className="sset__note">
+        <p className="note">
           {t('settings.blockNote', {
             count: totals.totalBlocks,
             unit: plural('block', totals.totalBlocks),
@@ -296,15 +298,15 @@ export function SettingsScreen({ onPresets, onAchievements, onDemo }: Props): JS
               <span>{t('demo.title')}</span>
             </div>
 
-            <button className="sset__row press" type="button" onClick={onDemo}>
-              <span className="sset__icon" aria-hidden="true">
+            <button className="navrow press" type="button" onClick={onDemo}>
+              <span className="navrow__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M9 11a3.2 3.2 0 100-6.4A3.2 3.2 0 009 11" />
                   <path d="M2.5 19.5v-1a4.5 4.5 0 014.5-4.5h4a4.5 4.5 0 014.5 4.5v1" />
                   <path d="M16.5 10.5a2.6 2.6 0 100-5.2M18 14.2a4 4 0 013.5 4v1.3" />
                 </svg>
               </span>
-              <span className="sset__row-text">
+              <span className="navrow__text">
                 <b>{t('demo.settingsRow')}</b>
                 <small>{t('demo.settingsNote')}</small>
               </span>
@@ -325,9 +327,9 @@ export function SettingsScreen({ onPresets, onAchievements, onDemo }: Props): JS
           <li>
             <span>{t('settings.where')}</span>
             {DEMO_MODE ? (
-              <b className="sset__warn">{t('demo.whereDemo')}</b>
+              <b className="warn">{t('demo.whereDemo')}</b>
             ) : (
-              <b className={synced ? undefined : 'sset__warn'}>
+              <b className={synced ? undefined : 'warn'}>
                 {synced ? t('settings.whereCloud') : t('settings.whereLocal')}
               </b>
             )}
@@ -355,7 +357,7 @@ export function SettingsScreen({ onPresets, onAchievements, onDemo }: Props): JS
           {sync.kind !== 'off' && !GUEST_MODE && (
             <li>
               <span>{t('settings.account')}</span>
-              <b className={sync.kind === 'signed-in' ? undefined : 'sset__warn'}>
+              <b className={sync.kind === 'signed-in' ? undefined : 'warn'}>
                 {t(ACCOUNT_LABEL[sync.kind])}
               </b>
             </li>
@@ -385,21 +387,21 @@ export function SettingsScreen({ onPresets, onAchievements, onDemo }: Props): JS
          * кнопка «Стереть историю» в чужих руках объясняется дольше, чем
          * прячется.
          */}
-        {GUEST_MODE && <p className="sset__note sset__gap">{t('demo.note')}</p>}
+        {GUEST_MODE && <p className="note sset__gap">{t('demo.note')}</p>}
 
         {/* Вход вне Telegram: единственное место, где он вообще нужен. Внутри
             мини-аппа он молчаливый, и кнопки там быть не должно. */}
         {!GUEST_MODE && sync.kind === 'can-log-in' && (
           <>
-            <p className="sset__note">{t('settings.signInNote')}</p>
-            <button className="edit__add press" type="button" onClick={() => void signIn()}>
+            <p className="note">{t('settings.signInNote')}</p>
+            <button className="btn press" type="button" onClick={() => void signIn()}>
               {t('settings.signIn')}
             </button>
           </>
         )}
         {!GUEST_MODE && sync.kind === 'signed-in' && !isTelegram && (
           <button
-            className="sset__danger press"
+            className="btn-danger btn-danger--stack press"
             type="button"
             onClick={async () => {
               if (await confirmDialog(t('settings.signOutConfirm'))) await signOut();
@@ -412,14 +414,14 @@ export function SettingsScreen({ onPresets, onAchievements, onDemo }: Props): JS
         {/* Молчаливый откат на локальное хранилище выглядит как пропажа данных:
             на телефоне всё есть, на компьютере пусто. Поэтому он назван вслух. */}
         {!GUEST_MODE && !synced && (
-          <p className="sset__note sset__warn">
+          <p className="note warn">
             {clientInfo.isTelegram ? t('settings.noSyncTelegram') : t('settings.noSyncBrowser')}
           </p>
         )}
 
         {!GUEST_MODE && (
           <>
-            <button className="edit__add press" type="button" disabled={busy} onClick={exportData}>
+            <button className="btn press" type="button" disabled={busy} onClick={exportData}>
               {t('settings.export')}
             </button>
 
@@ -427,7 +429,7 @@ export function SettingsScreen({ onPresets, onAchievements, onDemo }: Props): JS
                 один раз, перед самым переходом на сервер. */}
             {hasBefore && (
               <button
-                className="edit__add press sset__gap"
+                className="btn press sset__gap"
                 type="button"
                 disabled={busy}
                 onClick={restoreBefore}
@@ -436,7 +438,7 @@ export function SettingsScreen({ onPresets, onAchievements, onDemo }: Props): JS
               </button>
             )}
 
-            <label className="edit__add press sset__gap sset__file">
+            <label className="btn press sset__gap sset__file">
               {t('settings.import')}
               <input
                 type="file"
@@ -453,7 +455,7 @@ export function SettingsScreen({ onPresets, onAchievements, onDemo }: Props): JS
 
             {homeScreen.supported() && homeStatus !== 'added' && (
               <button
-                className="edit__add press sset__gap"
+                className="btn press sset__gap"
                 type="button"
                 onClick={() => {
                   haptics.tap();
@@ -469,26 +471,58 @@ export function SettingsScreen({ onPresets, onAchievements, onDemo }: Props): JS
                 {t('settings.homeScreen')}
               </button>
             )}
-            {homeStatus === 'added' && <p className="sset__note">{t('settings.homeScreenAdded')}</p>}
+            {homeStatus === 'added' && <p className="note">{t('settings.homeScreenAdded')}</p>}
 
             <div className="divider-label">
               <span>{t('settings.resetTitle')}</span>
             </div>
 
-            <button className="sset__danger press" type="button" disabled={busy} onClick={resetHistory}>
+            <button className="btn-danger btn-danger--stack press" type="button" disabled={busy} onClick={resetHistory}>
               <b>{t('settings.resetHistory')}</b>
               <small>{t('settings.resetHistoryNote')}</small>
             </button>
 
-            <button className="sset__danger press" type="button" disabled={busy} onClick={resetEverything}>
+            <button className="btn-danger btn-danger--stack press" type="button" disabled={busy} onClick={resetEverything}>
               <b>{t('settings.resetAll')}</b>
               <small>{t('settings.resetAllNote')}</small>
             </button>
 
-            <p className="sset__note sset__gap">
+            <p className="note sset__gap">
               {isTelegram ? t('settings.resetScopeCloud') : t('settings.resetScopeLocal')}
               {DEMO_MODE && t('settings.mockNote')}
             </p>
+          </>
+        )}
+
+        {/*
+         * Брендкит — поверхность разработчика, и в собранном приложении этой
+         * строки нет: справочник по классам обычному человеку не нужен, а лишний
+         * пункт в настройках стоит дороже, чем кажется. В любой сборке он
+         * остаётся доступен по адресу с ?brand — в том числе на телефоне, внутри
+         * Telegram. Текст мимо i18n намеренно: строки не существует там, где
+         * приложением пользуются.
+         */}
+        {BRAND_ROW && (
+          <>
+            <div className="divider-label">
+              <span>Разработка</span>
+            </div>
+
+            <button className="navrow press" type="button" onClick={onBrand}>
+              <span className="navrow__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 7h16M4 12h10M4 17h7" />
+                  <path d="M17.5 13.5l3 3-3 3-3-3z" />
+                </svg>
+              </span>
+              <span className="navrow__text">
+                <b>Брендкит</b>
+                <small>Цвета, шрифты, кнопки и компоненты одной страницей</small>
+              </span>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true">
+                <path d="M9 5l7 7-7 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
           </>
         )}
       </div>

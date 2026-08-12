@@ -64,15 +64,6 @@
   text-align: left;
 }
 
-.erow__swatch {
-  flex: none;
-  width: 10px;
-  height: 10px;
-  border-radius: 3px;
-  background: var(--accent);
-  box-shadow: 0 0 8px var(--accent);
-}
-
 .erow__title {
   font-size: 14px;
   font-weight: 500;
@@ -115,23 +106,6 @@
   opacity: 0.25;
 }
 
-.edit__add {
-  width: 100%;
-  margin-top: 16px;
-  padding: 15px;
-  border-radius: var(--r-md);
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text);
-  background: var(--surface-2);
-  box-shadow: inset 0 0 0 1px var(--hairline-strong);
-}
-
-.edit__add:disabled {
-  color: var(--text-faint);
-  box-shadow: inset 0 0 0 1px var(--hairline);
-}
-
 .edit__archive {
   display: flex;
   flex-wrap: wrap;
@@ -158,39 +132,5 @@
   gap: 18px;
 }
 
-.pform__input {
-  width: 100%;
-  padding: 14px 16px;
-  border: 0;
-  border-radius: var(--r-md);
-  font-size: 16px; /* меньше 16px — и iOS зумит страницу при фокусе */
-  background: var(--surface-2);
-  box-shadow: inset 0 0 0 1px var(--hairline-strong);
-  outline: none;
-}
-
-.pform__input:focus {
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 60%, transparent);
-}
-
-.pform__input::placeholder {
-  color: var(--text-faint);
-}
-
-.pform__submit {
-  padding: 15px;
-  border-radius: var(--r-md);
-  font-size: 15px;
-  font-weight: 600;
-  color: #000;
-  background: var(--accent);
-  box-shadow: 0 0 24px color-mix(in srgb, var(--accent) 40%, transparent);
-}
-
-.pform__submit:disabled {
-  color: var(--text-faint);
-  background: var(--surface-2);
-  box-shadow: inset 0 0 0 1px var(--hairline);
-}
-
-/* Палитра переехала в components/ColorPicker.css — её делят приоритеты и навыки. */
+/* Поле, кнопка и точка цвета переехали в styles/ui.css: их делят четыре формы,
+   а не одна. Палитра — в components/ColorPicker.css, её делят приоритеты и навыки. */

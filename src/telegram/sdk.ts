@@ -39,6 +39,8 @@ interface TelegramWebApp {
   viewportStableHeight?: number;
   safeAreaInset?: SafeAreaInset;
   contentSafeAreaInset?: SafeAreaInset;
+  isFullscreen?: boolean;
+  exitFullscreen?(): void;
 
   ready(): void;
   expand(): void;
@@ -118,7 +120,52 @@ export const clientInfo = {
   platform: webApp?.platform ?? 'браузер',
   version: webApp?.version ?? '—',
   isTelegram,
+  /*
+   * Клиент открыл приложение полноэкранно. Заполняется в initTelegram, до того
+   * как режим будет выключен: без этой отметки жалобы «окно не двигается» и
+   * «пропали кнопки навигации» неотличимы от любых других — сам режим
+   * приложение не заказывает и по своему коду о нём не знает.
+   */
+  openedFullscreen: false,
 };
+
+/**
+ * Клиенты, где мини-апп открывается отдельным окном, а не шторкой снизу.
+ * Разворачивать там нечего: окно и так своего размера, а expand() на нём
+ * растягивает его во весь экран — вместе с заголовком, за который окно
+ * перетаскивают. Пользователь получает приложение, которое нельзя ни
+ * подвинуть, ни уменьшить.
+ */
+const WINDOWED = new Set(['tdesktop', 'macos']);
+
+/**
+ * Доля от высоты вебвью, ниже которой заявленная клиентом высота — не тесное
+ * окно, а протухшее значение. Половина: реально клиент отъедает шапкой и
+ * панелью десятки точек, а не сотни.
+ */
+const TRUSTED_SHARE = 0.5;
+
+/**
+ * Высота видимой части приложения.
+ *
+ * Именно stable-высота: обычная viewportHeight скачет вместе с клавиатурой и
+ * вместе с ней прыгал бы весь каркас.
+ *
+ * Но верить ей на слово нельзя. Свёрнутый мини-апп Telegram превращает в
+ * полоску у нижней кромки экрана и честно сообщает её высоту; при обратном
+ * разворачивании событие с новым значением приходит не всегда. Приложение
+ * остаётся жить в сотне точек: шапка, обрезанный переключатель периода и
+ * чёрное поле под ними. Что каркас схлопнулся, по экрану не видно — таб-бар
+ * прибит к окну, а не к каркасу, и остаётся на своём месте внизу.
+ *
+ * Высота самого вебвью к этому моменту уже полная, поэтому расхождение вдвое
+ * и означает: клиент своё значение обновить не успел, верим окну.
+ */
+function appHeight(): number {
+  const inner = window.innerHeight;
+  const stable = webApp?.viewportStableHeight ?? 0;
+  return stable >= inner * TRUSTED_SHARE ? stable : inner;
+}
 
 /**
  * Прокидывает геометрию Telegram в CSS-переменные: env() внутри вебвью врёт,
@@ -136,10 +183,43 @@ function syncViewport(): void {
     root.style.setProperty('--tg-content-top', `${content.top}px`);
     root.style.setProperty('--tg-content-bottom', `${content.bottom}px`);
   }
-  // Именно stable-высота: обычная viewportHeight скачет вместе с клавиатурой
-  // и вместе с ней прыгал бы весь каркас.
-  const height = webApp?.viewportStableHeight;
-  if (height) root.style.setProperty('--app-height', `${height}px`);
+  // Ноль приезжает от спрятанного вебвью: записать его — значит своими руками
+  // сделать тот самый чёрный экран. Прежнее значение переживёт этот момент,
+  // а следующий замер по таймеру всё равно придёт.
+  const height = appHeight();
+  if (height > 0) root.style.setProperty('--app-height', `${height}px`);
+}
+
+/**
+ * Замер по сигналу — трижды: сразу, следующим кадром и через паузу.
+ *
+ * Событие о смене размеров приходит раньше, чем клиент пересчитывает вебвью:
+ * один замер в момент сигнала списывает старое значение. Повторы стоят три
+ * присваивания CSS-переменных и снимают целый класс «развернул — чёрный экран».
+ */
+let recheck: number | undefined;
+
+function resyncViewport(): void {
+  syncViewport();
+  window.requestAnimationFrame(syncViewport);
+  window.clearTimeout(recheck);
+  recheck = window.setTimeout(syncViewport, 400);
+}
+
+/**
+ * Полноэкранный режим (Bot API 8.0) приложение не заказывает никогда, но клиент
+ * может открыть его сам — так настраивается ссылка мини-аппа. Хорошего в этом
+ * ничего: на компьютере окно теряет заголовок и перестаёт двигаться, на Android
+ * система прячет свою панель навигации, и первое касание по ней только
+ * возвращает кнопки, а не нажимает их — их приходится нащупывать.
+ *
+ * Своя шапка у приложения есть, а клиентская рамка вокруг нужна: в неё вынесены
+ * «назад» и закрытие.
+ */
+function leaveFullscreen(): void {
+  if (!atLeast('8.0') || !webApp?.isFullscreen) return;
+  clientInfo.openedFullscreen = true;
+  webApp.exitFullscreen?.();
 }
 
 /** Вызывается один раз до первого рендера. */
@@ -147,7 +227,8 @@ export function initTelegram(): void {
   if (!webApp) return;
 
   webApp.ready();
-  webApp.expand();
+  leaveFullscreen();
+  if (!WINDOWED.has(webApp.platform)) webApp.expand();
 
   // Без этого жест "потянуть вниз, чтобы закрыть" перехватывает перетаскивание
   // приоритетов и любой скролл у верхней кромки списка.
@@ -161,8 +242,24 @@ export function initTelegram(): void {
   if (atLeast('8.0')) {
     webApp.onEvent('safeAreaChanged', syncViewport);
     webApp.onEvent('contentSafeAreaChanged', syncViewport);
+    /* Единственное событие про возвращение из свёрнутого состояния:
+       viewportChanged после него приходит не всегда. */
+    webApp.onEvent('activated', resyncViewport);
+    webApp.onEvent('fullscreenChanged', () => {
+      leaveFullscreen();
+      resyncViewport();
+    });
   }
-  webApp.onEvent('viewportChanged', syncViewport);
+  webApp.onEvent('viewportChanged', resyncViewport);
+
+  /* Страховка от промолчавшего клиента: размер вебвью меняется в любом случае,
+     и об этом сообщает уже само окно, а не Telegram. */
+  window.addEventListener('resize', resyncViewport);
+  window.addEventListener('orientationchange', resyncViewport);
+  window.visualViewport?.addEventListener('resize', resyncViewport);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) resyncViewport();
+  });
 }
 
 // --- Тактильная отдача -------------------------------------------------------

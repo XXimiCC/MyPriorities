@@ -4,6 +4,8 @@ import { awardProgress } from '../achievements/evaluate';
 import { BRAND_ROW } from '../brandkit/entry';
 import { HeaderBattery } from '../components/HeaderBattery';
 import { Toggle } from '../components/Toggle';
+import { SECRET_HOLD_MS, useLongPress } from '../components/useLongPress';
+import { revealDevkit } from '../devkitHost';
 import { formatDayShort, formatMinutes } from '../domain/date';
 import { findPreset } from '../domain/presets';
 import { computeStats, earliestDay, periodDays } from '../domain/stats';
@@ -53,6 +55,7 @@ export function SettingsScreen({ onPresets, onAchievements, onDemo, onBrand }: P
   const [sync, setSync] = useState<SyncState>(syncState);
   const [server, setServer] = useState<string | undefined>(undefined);
   const [hasBefore, setHasBefore] = useState(false);
+  const devkitHold = useLongPress(revealDevkit, SECRET_HOLD_MS);
 
   const blockMinutes = blockMinutesOf(settings);
   const modules = modulesOf(settings);
@@ -237,7 +240,25 @@ export function SettingsScreen({ onPresets, onAchievements, onDemo, onBrand }: P
         />
 
         {modules.achievements && (
-          <button className="navrow press sset__gap" type="button" onClick={onAchievements}>
+          /*
+           * Пять секунд удержания на этой строке показывают значок панели
+           * отладки. Место выбрано за то, что здесь нечему помешать: строка
+           * ведёт на вложенный экран, своего долгого нажатия у неё нет, а
+           * пятисекундное удержание не выходит случайно ни у кого.
+           *
+           * Короткий тап работает как прежде — открывает достижения; после
+           * срабатывания удержания он подавляется, иначе поверх появившегося
+           * значка сразу открывался бы экран.
+           */
+          <button
+            className="navrow press sset__gap"
+            type="button"
+            {...devkitHold.handlers}
+            onClick={() => {
+              if (devkitHold.wasLongPress()) return;
+              onAchievements();
+            }}
+          >
             {/* Значок нужен, чтобы строка не терялась среди тумблеров: достижения
                 живут только здесь, и найти их должно быть легко. */}
             <span className="navrow__icon" aria-hidden="true">

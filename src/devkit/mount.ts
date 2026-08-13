@@ -32,11 +32,28 @@ import { watchTaps } from './selector';
 import type { DevkitHost } from './types';
 
 /** По этой отметке съёмка кадра узнаёт и выбрасывает интерфейс самой панели. */
-const MARK = 'data-devkit';
+export const MARK = 'data-devkit';
 
 /* Подпись пусковой кнопки написана здесь, а не взята из strings.ts: словарь
    панели целиком уехал бы в основной бандл ради одного слова. */
 const LAUNCHER = 'Отладка';
+
+let revealNow: (() => void) | undefined;
+
+/**
+ * Показать значок из приложения.
+ *
+ * Нужно там, где у панели нет своего способа: приложению виднее, какое
+ * движение в нём свободно. В «Моих Приоритетах» это долгое — пять секунд —
+ * нажатие на строку достижений; случайно столько не держат, а объяснить
+ * человеку одним предложением можно.
+ *
+ * Панель не поставлена или её здесь нет вовсе — вызов ничего не делает и не
+ * падает: приложение не обязано знать, собрана ли она в этой сборке.
+ */
+export function revealDevkit(): void {
+  revealNow?.();
+}
 
 /** Общий неоновый цвет панели. Значение, а не токен: чужой проект про наши токены не знает. */
 const NEON = '53,224,255';
@@ -194,6 +211,7 @@ export function mountDevkit(host: DevkitHost): () => void {
     launcher.style.removeProperty('visibility');
     ask('haptics', (h) => h.haptics?.tap());
   };
+  revealNow = reveal;
 
   if (mode === 'gesture') launcher.style.setProperty('visibility', 'hidden');
 
@@ -220,6 +238,7 @@ export function mountDevkit(host: DevkitHost): () => void {
     stopTaps();
     stopOutbox();
     stopLog();
+    revealNow = undefined;
     close();
     container.remove();
   };

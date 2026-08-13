@@ -10,6 +10,7 @@ import { ask } from './host';
 import { SelectLayer } from './SelectLayer';
 import { checkAllowed, submit } from './send';
 import { s } from './strings';
+import { toast } from './toast';
 import type { Rect, ShotError, ShotInfo, Stroke } from './types';
 import './DevkitLayer.css';
 
@@ -155,19 +156,28 @@ export function DevkitLayer({ onClose }: Props): JSX.Element {
         shotError,
       });
 
-      const outcome = await submit(ticket, shot?.blob);
+      const { outcome, reason } = await submit(ticket, shot?.blob);
       if (!alive.current) return;
 
+      const short = ticket.id.slice(0, 8);
+
+      /*
+       * Отказ оставляет панель открытой: написанное не должно пропасть вместе
+       * с сообщением о том, что оно никуда не ушло. Причина — дословно, чтобы
+       * «не вошёл», «не пустили» и «нет сети» различались с первого взгляда.
+       */
       if (outcome === 'refused') {
         ask('haptics', (h) => h.haptics?.warning());
         setBusy(false);
-        setStatus(s.refused);
+        setStatus(reason ? `${s.notSent}: ${reason}` : s.refused);
         return;
       }
 
+      /* Успех и отложенная отправка закрывают панель, но говорят разное — и
+         оба называют номер. Пока они выглядели одинаково, потерянный тикет
+         ничем не отличался от доехавшего. */
       ask('haptics', (h) => h.haptics?.success());
-      // Закрывается сразу: подтверждение внутри панели, которую всё равно
-      // закрывают следующим движением, никто не читает.
+      toast(outcome === 'sent' ? s.sent(short) : s.queued(short), outcome === 'sent' ? 'ok' : 'warn');
       onClose();
     },
     [frozen, onClose, shot, shotError],

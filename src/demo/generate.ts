@@ -220,10 +220,23 @@ function buildJournal(
   const weights = settings.priorities.map((_, index) => script.weights[index] ?? 0.3);
 
   for (let back = script.spanDays - 1; back >= 0; back -= 1) {
-    if (random.chance(script.gapChance)) continue;
+    /*
+     * Сегодняшний день не пропускается никогда. Демо открывают на вкладке
+     * «Сегодня», и выпавший по жребию пропуск встречал человека пустым экраном
+     * с нулями — то есть ровно тем, чего в демо и быть не должно. Остальные дни
+     * пропускаются как раньше: без дыр серия и «активные дни» превращаются
+     * в константу.
+     */
+    if (back > 0 && random.chance(script.gapChance)) continue;
 
     const date = addDays(now, -back);
     const weekend = date.getDay() === 0 || date.getDay() === 6;
+    /*
+     * Объём сегодняшнего дня не урезается «потому что день в разгаре».
+     * Урезанный вдвое день расходится по десяти приоритетам «Максимума» по
+     * одному блоку на каждый, и все полосы становятся одной длины — картина
+     * ровно противоположная тому, ради чего демо и открывают.
+     */
     const total = Math.round(
       random.between(script.perDay[0], script.perDay[1]) * (weekend ? script.weekend ?? 1 : 1),
     );

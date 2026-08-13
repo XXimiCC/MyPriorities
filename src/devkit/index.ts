@@ -12,6 +12,6 @@
  * Каталог не импортирует ничего из приложения — это проверяет tools/deps.test.ts.
  */
 
-export { mountDevkit } from './mount';
+export { mountDevkit, revealDevkit } from './mount';
 export { registerDevkitHost } from './host';
 export type { DevkitHost, TicketPayload, LogEntry } from './types';

@@ -36,6 +36,7 @@
     <link rel="stylesheet" href="/src/landing.css" />
     <script type="module" src="/src/demo.js"></script>
     <script type="module" src="/src/mini.js"></script>
+    <script type="module" src="/src/entry.js"></script>
     <script type="module" src="/src/motion.js"></script>
 
     <!--
@@ -132,10 +133,10 @@
             <div class="phone__screen">
               <img
                 class="phone__poster"
-                src="/shots/home-today.png"
+                src="/shots/home-max.png"
                 width="390"
                 height="844"
-                alt="Главный экран: список приоритетов с неоновыми полосами за сегодня"
+                alt="Главный экран профиля «Максимум»: десять приоритетов за сегодня"
                 fetchpriority="high"
               />
               <div class="phone__veil">
@@ -168,13 +169,13 @@
           <!-- Под рамкой, а не в ней: внутри кнопки накрывали бы панель вкладок. -->
           <p class="slot__under" data-demo-after hidden>
             <button class="slot__link" type="button" data-demo-reload>↻ Заново</button>
-            <a class="slot__link" href="{{APP}}/?demo=max" target="_blank" rel="noopener">
+            <a class="slot__link" data-entry data-entry-web="{{APP}}/?demo=max" data-entry-tg="{{BOT}}/app?startapp=demo_max" href="{{APP}}/?demo=max">
               Во весь экран ↗
             </a>
           </p>
 
           <p class="slot__away">
-            <a href="{{APP}}/?demo=max" target="_blank" rel="noopener">
+            <a data-entry data-entry-web="{{APP}}/?demo=max" data-entry-tg="{{BOT}}/app?startapp=demo_max" href="{{APP}}/?demo=max">
               Открыть полную версию ↗
             </a>
           </p>
@@ -226,7 +227,6 @@
         <p class="section__lead">
           Отмечай, куда инвестируешь время и энергию. Через неделю получишь картину и первые
           выводы, настроишь по ним свою жизнь и начнёшь двигаться туда, куда действительно хотел.
-          Через месяц вернёшься — и настроишь заново.
         </p>
 
         <!--
@@ -239,8 +239,7 @@
             <span class="loop__n">1</span>
             <h3 class="loop__title">Отмечай</h3>
             <p class="loop__text">
-              Куда ушли полчаса, какой сейчас заряд, чем занимался по навыку. Один тап на событие —
-              ничего заполнять не нужно.
+              Куда ушло время, какой сейчас "заряд", чем занимался по навыку. Заполняешь одним кликом.
             </p>
           </li>
           <li class="loop__step" style="--accent: var(--p1)">
@@ -248,7 +247,7 @@
             <h3 class="loop__title">Получай инсайты</h3>
             <p class="loop__text">
               Через 7 дней видно картину: где перекос, что забирает энергию, где ты на самом деле
-              растёшь. Не мнение — твои же цифры.
+              растёшь. Факты основанные на цифрах.
             </p>
           </li>
           <li class="loop__step" style="--accent: var(--p7)">
@@ -263,18 +262,13 @@
             <span class="loop__n">4</span>
             <h3 class="loop__title">Достигай нового</h3>
             <p class="loop__text">
-              Направление стало твоим, а не случайным. Навыки поднимаются по ступеням, энергия
+              Теперь ты двигаешься туда куда реально хотел. Навыки прокачиваются, а энергия
               перестаёт уходить в никуда.
             </p>
           </li>
         </ol>
 
-        <p class="loop__again">
-          ↺ Через месяц — повторный анализ и новая настройка приоритетов. Жизнь меняется, расклад
-          должен меняться вместе с ней
-        </p>
-
-        <h3 class="section__sub">За 7–30 дней ты ответишь себе на четыре вопроса</h3>
+        <h3 class="section__sub">За 7 дней ты ответишь себе на четыре вопроса</h3>
 
         <div class="asks">
           <article class="ask" style="--accent: var(--p5)">
@@ -385,8 +379,9 @@
         </div>
 
         <p class="creed">
-          Каждый раз, когда ты уходишь «на нуль», приложение спрашивает: что съело энергию? Через
-          месяц ответы складываются в список, и обычно в нём одна и та же строка сверху.
+          Отмечать нужно только <strong>момент, когда состояние изменилось</strong> — приложение
+          само считает время между переключениями. Один тап утром описывает всё утро, и к вечеру у
+          тебя готовая раскладка дня без единой заполненной формы.
         </p>
       </section>
 
@@ -530,7 +525,7 @@
           намеренно — это три новых кадра в документации ради трёх карточек.
         -->
         <div class="roles">
-          <a class="role press" href="{{APP}}/?demo=m" style="--accent: var(--p5); --accent-soft: #ff5f6b; --bat: var(--battery-mid)">
+          <a class="role press" data-entry data-entry-web="{{APP}}/?demo=m" data-entry-tg="{{BOT}}/app?startapp=demo_m" href="{{APP}}/?demo=m" style="--accent: var(--p5); --accent-soft: #ff5f6b; --bat: var(--battery-mid)">
             <span class="role__head">
               <span class="role__name">Артём</span>
               <span class="role__span">45 дней</span>
@@ -556,7 +551,7 @@
             <span class="role__go">Открыть эту жизнь →</span>
           </a>
 
-          <a class="role press" href="{{APP}}/?demo=burnout" style="--accent: var(--p6); --accent-soft: #ffab6b; --bat: var(--battery-low)">
+          <a class="role press" data-entry data-entry-web="{{APP}}/?demo=burnout" data-entry-tg="{{BOT}}/app?startapp=demo_burnout" href="{{APP}}/?demo=burnout" style="--accent: var(--p6); --accent-soft: #ffab6b; --bat: var(--battery-low)">
             <span class="role__head">
               <span class="role__name">Выгорание</span>
               <span class="role__span">4 месяца</span>
@@ -582,7 +577,7 @@
             <span class="role__go">Открыть эту жизнь →</span>
           </a>
 
-          <a class="role press" href="{{APP}}/?demo=f" style="--accent: var(--p0); --accent-soft: #6bf58f; --bat: var(--battery-high)">
+          <a class="role press" data-entry data-entry-web="{{APP}}/?demo=f" data-entry-tg="{{BOT}}/app?startapp=demo_f" href="{{APP}}/?demo=f" style="--accent: var(--p0); --accent-soft: #6bf58f; --bat: var(--battery-high)">
             <span class="role__head">
               <span class="role__name">Марина</span>
               <span class="role__span">8 месяцев</span>
@@ -610,7 +605,70 @@
         </div>
       </section>
 
-      <!-- ── 7. Финал ─────────────────────────────────────────────────── -->
+      <!-- ── 7. Возражения ────────────────────────────────────────────── -->
+      <!--
+        Блок появился последним и по прямой причине: «Попробовать бесплатно»
+        стоит на странице пять раз, а что будет после «бесплатно» — не сказано
+        нигде. Неотвеченная цена — самое дорогое возражение на любом лендинге,
+        и снимать его надо до последнего призыва, а не после.
+      -->
+      <section class="wrap section" data-reveal>
+        <p class="divider-label"><span>Прежде чем начать</span></p>
+        <h2 class="section__title">Коротко о главном</h2>
+
+        <dl class="faq">
+          <div class="faq__item">
+            <dt>Сколько это стоит?</dt>
+            <dd>
+              Нисколько. Ни подписки, ни рекламы, ни платных функций — всё, что описано выше,
+              открыто сразу.
+            </dd>
+          </div>
+
+          <div class="faq__item">
+            <dt>Сколько времени занимает в день?</dt>
+            <dd>
+              Секунды. Пара тапов, когда уделил чему-то время, и ещё пара, когда изменилось
+              состояние. Ничего заполнять и никуда вписывать не нужно.
+            </dd>
+          </div>
+
+          <div class="faq__item">
+            <dt>Нужен ли Telegram?</dt>
+            <dd>
+              Нет. Приложение открывается в обычном браузере и там же полностью работает. Вход
+              через Telegram нужен, только если хочешь видеть одну историю на телефоне и на
+              компьютере.
+            </dd>
+          </div>
+
+          <div class="faq__item">
+            <dt>Где хранятся мои отметки?</dt>
+            <dd>
+              На твоём устройстве. Пока ты не вошёл, приложение не знает о тебе ничего и никуда
+              ничего не отправляет.
+            </dd>
+          </div>
+
+          <div class="faq__item">
+            <dt>А если я занимаюсь этим уже давно?</dt>
+            <dd>
+              Впиши накопленные часы при создании навыка — лестница начнётся не с нуля, а с той
+              ступени, до которой ты уже дошёл.
+            </dd>
+          </div>
+
+          <div class="faq__item">
+            <dt>Что если брошу через неделю?</dt>
+            <dd>
+              Неделя отметок — это уже ответ на первый вопрос. Даже если дальше не пойдёт, ты
+              будешь знать, куда уходит твоё время.
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      <!-- ── 8. Финал ─────────────────────────────────────────────────── -->
       <!--
         Батарея живая: перебирает те же четыре состояния, что и приложение,
         цветами из src/domain/palette.ts. Подпись под ней английская — как в
@@ -631,8 +689,6 @@
           <a class="btn btn--go btn--big press" href="{{APP}}/">Попробовать бесплатно</a>
           <a class="btn btn--ghost press" href="{{BOT}}">Открыть в Telegram</a>
         </div>
-
-        <p class="final__note">Без регистрации и СМС :)</p>
       </section>
     </main>
 

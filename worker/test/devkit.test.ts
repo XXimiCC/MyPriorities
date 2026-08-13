@@ -4,10 +4,12 @@ import {
   assertShot,
   inviteOf,
   isAllowed,
+  isStatus,
   parseAllowList,
   parseTicket,
   readTicket,
   requireDevkitToken,
+  updateTicket,
 } from '../src/devkit';
 import type { Env } from '../src/env';
 
@@ -128,6 +130,47 @@ describe('поиск тикета по началу номера', () => {
     await expect(readTicket({ DB: dbWith([]) } as Env, 'zzzz')).rejects.toThrow(/no-ticket/);
   });
 });
+
+describe('правка тикета из админки', () => {
+  /** База, которая отдаёт один тикет и молча принимает запись. */
+  const oneTicket = {
+    prepare: () => ({
+      bind: () => ({
+        all: () => Promise.resolve({ results: [{ id: 'a3f9c1de', status: 'open', note: 'было' }] }),
+        run: () => Promise.resolve({}),
+      }),
+    }),
+  } as unknown as Env['DB'];
+
+  it('состояния перечислены явно', () => {
+    expect(isStatus('open')).toBe(true);
+    expect(isStatus('queued')).toBe(true);
+    expect(isStatus('closed')).toBe(true);
+    expect(isStatus('wontfix')).toBe(true);
+  });
+
+  it('выдуманное состояние не проходит', async () => {
+    // Иначе опечатка в запросе тихо увела бы тикет из всех выборок разом.
+    expect(isStatus('в работе')).toBe(false);
+    expect(isStatus('')).toBe(false);
+    expect(isStatus(undefined)).toBe(false);
+    await expectReject(() => updateTicket({ DB: oneTicket } as Env, 'a3f9c1de', { status: 'готово' }));
+  });
+
+  it('пустое описание не сохраняется', () => {
+    // Описание — единственное, по чему тикет находят глазами в списке.
+    return expectReject(() => updateTicket({ DB: oneTicket } as Env, 'a3f9c1de', { note: '   ' }));
+  });
+
+  it('без правок отдаёт тикет как есть', async () => {
+    const row = await updateTicket({ DB: oneTicket } as Env, 'a3f9c1de', {});
+    expect(row.status).toBe('open');
+  });
+});
+
+async function expectReject(run: () => Promise<unknown>): Promise<void> {
+  await expect(run()).rejects.toThrow();
+}
 
 describe('кадр', () => {
   it('слишком тяжёлый не принимается', () => {

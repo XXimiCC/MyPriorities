@@ -3,6 +3,8 @@ import { useCallback, useRef } from 'react';
 import { haptics } from '../telegram/sdk';
 
 const HOLD_MS = 480;
+/** Столько держат, когда открывают скрытое, а не переставляют строку. */
+export const SECRET_HOLD_MS = 5000;
 /** Палец всегда чуть дрожит: без допуска долгое нажатие срывалось бы на скролле. */
 const MOVE_TOLERANCE = 10;
 
@@ -22,7 +24,7 @@ export interface LongPressApi {
   wasLongPress(): boolean;
 }
 
-export function useLongPress(onLongPress: () => void): LongPressApi {
+export function useLongPress(onLongPress: () => void, holdMs = HOLD_MS): LongPressApi {
   const timer = useRef<number | undefined>(undefined);
   const origin = useRef<{ x: number; y: number } | null>(null);
   const fired = useRef(false);
@@ -44,7 +46,7 @@ export function useLongPress(onLongPress: () => void): LongPressApi {
           haptics.bump();
           onLongPress();
           cancel();
-        }, HOLD_MS);
+        }, holdMs);
       },
       onPointerMove(event) {
         const start = origin.current;

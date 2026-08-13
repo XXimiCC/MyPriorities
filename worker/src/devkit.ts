@@ -41,6 +41,22 @@ const EXTENSIONS: Record<string, string> = {
   'image/png': 'png',
 };
 
+/**
+ * Состояния тикета.
+ *
+ *   open    — пришло, но ещё не смотрели;
+ *   queued  — посмотрели и отправили чинить: это и есть очередь для командной
+ *             строки, `tickets:pull` забирает именно их;
+ *   closed  — починено;
+ *   wontfix — разобрались и решили не чинить.
+ */
+export const STATUSES = ['open', 'queued', 'closed', 'wontfix'] as const;
+export type TicketStatus = (typeof STATUSES)[number];
+
+export function isStatus(value: unknown): value is TicketStatus {
+  return typeof value === 'string' && (STATUSES as readonly string[]).includes(value);
+}
+
 export interface TicketRow {
   id: string;
   /** Кто прислал. У тикета от тестировщика это не наш номер — и это видно сразу. */
@@ -55,6 +71,7 @@ export interface TicketRow {
   shot_bytes: number | null;
   shot_mime: string | null;
   created_at: string;
+  queued_at: string | null;
   closed_at: string | null;
   fix_note: string | null;
 }
@@ -317,13 +334,68 @@ export async function handleCreateTicket(
   };
 }
 
+/**
+ * Правка тикета из админки: описание и состояние.
+ *
+ * Описание правится намеренно. Человек, поймавший баг, пишет второпях и
+ * своими словами; чинить по такому тексту — гадать. Одна поправленная строка
+ * экономит потом полчаса.
+ */
+export async function updateTicket(
+  env: Env,
+  id: string,
+  patch: { note?: unknown; status?: unknown },
+): Promise<TicketRow> {
+  const row = await readTicket(env, id);
+
+  const note = typeof patch.note === 'string' ? patch.note.trim().slice(0, MAX_NOTE) : undefined;
+  if (note !== undefined && !note) throw badRequest('empty-note');
+
+  let status: TicketStatus | undefined;
+  if (patch.status !== undefined) {
+    if (!isStatus(patch.status)) throw badRequest('bad-status');
+    status = patch.status;
+  }
+
+  if (note === undefined && status === undefined) return row;
+
+  /*
+   * Отметки времени ставятся при входе в состояние и снимаются при выходе.
+   * Вернуть тикет из «в работе» обратно в «открыт» — обычное дело: посмотрел
+   * внимательнее, понял, что чинить пока нечего. Оставшаяся отметка врала бы
+   * про очередь.
+   */
+  await env.DB.prepare(
+    `update tickets
+        set note      = coalesce(?, note),
+            status    = coalesce(?, status),
+            queued_at = case
+                          when ? = 'queued' then coalesce(queued_at, datetime('now'))
+                          when ? is null then queued_at
+                          else null
+                        end,
+            closed_at = case
+                          when ? in ('closed', 'wontfix') then coalesce(closed_at, datetime('now'))
+                          when ? is null then closed_at
+                          else null
+                        end
+      where id = ?`,
+  )
+    .bind(note ?? null, status ?? null, status ?? null, status ?? null, status ?? null, status ?? null, row.id)
+    .run();
+
+  return readTicket(env, row.id);
+}
+
 export async function listTickets(env: Env, status: string, limit: number): Promise<TicketRow[]> {
   const rows = await env.DB.prepare(
     `select id, telegram_id, app, status, note, payload, build_id, route, shot_key, shot_bytes, shot_mime,
-            created_at, closed_at, fix_note
+            created_at, queued_at, closed_at, fix_note
        from tickets
       where status = ?
-      order by created_at asc
+      -- Очередь разбирают в том порядке, в каком отбирали; всё остальное — по
+      -- времени появления. Одно выражение покрывает оба случая.
+      order by coalesce(queued_at, created_at) asc
       limit ?`,
   )
     .bind(status, Math.min(Math.max(limit, 1), 100))
@@ -343,7 +415,7 @@ export async function readTicket(env: Env, id: string): Promise<TicketRow> {
    */
   const found = await env.DB.prepare(
     `select id, telegram_id, app, status, note, payload, build_id, route, shot_key, shot_bytes, shot_mime,
-            created_at, closed_at, fix_note
+            created_at, queued_at, closed_at, fix_note
        from tickets where id = ? or id like ?
       limit 2`,
   )

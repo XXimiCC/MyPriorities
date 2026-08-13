@@ -1,9 +1,15 @@
 /*
- * Забрать открытые тикеты и разложить по .tickets/.
+ * Забрать тикеты, отправленные в работу, и разложить по .tickets/.
  *
- *   npm run tickets:pull          — забрать новые
- *   npm run tickets:list          — только показать список, ничего не писать
+ *   npm run tickets:pull             — забрать очередь на починку
+ *   npm run tickets:pull -- --open   — забрать новые, минуя отбор
+ *   npm run tickets:list             — только показать список, ничего не писать
  *   npm run tickets:pull -- --force  — перезаписать уже лежащее
+ *
+ * По умолчанию берутся не все новые тикеты, а только отобранные руками в
+ * админке (`/devkit/admin`, кнопка «Отправить на фикс»). Разница существенная:
+ * входящий поток — это сырые жалобы, среди которых бывают и повторы, и
+ * «показалось». Чинить их подряд означает делать отбор дважды.
  *
  * Файлами на диске, а не выводом в консоль: нейронка читает ticket.md и кадр
  * своими обычными инструментами, а картинка в терминал не помещается.
@@ -52,13 +58,18 @@ async function main() {
   const args = process.argv.slice(2);
   const listOnly = args.includes('--list');
   const force = args.includes('--force');
+  const status = args.includes('--open') ? 'open' : 'queued';
   const config = readConfig();
 
-  const response = await api(config, '/devkit/tickets?status=open&limit=50');
+  const response = await api(config, `/devkit/tickets?status=${status}&limit=50`);
   const { tickets } = await response.json();
 
   if (!tickets || tickets.length === 0) {
-    log('Открытых тикетов нет.');
+    log(
+      status === 'queued'
+        ? 'В работе ничего нет. Отберите тикеты в админке либо возьмите новые: npm run tickets:pull -- --open'
+        : 'Новых тикетов нет.',
+    );
     return;
   }
 

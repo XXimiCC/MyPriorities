@@ -20,7 +20,7 @@
     "landing:sync": "node tools/landing/sync.mjs",
     "devkit:sync": "node tools/devkit/build.mjs",
     "tickets:pull": "node tools/tickets/pull.mjs",
-    "tickets:list": "node tools/tickets/pull.mjs --list",
+    "tickets:list": "node tools/tickets/pull.mjs --list --open",
     "tickets:close": "node tools/tickets/close.mjs"
   },
   "dependencies": {

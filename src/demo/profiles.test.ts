@@ -56,6 +56,47 @@ describe('демо-профили', () => {
     }
   });
 
+  /*
+   * Демо открывают на вкладке «Сегодня». Пустой сегодняшний день встречает
+   * человека нулями и серыми жёлобами — то есть ровно тем, ради отсутствия
+   * чего демо и существует. Раньше сегодня выпадал по тому же жребию, что и
+   * любой другой день (`gapChance`), и у части профилей на части запусков был
+   * пустым.
+   */
+  it('сегодняшний день заполнен у каждого профиля', () => {
+    const today = `${NOW.getFullYear()}-${String(NOW.getMonth() + 1).padStart(2, '0')}-${String(
+      NOW.getDate(),
+    ).padStart(2, '0')}`;
+
+    for (const profile of DEMO_PROFILES) {
+      const day = contentsOf(profile.id).journal.clicks[today];
+      expect(day, `${profile.id}: сегодня пуст`).toBeDefined();
+
+      const blocks = Object.values(day ?? {}).reduce((sum, value) => sum + value, 0);
+      expect(blocks, `${profile.id}: сегодня без блоков`).toBeGreaterThan(0);
+    }
+  });
+
+  /*
+   * И зеркальное условие: у сегодняшнего дня не должно быть будущего. Отметки
+   * заряда позже «сейчас» делали последней отметкой дня вечернюю, а «текущий
+   * заряд» — это именно последняя отметка (domain/stats.ts). Живое
+   * переключение после этого не меняло на экране ничего.
+   */
+  it('у сегодняшнего дня нет отметок заряда из будущего', () => {
+    const today = `${NOW.getFullYear()}-${String(NOW.getMonth() + 1).padStart(2, '0')}-${String(
+      NOW.getDate(),
+    ).padStart(2, '0')}`;
+    const nowMinute = NOW.getHours() * 60 + NOW.getMinutes();
+
+    for (const profile of DEMO_PROFILES) {
+      for (const shift of contentsOf(profile.id).journal.battery[today] ?? []) {
+        expect(shift[0], `${profile.id}: отметка в ${shift[0]} минуте при «сейчас» ${nowMinute}`)
+          .toBeLessThanOrEqual(nowMinute);
+      }
+    }
+  });
+
   it('идентификаторы уникальны и укладываются в пределы', () => {
     for (const profile of DEMO_PROFILES) {
       const { settings, skills } = contentsOf(profile.id);

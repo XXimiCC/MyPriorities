@@ -102,7 +102,7 @@ export default defineConfig({
       {
         type: 'module',
         src: '/devkit/devkit.js',
-        'data-devkit-url': 'https://mypri.mypri.workers.dev',
+        'data-devkit-url': 'http://127.0.0.1:8799',
         'data-devkit-app': 'docs',
       },
     ],

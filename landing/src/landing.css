@@ -831,7 +831,6 @@ a {
  * ситуации, в которой человек себя узнаёт.
  */
 .creed {
-  max-width: 62ch;
   margin: 34px 0 0;
   padding-left: 20px;
   border-left: 2px solid color-mix(in srgb, var(--p0) 45%, transparent);
@@ -900,7 +899,7 @@ a {
 .pain__q {
   position: relative;
   margin: 0 0 12px;
-  font-size: 18px;
+  font-size: 7px;
   font-weight: 600;
   line-height: 1.3;
   letter-spacing: -0.01em;
@@ -1357,6 +1356,66 @@ a {
 @media (max-width: 859px) {
   .feat__shot--pair img:nth-child(2) {
     display: none;
+  }
+}
+
+/* --- Возражения ------------------------------------------------------------ */
+
+/*
+ * Список определений, а не «аккордеон»: вопросов шесть, ответы короткие, и
+ * прятать их за клик значит заставлять человека шесть раз тыкать ради строчки
+ * текста. Раскрывающийся блок оправдан там, где ответы длинные, — здесь нет.
+ */
+.faq {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  overflow: hidden;
+}
+
+.faq__item {
+  padding: 20px 22px;
+}
+
+.faq__item + .faq__item {
+  border-top: 1px solid var(--hairline);
+}
+
+.faq dt {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.faq dd {
+  margin: 0;
+  max-width: 70ch;
+  font-size: 15px;
+  color: var(--text-dim);
+}
+
+@media (min-width: 800px) {
+  /* Две колонки: шесть строк подряд читаются как договор, а не как ответы. */
+  .faq {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .faq__item + .faq__item {
+    border-top: 0;
+  }
+
+  /* Разделители рисуются сеткой, а не соседством: строк теперь три, а не шесть. */
+  .faq__item:not(:nth-child(-n + 2)) {
+    border-top: 1px solid var(--hairline);
+  }
+
+  .faq__item:nth-child(even) {
+    border-left: 1px solid var(--hairline);
   }
 }
 

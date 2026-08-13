@@ -15,8 +15,19 @@
  * дотянуться. Тот же приём, что и readCurrentRoute в App.tsx.
  */
 
+import { revealDevkit } from './devkit';
 import type { State } from './store/reduce';
 import { syncState } from './sync/auth';
+
+/**
+ * Позвать панель отладки из интерфейса.
+ *
+ * Обёртка, а не прямой импорт из экрана: весь клей с панелью собран в двух
+ * файлах — здесь и в main.tsx, — и это проверяет tools/deps.test.ts. Убрать
+ * панель из проекта должно быть правкой в известных местах, а не поиском по
+ * всему src/.
+ */
+export { revealDevkit };
 
 let snapshot: Record<string, unknown> = {};
 

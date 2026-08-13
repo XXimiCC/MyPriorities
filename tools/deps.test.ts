@@ -80,14 +80,20 @@ describe('переносимость панели отладки', () => {
     expect(entry).toContain('registerDevkitHost');
   });
 
-  it('весь клей с приложением собран в одном месте', () => {
-    // Если панель понадобится выключить или перенести, править надо будет
-    // main.tsx, а не искать вызовы по всему src/.
+  it('весь клей с приложением собран в двух известных файлах', () => {
+    /*
+     * Панель зовут из двух мест, и оба — про панель, а не про приложение:
+     * main.tsx ставит её, devkitHost.ts отдаёт наружу снимок состояния и
+     * вызов «показать значок». Экраны обращаются к devkitHost, а не к панели
+     * напрямую: выключить её должно быть правкой в известных местах, а не
+     * поиском по всему src/.
+     */
     const users = fs
-      .readdirSync(path.join(ROOT, 'src'))
+      .readdirSync(path.join(ROOT, 'src'), { recursive: true, encoding: 'utf8' })
       .filter((name) => name.endsWith('.tsx') || name.endsWith('.ts'))
-      .filter((name) => read(path.join('src', name)).includes("from './devkit'"));
+      .filter((name) => !name.startsWith('devkit' + path.sep))
+      .filter((name) => /from '\.{1,2}\/devkit'/.test(read(path.join('src', name))));
 
-    expect(users).toEqual(['main.tsx']);
+    expect(users.sort()).toEqual(['devkitHost.ts', 'main.tsx']);
   });
 });

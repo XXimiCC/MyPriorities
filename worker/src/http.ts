@@ -11,6 +11,15 @@ import type { Env } from './env';
 
 const JSON_TYPE = 'application/json; charset=utf-8';
 
+/** Своя машина: localhost и приватные сети. Только им доверяется ключ разработчика. */
+export function isOwnMachine(origin: string): boolean {
+  const host = origin.replace(/^https?:\/\//, '').split(':')[0]?.toLowerCase() ?? '';
+  if (host === 'localhost' || host === '127.0.0.1' || host === '[::1]') return true;
+  if (host.endsWith('.local') || host.endsWith('.localhost')) return true;
+  if (host.startsWith('10.') || host.startsWith('192.168.')) return true;
+  return /^172\.(1[6-9]|2\d|3[01])\./.test(host);
+}
+
 export function corsHeaders(request: Request, env: Env): Record<string, string> {
   const origin = request.headers.get('Origin');
   if (!origin) return {};
@@ -20,16 +29,25 @@ export function corsHeaders(request: Request, env: Env): Record<string, string> 
     .filter(Boolean);
   if (!allowed.includes(origin)) return {};
 
+  /*
+   * X-Devkit-Invite разрешён всем: он живёт в ссылке тестировщика и по
+   * определению приезжает из браузера.
+   *
+   * X-Devkit-Token — ключ командной строки, и с боевых доменов его нет в
+   * списке намеренно: разрешить его там значило бы пригласить браузер его
+   * прислать. Но со своей машины он нужен по-настоящему: войти через Telegram
+   * на localhost невозможно, бот такого домена не знает, и без этого заголовка
+   * панель на dev-сервере не могла отправить ничего — запрос не выходил из
+   * браузера вовсе, а тикет молча уходил в очередь. Ровно так и терялись
+   * отчёты.
+   */
+  const headers = ['Content-Type', 'Authorization', 'X-Devkit-Invite'];
+  if (isOwnMachine(origin)) headers.push('X-Devkit-Token');
+
   return {
     'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    /*
-     * X-Devkit-Invite здесь есть, а X-Devkit-Token — нет, и это не описка.
-     * Первый живёт в ссылке тестировщика и по определению приезжает из
-     * браузера. Второй — ключ командной строки; разрешить его здесь значило бы
-     * пригласить браузер его прислать.
-     */
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Devkit-Invite',
+    'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
+    'Access-Control-Allow-Headers': headers.join(', '),
     'Access-Control-Max-Age': '86400',
     // Один и тот же URL отвечает разными заголовками разным origin — без Vary
     // кэш отдал бы чужой ответ.

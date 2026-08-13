@@ -17,6 +17,18 @@ import type { TicketPayload } from './types';
 
 export type SendOutcome = 'sent' | 'queued' | 'refused';
 
+export interface SendResult {
+  outcome: SendOutcome;
+  /**
+   * Почему не ушло. Показывается человеку дословно.
+   *
+   * Раньше все отказы выглядели одинаково — «Отчёты сейчас не принимаются», — и
+   * «я не вошёл», «меня не пустили» и «нет сети» было не различить. Отладочный
+   * инструмент, который сам не умеет объяснить свой отказ, стоит недорого.
+   */
+  reason?: string;
+}
+
 /**
  * Запасной ход только для разработки: вход через Telegram на localhost
  * невозможен — бот такого домена не знает, — а панель нужна прежде всего там.
@@ -37,18 +49,49 @@ function base(): string {
   return (currentHost()?.endpoint ?? '').replace(/\/+$/, '');
 }
 
-/** Чем доказываем, что это свои. Пусто — доказывать нечем, и слать некуда. */
-async function authHeaders(): Promise<Record<string, string> | undefined> {
-  // Ключ приглашения не заменяет вход, а дополняет его: отправитель у тикета
-  // есть всегда, анонимных не бывает.
+/**
+ * Чем доказываем, что это свои. Три двери, и порядок между ними важен.
+ *
+ * Токен сессии сильнее всего: тикет из приложения обязан быть подписан, даже
+ * когда рядом лежит ключ из ссылки.
+ *
+ * Ключ разработчика — своя машина: войти через Telegram на localhost нельзя.
+ *
+ * Ключ приглашения — **самостоятельная** дверь, а не добавка к первым двум.
+ * Раньше он только дополнял их, и это было тихой поломкой всего пути
+ * тестировщика: на документации и лендинге входа нет вовсе, поэтому заголовков
+ * не получалось ни одного, и отправка отказывала со словами «нужен вход» при
+ * совершенно правильном ключе в адресе. Сервер при этом такие тикеты принимал
+ * (см. callerOrGuest) — не доезжали они только из-за этой строчки.
+ */
+export function pickHeaders(input: {
+  token?: string;
+  devToken?: string;
+  invite?: string;
+}): Record<string, string> | undefined {
   const extra: Record<string, string> = {};
-  const invite = inviteKey();
-  if (invite) extra['X-Devkit-Invite'] = invite;
+  if (input.invite) extra['X-Devkit-Invite'] = input.invite;
 
-  const token = await currentHost()?.authToken?.().catch(() => undefined);
-  if (token) return { Authorization: `Bearer ${token}`, ...extra };
-  if (DEV_TOKEN) return { 'X-Devkit-Token': DEV_TOKEN, ...extra };
+  if (input.token) return { Authorization: `Bearer ${input.token}`, ...extra };
+  if (input.devToken) return { 'X-Devkit-Token': input.devToken, ...extra };
+  if (input.invite) return extra;
   return undefined;
+}
+
+async function authHeaders(): Promise<Record<string, string>> {
+  const host = currentHost();
+  const headers = pickHeaders({
+    token: await host?.authToken?.().catch(() => undefined),
+    devToken: DEV_TOKEN,
+    invite: inviteKey(),
+  });
+  if (headers) return headers;
+
+  /*
+   * Отказ должен называть выход, а не только беду. «Нужен вход» на странице
+   * документации — совет, которому нельзя последовать: входа там не бывает.
+   */
+  throw new Refused(host?.authToken ? 'нужен вход' : 'нужен ключ в адресе: ?test=…');
 }
 
 /**
@@ -60,9 +103,16 @@ async function authHeaders(): Promise<Record<string, string> | undefined> {
  * нечем — отправка всё равно ляжет в очередь.
  */
 export async function checkAllowed(): Promise<boolean | undefined> {
-  const headers = await authHeaders();
   if (!base()) return false;
-  if (!headers) return false;
+
+  let headers: Record<string, string>;
+  try {
+    headers = await authHeaders();
+  } catch {
+    // Доказать нечем — значит и спрашивать некому. Отказ человек увидит при
+    // отправке, вместе с тем, что с этим делать.
+    return false;
+  }
 
   try {
     const response = await fetch(`${base()}/devkit/allowed`, { headers });
@@ -85,7 +135,6 @@ async function post(ticket: TicketPayload, shot?: Blob): Promise<void> {
   if (!base()) throw new Refused('панель не настроена');
 
   const headers = await authHeaders();
-  if (!headers) throw new Refused('нужен вход');
 
   const body = new FormData();
   body.append('ticket', JSON.stringify(ticket));
@@ -96,17 +145,19 @@ async function post(ticket: TicketPayload, shot?: Blob): Promise<void> {
   if (response.ok) return;
   // 401 и 403 — это «не для вас», и повторять их бессмысленно. Всё остальное,
   // включая 5xx и обрыв связи, повторяется: сервер мог просто перезапускаться.
-  if (response.status === 401 || response.status === 403) throw new Refused(String(response.status));
+  if (response.status === 401) throw new Refused('сервер не узнал ключ');
+  if (response.status === 403) throw new Refused('этот аккаунт не в списке');
+  if (response.status === 429) throw new Refused('слишком много открытых тикетов');
   throw new Error(`сервер ответил ${response.status}`);
 }
 
 /** Отправить прямо сейчас; не вышло по вине связи — оставить в очереди. */
-export async function submit(ticket: TicketPayload, shot?: Blob): Promise<SendOutcome> {
+export async function submit(ticket: TicketPayload, shot?: Blob): Promise<SendResult> {
   try {
     await post(ticket, shot);
-    return 'sent';
+    return { outcome: 'sent' };
   } catch (error) {
-    if (error instanceof Refused) return 'refused';
+    if (error instanceof Refused) return { outcome: 'refused', reason: error.message };
 
     const now = Date.now();
     const draft: Draft = {
@@ -121,10 +172,10 @@ export async function submit(ticket: TicketPayload, shot?: Blob): Promise<SendOu
 
     try {
       await keepDraft(draft);
-      return 'queued';
+      return { outcome: 'queued', reason: draft.lastError };
     } catch (kept) {
       console.warn('[devkit] черновик не сохранился', kept);
-      return 'refused';
+      return { outcome: 'refused', reason: 'черновик негде сохранить' };
     }
   }
 }

@@ -9,6 +9,7 @@
  * вход, продление сессии и проверка живости.
  */
 
+import { adminPage } from './admin';
 import { handleLogout, handleRefresh, handleTelegramLogin } from './auth';
 import {
   callerOrGuest,
@@ -21,6 +22,7 @@ import {
   readTicket,
   readTicketShot,
   requireDevkitToken,
+  updateTicket,
 } from './devkit';
 import type { Env } from './env';
 import { HttpError, corsHeaders, json, readJson } from './http';
@@ -90,7 +92,11 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
       });
     }
 
-    // Дальше — только командная строка.
+    /* Разметка админки отдаётся без ключа: сама по себе она пустая, а данные
+       без ключа не отдаются ни на одном маршруте ниже. */
+    if (method === 'GET' && path === '/devkit/admin') return adminPage();
+
+    // Дальше — только командная строка и админка, у них один ключ.
     requireDevkitToken(request, env);
 
     if (method === 'GET' && path === '/devkit/tickets') {
@@ -107,6 +113,9 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
         return json(await closeTicket(env, id, (await readJson(request)) as Record<string, unknown>));
       }
       if (method === 'GET' && !one[2]) return json(await readTicket(env, id));
+      if (method === 'PATCH' && !one[2]) {
+        return json(await updateTicket(env, id, (await readJson(request)) as Record<string, unknown>));
+      }
     }
   }
 

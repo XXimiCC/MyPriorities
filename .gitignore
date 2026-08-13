@@ -25,6 +25,9 @@ worker/.wrangler/
 # кадры экрана с настоящими данными, им в репозитории не место.
 .tickets/
 
+# Личные настройки Claude Code: у каждого свои, общими им быть незачем.
+.claude/settings.local.json
+
 .vercel/
 *.log
 npm-debug.log*

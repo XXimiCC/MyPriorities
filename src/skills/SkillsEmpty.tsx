@@ -3,7 +3,8 @@ import { lastNDays, parseDayKey, todayKey } from '../domain/date';
 import { t } from '../i18n';
 import { SkillRow } from './SkillRow';
 import { progressOf } from './levels';
-import type { Skill, SkillTotal } from './types';
+import type { SkillTotal } from './total';
+import type { Skill } from './types';
 import './SkillsEmpty.css';
 
 interface Props {

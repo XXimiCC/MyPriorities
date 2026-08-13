@@ -10,6 +10,7 @@ import { blockMinutesOf, type DayKey } from '../domain/types';
 import { plural, t } from '../i18n';
 import { SkillRow } from '../skills/SkillRow';
 import { SkillSheet, type LinkTarget } from '../skills/SkillSheet';
+import { SkillsEmpty } from '../skills/SkillsEmpty';
 import { ALL_SUGGESTIONS, SKILL_SUGGESTIONS } from '../skills/catalogue';
 import { PACE_DAYS } from '../skills/pace';
 import {
@@ -187,10 +188,11 @@ export function SkillsScreen(): JSX.Element {
     <>
       <header className="header">
         <h1 className="header__title">{t('skills.title')}</h1>
+        {/* Счётчика «сколько из скольких» здесь нет: предел в двадцать четыре
+            навыка не тот повод, чтобы держать цифру на виду каждый день. Про
+            него говорит сама кнопка, когда упереться в него действительно
+            получилось. */}
         <div className="header__actions">
-          <span className="sks__counter">
-            {t('skills.counter', { count: skills.skills.length, max: MAX_SKILLS })}
-          </span>
           <HeaderBattery />
         </div>
       </header>
@@ -240,7 +242,7 @@ export function SkillsScreen(): JSX.Element {
 
       <div className="app__body">
         {totals.length === 0 ? (
-          <p className="empty">{t('skills.empty')}</p>
+          <SkillsEmpty onAdd={() => setAdding(true)} />
         ) : (
           <>
             <ul className="sks__list">
@@ -262,14 +264,18 @@ export function SkillsScreen(): JSX.Element {
           </>
         )}
 
-        <button
-          className="btn press"
-          type="button"
-          disabled={atLimit}
-          onClick={() => setAdding(true)}
-        >
-          {atLimit ? t('skills.limit', { max: MAX_SKILLS }) : t('skills.add')}
-        </button>
+        {/* На пустом экране кнопка своя — она стоит поверх примера, см.
+            SkillsEmpty. Вторая такая же под ним была бы дублем. */}
+        {totals.length > 0 && (
+          <button
+            className="btn press"
+            type="button"
+            disabled={atLimit}
+            onClick={() => setAdding(true)}
+          >
+            {atLimit ? t('skills.limit', { max: MAX_SKILLS }) : t('skills.add')}
+          </button>
+        )}
 
         {skills.archived.length > 0 && (
           <>

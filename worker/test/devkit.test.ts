@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   assertShot,
+  deleteTicket,
   inviteOf,
   isAllowed,
   isStatus,
@@ -171,6 +172,47 @@ describe('правка тикета из админки', () => {
 async function expectReject(run: () => Promise<unknown>): Promise<void> {
   await expect(run()).rejects.toThrow();
 }
+
+describe('удаление тикета', () => {
+  const withShot = (shotKey: string | null, onDelete: (key: string) => void, fail = false): Env =>
+    ({
+      DB: {
+        prepare: () => ({
+          bind: () => ({
+            all: () => Promise.resolve({ results: [{ id: 'a3f9c1de', shot_key: shotKey }] }),
+            run: () => Promise.resolve({}),
+          }),
+        }),
+      },
+      SHOTS: {
+        delete: (key: string) => {
+          onDelete(key);
+          return fail ? Promise.reject(new Error('хранилище молчит')) : Promise.resolve();
+        },
+      },
+    }) as unknown as Env;
+
+  it('убирает и строку, и кадр', async () => {
+    const removed: string[] = [];
+    const result = await deleteTicket(withShot('shot/2026-08/a.webp', (k) => removed.push(k)), 'a3f9c1de');
+    expect(result).toEqual({ id: 'a3f9c1de', deleted: true });
+    expect(removed).toEqual(['shot/2026-08/a.webp']);
+  });
+
+  it('тикет без кадра удаляется молча', async () => {
+    const removed: string[] = [];
+    await deleteTicket(withShot(null, (k) => removed.push(k)), 'a3f9c1de');
+    expect(removed).toEqual([]);
+  });
+
+  it('упавшее хранилище не отменяет удаления', async () => {
+    // Строки уже нет, а осиротевший кадр уйдёт сам по сроку хранения. Ронять
+    // из-за него состоявшееся удаление нечего.
+    await expect(deleteTicket(withShot('shot/a.webp', () => undefined, true), 'a3f9c1de')).resolves.toMatchObject({
+      deleted: true,
+    });
+  });
+});
 
 describe('кадр', () => {
   it('слишком тяжёлый не принимается', () => {

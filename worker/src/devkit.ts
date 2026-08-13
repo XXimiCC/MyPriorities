@@ -387,6 +387,32 @@ export async function updateTicket(
   return readTicket(env, row.id);
 }
 
+/**
+ * Удалить тикет вместе с кадром.
+ *
+ * Порядок важен: сперва строка, потом картинка. Если упадёт второе — в
+ * хранилище останется сирота, которая сама исчезнет по сроку хранения. При
+ * обратном порядке остался бы тикет со ссылкой на несуществующий кадр, и
+ * выглядел бы он как поломка, а не как уборка.
+ */
+export async function deleteTicket(env: Env, id: string): Promise<{ id: string; deleted: true }> {
+  const row = await readTicket(env, id);
+
+  await env.DB.prepare('delete from tickets where id = ?').bind(row.id).run();
+
+  if (row.shot_key) {
+    try {
+      await env.SHOTS.delete(row.shot_key);
+    } catch (error) {
+      // Кадр переживёт нас на месяц и уйдёт сам. Ронять из-за этого удаление,
+      // которое уже состоялось, нечего.
+      console.warn('[devkit] кадр не убрался', error);
+    }
+  }
+
+  return { id: row.id, deleted: true };
+}
+
 export async function listTickets(env: Env, status: string, limit: number): Promise<TicketRow[]> {
   const rows = await env.DB.prepare(
     `select id, telegram_id, app, status, note, payload, build_id, route, shot_key, shot_bytes, shot_mime,

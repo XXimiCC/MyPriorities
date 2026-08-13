@@ -75,6 +75,11 @@ const PAGE = String.raw`<!doctype html>
   .btn { padding: 9px 14px; border: 1px solid var(--line); border-radius: 10px; background: transparent; cursor: pointer; }
   .btn:hover { background: rgba(255,255,255,.06); }
   .btn--main { border-color: rgb(var(--neon)); background: rgb(var(--neon)); color: #08090b; font-weight: 600; }
+  /* Удаление стоит отдельной строкой и выглядит иначе: соседство с «Сохранить»
+     рано или поздно кончилось бы промахом, а отменить его нечем. */
+  .btn--danger { border-color: rgba(255,90,90,.45); color: #ff8f8f; }
+  .btn--danger:hover { background: rgba(255,90,90,.12); }
+  .row--danger { justify-content: flex-end; margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line); }
   .btn:disabled { opacity: .4; cursor: default; }
   pre { margin: 8px 0 0; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,.04);
         overflow: auto; font-size: 12px; max-height: 320px; }
@@ -154,11 +159,26 @@ function renderList() {
     : [el('p', { className: 'note', textContent: 'Здесь пусто.' })]);
 }
 
-function act(label, main, run) {
+function act(label, main, run, extra) {
   return el('button', {
-    className: 'btn' + (main ? ' btn--main' : ''), textContent: label, disabled: busy,
+    className: 'btn' + (main ? ' btn--main' : '') + (extra ? ' ' + extra : ''),
+    textContent: label, disabled: busy,
     onclick: async () => { busy = true; draw(); try { await run(); } catch (e) { alert(e.message); } busy = false; },
   });
+}
+
+/**
+ * Удаление — единственное необратимое действие на этой странице, поэтому
+ * спрашивает подтверждение и называет номер: «удалить» без номера слишком
+ * похоже на «удалить не тот».
+ */
+async function remove() {
+  const short = current.id.slice(0, 8);
+  if (!confirm('Удалить тикет ' + short + ' вместе с кадром? Это навсегда.')) return;
+  await api('/devkit/tickets/' + current.id, { method: 'DELETE' });
+  if (shotUrl) { URL.revokeObjectURL(shotUrl); shotUrl = null; }
+  current = null;
+  await load();
 }
 
 async function patch(body) {
@@ -187,7 +207,7 @@ function renderDetail() {
     el('p', { className: 'meta', textContent: 'Описание — можно поправить перед отправкой в работу:' }),
     note,
     el('div', { className: 'row' }, [
-      act('Сохранить текст', false, () => patch({ note: note.value })),
+      act('Сохранить описание', false, () => patch({ note: note.value })),
       current.status !== 'queued'
         ? act('Отправить на фикс', true, () => patch({ note: note.value, status: 'queued' }))
         : act('Вернуть в новые', false, () => patch({ status: 'open' })),
@@ -203,6 +223,7 @@ function renderDetail() {
         (payload.log || []).map((l) => String(l.at).padStart(7) + ' мс  ' + l.kind + '  ' + l.text).join('\n') +
         '\n\n' + JSON.stringify(payload.snapshot || {}, null, 2) }),
     ]),
+    el('div', { className: 'row row--danger' }, [act('Удалить', false, remove, 'btn--danger')]),
   ]);
 }
 

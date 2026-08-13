@@ -14,6 +14,7 @@ import { handleLogout, handleRefresh, handleTelegramLogin } from './auth';
 import {
   callerOrGuest,
   closeTicket,
+  deleteTicket,
   handleCreateTicket,
   hasDevkitToken,
   inviteOf,
@@ -116,6 +117,7 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
       if (method === 'PATCH' && !one[2]) {
         return json(await updateTicket(env, id, (await readJson(request)) as Record<string, unknown>));
       }
+      if (method === 'DELETE' && !one[2]) return json(await deleteTicket(env, id));
     }
   }
 

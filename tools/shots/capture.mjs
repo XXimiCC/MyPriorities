@@ -108,9 +108,19 @@ async function startPreview() {
   }
 }
 
-async function makeContext(browser, { telegram }) {
+/**
+ * Размер экрана по умолчанию — телефон, под который приложение и нарисовано.
+ *
+ * Прогон может попросить другой: кадр, который встаёт постером под живым
+ * фреймом на лендинге, обязан совпадать с фреймом по высоте. Иначе панель
+ * вкладок, стоящая у нижнего края экрана, в постер не попадает, а во фрейме
+ * есть — и в момент подмены она «появляется».
+ */
+const SCREEN = { width: 390, height: 844 };
+
+async function makeContext(browser, { telegram, viewport }) {
   const context = await browser.newContext({
-    viewport: { width: 390, height: 844 },
+    viewport: viewport ?? SCREEN,
     deviceScaleFactor: 2,
     isMobile: true,
     hasTouch: true,
@@ -227,7 +237,10 @@ async function main() {
 
       for (const shot of shots) {
         total += 1;
-        const context = await makeContext(browser, { telegram: Boolean(runDef.telegram) });
+        const context = await makeContext(browser, {
+          telegram: Boolean(runDef.telegram),
+          viewport: runDef.viewport,
+        });
         try {
           const page = await openApp(context, runDef.url);
           if (shot.setup) await shot.setup(page);

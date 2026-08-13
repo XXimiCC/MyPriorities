@@ -19,7 +19,7 @@ export const LANDING_SHOTS = [
    * фрейм грузится тем же профилем, и разные данные под постером и в рамке
    * читались бы как подмена приложения на другое.
    */
-  'home-max.png',
+  'home-frame.png',
   'home-today.png',
   'charge-list.png',
   'skills-list.png',

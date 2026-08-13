@@ -1292,18 +1292,12 @@ a {
   align-items: center;
 }
 
-/*
- * Подзаголовок стал меньше названия: раньше он был главной строкой блока,
- * теперь — пояснением под ней. Два одинаково крупных заголовка подряд не
- * дают глазу понять, что тут первое.
- */
 .feat__title {
-  margin: 0 0 18px;
-  font-size: clamp(17px, 2vw, 20px);
-  font-weight: 500;
-  line-height: 1.3;
-  letter-spacing: -0.01em;
-  color: var(--text-dim);
+  margin: 10px 0 18px;
+  font-size: clamp(21px, 2.8vw, 28px);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
   text-wrap: balance;
 }
 

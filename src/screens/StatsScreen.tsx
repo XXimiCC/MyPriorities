@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 
 import { BatteryIcon } from '../components/BatteryIcon';
 import { DayBars } from '../components/DayBars';
@@ -16,7 +16,7 @@ import {
   periodDays,
   type PriorityStat,
 } from '../domain/stats';
-import { MAX_INSIGHTS, insightText, insights } from '../domain/insights';
+import { MAX_INSIGHTS, insightText, insights, type Insight } from '../domain/insights';
 import { PERIODS, type PeriodId } from '../domain/periods';
 import { BATTERY_LEVELS, blockMinutesOf, drainTextOf, modulesOf } from '../domain/types';
 import { derive } from '../achievements/derive';
@@ -25,6 +25,36 @@ import { useStore } from '../store/useStore';
 import './StatsScreen.css';
 
 const STATS_PERIODS = PERIODS.filter((p) => p.id !== 'today');
+
+/**
+ * Наблюдение с выделенным именем приоритета.
+ *
+ * Текст собирается в domain/insights.ts обычной строкой, а цвет живёт отдельным
+ * полем: подставлять разметку в словарь нельзя — строки переводятся и
+ * проверяются как текст. Поэтому имя ищется в готовой фразе по тому же
+ * значению, которым его туда подставили.
+ *
+ * Найти не удалось — показываем как есть: наблюдение без цвета читается, а
+ * упавший экран статистики — нет.
+ */
+function withNamedPriority(note: Insight): ReactNode {
+  const text = insightText(note);
+  const title = typeof note.params?.title === 'string' ? note.params.title : undefined;
+  if (!title || note.colorId === undefined) return text;
+
+  const at = text.indexOf(title);
+  if (at < 0) return text;
+
+  return (
+    <>
+      {text.slice(0, at)}
+      <b className="ins__name" style={{ color: colorOf(note.colorId).hex }}>
+        {title}
+      </b>
+      {text.slice(at + title.length)}
+    </>
+  );
+}
 
 export function StatsScreen(): JSX.Element {
   const { settings, journal } = useStore();
@@ -101,11 +131,10 @@ export function StatsScreen(): JSX.Element {
             <div className="divider-label">
               <span>{t('ins.title')}</span>
             </div>
-            <p className="charge__note">{t('ins.note')}</p>
             <ul className="ins">
               {notes.slice(0, MAX_INSIGHTS).map((note) => (
                 <li className="ins__item" key={note.id}>
-                  {insightText(note)}
+                  {withNamedPriority(note)}
                 </li>
               ))}
             </ul>

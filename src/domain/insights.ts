@@ -74,6 +74,12 @@ export interface Insight {
   id: InsightId;
   key: StringKey;
   params?: Params;
+  /**
+   * Цвет приоритета, о котором речь, — тот же индекс палитры, что и в списке.
+   * Нужен, чтобы имя в тексте было видно так же, как в остальном приложении:
+   * наблюдение про «Работу» и полоса «Работы» должны узнаваться одним цветом.
+   */
+  colorId?: number;
 }
 
 const INSIGHT_UNITS: UnitTable = {
@@ -121,6 +127,7 @@ function chargeInsight(settings: Settings, derived: Derived): Insight | undefine
   return {
     id: 'charge',
     key: 'ins.charge',
+    colorId: best.priority.colorId,
     params: {
       title: best.priority.title,
       low: formatHoursCompact(best.a * blockMinutes),
@@ -154,7 +161,8 @@ function weekOverWeekInsight(settings: Settings, derived: Derived): Insight | un
 
   return {
     id: 'weekOverWeek',
-    key: best.a > best.b ? 'ins.grew' : 'ins.fell',
+    key: 'ins.weekOverWeek',
+    colorId: best.priority.colorId,
     params: {
       title: best.priority.title,
       now: formatHoursCompact(best.a * blockMinutes),
@@ -189,6 +197,7 @@ function quietInsight(settings: Settings, derived: Derived, now: Date): Insight 
   return {
     id: 'quiet',
     key: 'ins.quiet',
+    colorId: best.priority.colorId,
     params: {
       title: best.priority.title,
       n: best.days,

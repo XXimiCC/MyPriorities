@@ -123,7 +123,7 @@ describe('неделя против предыдущей', () => {
     for (let i = 7; i <= 13; i += 1) journal.clicks[back(i)] = { ab: 3 };
     for (let i = 0; i <= 6; i += 1) journal.clicks[back(i)] = { ab: 1 };
     expect(find(journal, 'weekOverWeek')).toBe(
-      'На Работа за неделю ушло 3,5 ч — меньше, чем 10,5 ч неделей раньше.',
+      'На Работа за неделю ушло 3,5 ч. На прошлой неделе было 10,5 ч.',
     );
   });
 
@@ -131,7 +131,10 @@ describe('неделя против предыдущей', () => {
     const journal = empty();
     for (let i = 7; i <= 13; i += 1) journal.clicks[back(i)] = { ab: 2 };
     for (let i = 0; i <= 6; i += 1) journal.clicks[back(i)] = { ab: 5 };
-    expect(find(journal, 'weekOverWeek')).toContain('больше');
+    // Направление читается из самих чисел: текст на обе стороны один.
+    expect(find(journal, 'weekOverWeek')).toBe(
+      'На Работа за неделю ушло 17,5 ч. На прошлой неделе было 7 ч.',
+    );
   });
 
   it('пустая предыдущая неделя сравнения не даёт', () => {
@@ -184,7 +187,7 @@ describe('будни и выходные', () => {
       journal.clicks[day] = { ab: weekend ? 6 : 2 };
     }
     const text = find(journal, 'weekend');
-    expect(text).toBe('В будни выходит 1 ч в день, в выходные — 3 ч.');
+    expect(text).toBe('В будни ты инвестируешь в приоритеты 1 ч в день, в выходные — 3 ч.');
   });
 
   it('одинаковый темп наблюдения не даёт', () => {
@@ -216,7 +219,7 @@ describe('во сколько садится заряд', () => {
       ];
     });
     // Медиана из 10:00, 18:00, 19:00, 20:00, 22:00 — девятнадцать часов.
-    expect(find(journal, 'lowOnset')).toBe('Заряд обычно садится «на нуле» около 19:00.');
+    expect(find(journal, 'lowOnset')).toBe('Заряд обычно садится до нуля около 19:00.');
   });
 
   it('четырёх дней мало', () => {

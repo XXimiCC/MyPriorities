@@ -193,11 +193,13 @@ export function ChargeScreen(): JSX.Element {
           {t('charge.shiftAdd')}
         </button>
 
+        {/* Пояснения под заголовком нет намеренно: заголовок зовёт сделать, а
+            кнопка под ним это и делает. Объяснение, почему у мини-приложения не
+            бывает системного виджета, отвечало на вопрос, которого никто не
+            задавал, и стояло ровно между зовом и действием. */}
         <div className="divider-label">
           <span>{t('charge.wallpaperTitle')}</span>
         </div>
-
-        <p className="charge__note">{t('charge.wallpaperNote')}</p>
 
         <button className="btn press charge__wallpaper" type="button" onClick={() => setWallpaperOpen(true)}>
           {t('charge.wallpaperAction')}

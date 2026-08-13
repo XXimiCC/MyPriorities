@@ -8,6 +8,7 @@ import { NEON_PALETTE, batteryTheme } from '../../domain/palette';
 import { BATTERY_LEVELS } from '../../domain/types';
 import { ColorCard, Fact, Facts, Grid, Item, Section } from '../parts';
 import { computedToken } from '../readTokens';
+import { FONT_SIZE_OUTLIERS, HEX_LITERALS } from '../scanStyles';
 
 const G = BATTERY_GEOMETRY;
 
@@ -142,6 +143,27 @@ export function Colors({ groups }: { groups: { title: string; hint?: string; tok
           </span>
         </div>
       </div>
+
+      <div className="bk__block">
+        <h3 className="eyebrow bk__sub">Цвета, прибитые литералом</h3>
+        <p className="bk__text">
+          Собрано обходом всех стилей приложения: каждый цвет, записанный шестнадцатеричным числом,
+          а не токеном. Совпадающие с токеном тоже здесь — <code className="bk__code">#000</code> в
+          месте, где есть <code className="bk__code">--bg</code>, и есть тот самый случай: значение
+          то же, связи нет. Поменяется токен — такое место останется прежним и разойдётся со всем
+          остальным.
+        </p>
+        <p className="bk__text">
+          Вычистить список до нуля нельзя и не нужно: чёрный текст на неоновой заливке не должен
+          зависеть от палитры, иначе поедет вместе с ней. Нужно, чтобы каждая строка была
+          объяснимой — необъяснимая и есть расползание стилей.
+        </p>
+        <Facts>
+          {HEX_LITERALS.map((row) => (
+            <Fact key={row.value} name={row.value} value={times(row.count)} note={places(row.where)} />
+          ))}
+        </Facts>
+      </div>
     </Section>
   );
 }
@@ -230,17 +252,19 @@ export function Accent(): JSX.Element {
   );
 }
 
-/**
- * Кегли, не попавшие в шкалу. Список ручной — вывести его из кода нельзя, а
- * молчать про него нечестно: пока эти значения живут литералами, шкала неполна.
- */
-const TYPE_OUTLIERS = [
-  { size: '8.5px', where: 'подписи под столбиками графиков' },
-  { size: '9px', where: 'счётчик за сегодня под кнопкой «+»' },
-  { size: '9.5px', where: 'подписи вкладок, когда вкладок пять' },
-  { size: '11.5px', where: 'вторые строки в строках-переходах и красных кнопках' },
-  { size: '12.5px', where: 'разбор дня' },
-];
+/** Три адреса и «и ещё N»: полный перечень файлов длиннее самой строки. */
+function places(where: string[]): string {
+  const head = where.slice(0, 3).join(', ');
+  return where.length > 3 ? `${head} и ещё ${where.length - 3}` : head;
+}
+
+/** «5 блок(ов)» в приложении не встречается — не встретится и здесь. */
+function times(count: number): string {
+  const ten = count % 10;
+  const hundred = count % 100;
+  if (ten >= 2 && ten <= 4 && (hundred < 12 || hundred > 14)) return `${count} раза`;
+  return `${count} раз`;
+}
 
 export function Typography({
   sizes,
@@ -309,12 +333,18 @@ export function Typography({
       <div className="bk__block">
         <h3 className="eyebrow bk__sub">Исключения</h3>
         <p className="bk__text">
-          Эти размеры в шкалу не попали и живут литералами. Список честнее круглой шкалы, в которую
-          их вписали бы задним числом: пока строка здесь, у неё есть шанс однажды исчезнуть.
+          Эти размеры в шкалу не попали и живут литералами. Список не написан руками, а собран
+          обходом всех стилей приложения — иначе он устаревал бы ровно тогда, когда становится
+          нужен. Пока строка здесь, у неё есть шанс однажды исчезнуть.
         </p>
         <Facts>
-          {TYPE_OUTLIERS.map((row) => (
-            <Fact key={row.size} name={row.size} value={row.where} />
+          {FONT_SIZE_OUTLIERS.map((row) => (
+            <Fact
+              key={row.value}
+              name={row.value}
+              value={times(row.count)}
+              note={places(row.where)}
+            />
           ))}
         </Facts>
       </div>
@@ -377,6 +407,47 @@ export function Geometry({
           </div>
         ) : null,
       )}
+    </Section>
+  );
+}
+
+/**
+ * Каркас экрана. Не образец, а схема: показать шапку и таб-бар «как есть»
+ * внутри витрины нельзя — они прибиты к окну, а не к блоку, и копия соврала бы
+ * про своё же поведение. Зато порядок блоков и их правила пересказать можно, и
+ * без них новый экран не собрать.
+ */
+export function Frame(): JSX.Element {
+  return (
+    <Section
+      id="frame"
+      title="Каркас экрана"
+      lead="Страница не прокручивается никогда. Скроллится ровно один блок — .app__body, и это не мелочь оформления: на нём держится и неподвижная шапка, и жест «потянуть вниз» в Telegram, который иначе спорит со скроллом списка."
+    >
+      <pre className="bk__code bk__pre">{`<header className="header">
+  <h1 className="header__title">
+  <div className="header__actions">
+
+<div className="app__sticky">
+<div className="app__body">
+<div className="app__footer">
+<nav className="tabbar">`}</pre>
+
+      <Facts>
+        <Fact name=".app" value={`колонка ${computedToken('--app-w')}, по центру`} note="телефон и на мониторе" />
+        <Fact name=".app--tabs" value="запас снизу под таб-бар и плашку" note="иначе последняя строка под панелью" />
+        <Fact name=".app__body" value={`поля ${computedToken('--pad-x')}, overscroll: contain`} />
+        <Fact name=".app__sticky" value="растушёвка снизу" note="иначе список обрывается линией" />
+        <Fact name=".app__footer" value="растушёвка сверху, z-index 20" />
+        <Fact name=".header" value={computedToken('--header-h')} />
+        <Fact name=".tabbar" value={computedToken('--tabbar-h')} note="+ безопасная зона снизу" />
+      </Facts>
+
+      <p className="bk__text">
+        Вложенный экран (правка списка, наборы, достижения, этот справочник) идёт без таб-бара: его
+        заменяет <code className="bk__code">.app__footer</code> с одной кнопкой возврата. Системная
+        «назад» в Telegram при этом тоже занята — она закрывает вложенный экран, а не мини-апп.
+      </p>
     </Section>
   );
 }

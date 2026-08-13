@@ -23,7 +23,7 @@
 
 import { useRef } from 'react';
 
-import { Accent, Colors, Geometry, Glow, Mark, Typography } from './sections/Foundation';
+import { Accent, Colors, Frame, Geometry, Glow, Mark, Typography } from './sections/Foundation';
 import { Buttons, Fields, Switches } from './sections/Controls';
 import { Indicators, Overlays, Rows, States } from './sections/Blocks';
 import { A11y, AllTokens, Icons, Motion, Voice } from './sections/Meta';
@@ -37,6 +37,7 @@ const NAV = [
   { id: 'accent', title: 'Акцент' },
   { id: 'type', title: 'Шрифт' },
   { id: 'grid', title: 'Сетка' },
+  { id: 'frame', title: 'Каркас' },
   { id: 'glow', title: 'Свечение' },
   { id: 'buttons', title: 'Кнопки' },
   { id: 'fields', title: 'Поля' },
@@ -110,6 +111,7 @@ export function BrandKit(): JSX.Element {
         <Accent />
         <Typography sizes={SIZES} weights={WEIGHTS} />
         <Geometry groups={TOKEN_GROUPS} />
+        <Frame />
         <Glow />
         <Buttons />
         <Fields />

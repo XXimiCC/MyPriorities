@@ -133,6 +133,19 @@
   color: var(--text-faint);
 }
 
+/* Схема разметки: моноширинный блок, который переносить нельзя — в нём значим
+   каждый пробел. Прокручивается сам, а не растягивает страницу. */
+.bk__pre {
+  margin: 0 0 var(--s-4);
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  overflow-x: auto;
+  white-space: pre;
+  color: var(--text-dim);
+}
+
 .bk__box {
   width: 56px;
   height: 56px;

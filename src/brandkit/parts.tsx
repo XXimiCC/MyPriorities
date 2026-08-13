@@ -11,11 +11,6 @@ import type { ReactNode } from 'react';
 
 import { computedToken, contrastGrade, contrastOn } from './readTokens';
 
-export interface SectionMeta {
-  id: string;
-  title: string;
-}
-
 interface SectionProps {
   id: string;
   title: string;

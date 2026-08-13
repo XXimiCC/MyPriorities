@@ -111,6 +111,15 @@ export const TOKEN_GROUPS: TokenGroup[] = parse(source);
 /** Плоский поиск по имени: разделам нужны отдельные токены, а не вся группа. */
 const BY_NAME = new Map(TOKEN_GROUPS.flatMap((g) => g.tokens).map((row) => [row.name, row]));
 
+/**
+ * Все объявленные значения разом, в нижнем регистре. По этому множеству
+ * scanStyles.ts отличает литерал, повторяющий токен, от литерала, который живёт
+ * сам по себе, — и второе попадает в списки исключений.
+ */
+export const TOKEN_VALUES = new Set(
+  TOKEN_GROUPS.flatMap((g) => g.tokens).map((row) => row.declared.trim().toLowerCase()),
+);
+
 export function tokenNames(prefix: string): string[] {
   return [...BY_NAME.keys()].filter((name) => name.startsWith(prefix));
 }

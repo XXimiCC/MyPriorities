@@ -28,10 +28,9 @@ export const ruStrings = {
   'period.label': 'Период',
 
   // --- Главная ---
-  'home.edit': 'Изменить приоритеты',
   'home.battery': 'Состояние батареи',
   'home.batteryEmpty': 'Заряд?',
-  'home.empty': 'Каждый клик по «+» — это {minutes} {unit} жизни, вложенные в приоритет.',
+  'home.empty': 'Отмечай куда ты инвестировал время сегодня',
   'home.total': '{scope}: ',
   'home.scopeToday': 'Всего',
   'home.scopePeriod': 'За {period}',

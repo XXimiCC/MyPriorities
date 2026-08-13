@@ -105,17 +105,11 @@ export function HomeScreen({ onEdit }: Props): JSX.Element {
     <>
       <header className="header">
         <h1 className="header__title">{t('app.title')}</h1>
+        {/* Карандаша здесь нет намеренно: правка списка открывается долгим
+            нажатием на любую строку, и подсказка под списком об этом говорит.
+            Две двери в один экран забирали место у шапки, а вторая была нужна
+            ровно один раз — в первый день. */}
         <div className="header__actions">
-          <button className="header__btn press" onClick={onEdit} type="button" aria-label={t('home.edit')}>
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
-              <path
-                d="M4 20h4l10-10a2.5 2.5 0 10-3.5-3.5L4.5 16.5V20z"
-                stroke="currentColor"
-                strokeWidth="1.7"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
           <HeaderBattery />
         </div>
       </header>
@@ -132,9 +126,7 @@ export function HomeScreen({ onEdit }: Props): JSX.Element {
         */}
         <div className="home__head">
           {stats.totalBlocks === 0 ? (
-            <p className="home__lead home__lead--empty">
-              {t('home.empty', { minutes: blockMinutes, unit: plural('minute', blockMinutes) })}
-            </p>
+            <p className="home__lead home__lead--empty">{t('home.empty')}</p>
           ) : (
             <p className="home__lead">
               {t('home.total', { scope })}

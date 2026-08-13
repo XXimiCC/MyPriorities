@@ -37,7 +37,6 @@ if (slot) {
   const screen = slot.querySelector('.phone__screen');
   const veil = slot.querySelector('.phone__veil');
   const reload = slot.querySelector('[data-demo-reload]');
-  const after = slot.querySelector('[data-demo-after]');
 
   let frame = null;
   let timer = 0;
@@ -48,7 +47,7 @@ if (slot) {
       frame.remove();
       frame = null;
     }
-    if (after) after.hidden = true;
+    slot.classList.remove("slot--live");
     if (!veil) return;
 
     veil.hidden = false;
@@ -94,7 +93,7 @@ if (slot) {
       'load',
       () => {
         window.clearTimeout(timer);
-        if (after) after.hidden = false;
+        // Видимость строки под рамкой ведёт класс, см. .slot--live в landing.css.
         slot.classList.add('slot--live');
       },
       { once: true },

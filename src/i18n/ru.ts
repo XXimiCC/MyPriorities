@@ -186,7 +186,7 @@ export const ruStrings = {
   // --- Навыки: экран ---
   'skills.title': 'Навыки',
   'skills.hint': 'Цветом отмечено, сколько прибавилось за 30 дней. Нажмите на навык, чтобы увидеть лестницу целиком и настроить его.',
-  'skills.total': 'Всего — {time}',
+  'skills.total': 'Всего —',
   'skills.add': 'Добавить навык',
   'skills.limit': 'Максимум {max} навыков',
   'skills.addBlock': 'Добавить {minutes} минут: {title}',
@@ -204,7 +204,7 @@ export const ruStrings = {
   'skills.archiveTitle': 'Архив: {count} {unit}',
   'skills.archiveHint': 'Удалённые навыки хранят свои часы. Добавьте навык с тем же названием — история вернётся.',
   'skills.priceNote': 'Часы складываются из вписанного вручную и из кликов по текущей цене блока — {minutes} {unit}. Смена цены переоценит и навыки тоже.',
-  'skills.recent': 'за {days} дней — {time}',
+  'skills.recent': 'за {days} дней —',
   'skills.pace': 'Темп за {days} дней — {time} в неделю',
   'skills.paceNone': 'За {days} дней — ни одного блока',
   'skills.eta': 'Следующая ступень при таком темпе — через {eta}',

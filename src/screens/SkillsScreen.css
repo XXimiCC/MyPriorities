@@ -15,17 +15,26 @@
   min-height: 32px;
 }
 
+/*
+ * Итог и темп — на разных строках, а не в одну через пробел.
+ *
+ * В одну строку они складывались в «Всего — 23,5 ч за 30 дней — 21,5 ч»: два
+ * числа подряд, между которыми нет никакой связи, кроме соседства. И при каждом
+ * «+» первое из них меняло ширину, утаскивая второе за собой. Колонкой оба
+ * читаются по отдельности и никуда не едут.
+ */
 .sks__total {
   flex: 1;
   min-width: 0;
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px 10px;
+  flex-direction: column;
+  gap: 2px;
   font-size: 12.5px;
   color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
 }
 
-.sks__total span {
+.sks__total-recent {
   color: var(--text-faint);
 }
 

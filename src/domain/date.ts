@@ -133,6 +133,27 @@ export function formatHoursCompact(minutes: number): string {
   return `${String(rounded).replace('.', ',')} ч`;
 }
 
+/**
+ * То же значение, но разобранное на части: целое, дробный хвост и единица.
+ *
+ * Нужно ровно за тем, чтобы под хвост «,5» можно было держать место, когда его
+ * нет. Иначе «23,5 ч» после клика превращается в «24 ч», строка становится
+ * короче на два знака, и всё, что стоит правее, прыгает влево.
+ *
+ * Разбирается число, а не готовая строка: разбор форматированного текста
+ * регуляркой сломался бы на первом же изменении формата.
+ */
+export function formatHoursParts(minutes: number): { head: string; fraction: string; unit: string } {
+  const hours = minutes / 60;
+  if (hours === 0) return { head: '0', fraction: '', unit: 'ч' };
+  if (hours < 1) return { head: String(Math.round(minutes)), fraction: '', unit: 'м' };
+
+  const rounded = Math.round(hours * 10) / 10;
+  const whole = Math.trunc(rounded);
+  const tenth = Math.round((rounded - whole) * 10);
+  return { head: String(whole), fraction: tenth ? `,${tenth}` : '', unit: 'ч' };
+}
+
 export function formatPercent(fraction: number): string {
   if (!Number.isFinite(fraction) || fraction <= 0) return '0%';
   const pct = fraction * 100;

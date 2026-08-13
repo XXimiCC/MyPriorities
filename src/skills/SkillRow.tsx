@@ -1,6 +1,6 @@
 import { memo } from 'react';
+import { Hours } from './Hours';
 
-import { formatHoursCompact } from '../domain/date';
 import { colorOf } from '../domain/palette';
 import type { DayKey } from '../domain/types';
 import { t } from '../i18n';
@@ -59,9 +59,9 @@ export const SkillRow = memo(function SkillRow({
         <SkillHistory days={historyDays} blocks={historyBlocks} blockMinutes={blockMinutes} />
 
         <span className="srow__foot">
-          <span className="srow__hours">{formatHoursCompact(progress.minutes)}</span>
+          <span className="srow__hours"><Hours minutes={progress.minutes} /></span>
           {recentMinutes > 0 && (
-            <span className="srow__recent">+{formatHoursCompact(recentMinutes)}</span>
+            <span className="srow__recent"><Hours minutes={recentMinutes} gain /></span>
           )}
           {progress.next && (
             <span className="srow__next">

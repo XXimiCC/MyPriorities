@@ -4,10 +4,11 @@ import { ColorPicker } from '../components/ColorPicker';
 import { BACK_DAYS, DayPicker, DayPickerToggle, PastDayNotice } from '../components/DayPicker';
 import { HeaderBattery } from '../components/HeaderBattery';
 import { Sheet } from '../components/Sheet';
-import { formatHoursCompact, formatMinutes, lastNDays, parseDayKey } from '../domain/date';
+import { formatMinutes, lastNDays, parseDayKey } from '../domain/date';
 import { colorOf, nextFreeColorId } from '../domain/palette';
 import { blockMinutesOf, type DayKey } from '../domain/types';
 import { plural, t } from '../i18n';
+import { Hours } from '../skills/Hours';
 import { SkillRow } from '../skills/SkillRow';
 import { SkillSheet, type LinkTarget } from '../skills/SkillSheet';
 import { SkillsEmpty } from '../skills/SkillsEmpty';
@@ -205,10 +206,14 @@ export function SkillsScreen(): JSX.Element {
             {/* Часы, а не «часы и минуты»: в сумме за жизнь получаются тысячи,
                 и хвост «30 м» там не значит ничего, зато ломает строку надвое.
                 Строки навыков считают в тех же единицах. */}
+            {/* Две строки, а не одна: «Всего — 23,5 ч за 30 дней — 21,5 ч»
+                читалось как два числа подряд без связи между ними. */}
             <p className="sks__total">
-              {t('skills.total', { time: formatHoursCompact(totalMinutes(totals)) })}
               <span>
-                {t('skills.recent', { days: PACE_DAYS, time: formatHoursCompact(recentTotal) })}
+                {t('skills.total')} <Hours minutes={totalMinutes(totals)} />
+              </span>
+              <span className="sks__total-recent">
+                {t('skills.recent', { days: PACE_DAYS })} <Hours minutes={recentTotal} />
               </span>
             </p>
 

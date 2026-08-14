@@ -9,7 +9,7 @@
  * файл лежит на двух сайтах и отличается ровно двумя атрибутами.
  *
  *   <script type="module" src="/devkit/devkit.js"
- *           data-devkit-url="https://mypri.mypri.workers.dev"
+ *           data-devkit-url="https://api.mypriorities.life"
  *           data-devkit-app="docs"></script>
  *
  * Входа на этих сайтах нет и быть не может, поэтому тикет отсюда уходит только

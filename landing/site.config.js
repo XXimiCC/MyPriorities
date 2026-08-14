@@ -11,14 +11,11 @@
  * подстановку в готовой странице.
  */
 export const SITE = {
-  /** Само приложение. Корень занят им, и лендинг живёт отдельным деплоем. */
-  APP: 'https://my-priorities-iota.vercel.app',
+  /** Само приложение — отдельный проект Vercel (Root Directory = корень). */
+  APP: 'https://app.mypriorities.life',
 
-  /**
-   * Сайт документации — отдельный проект Vercel (Root Directory = docs).
-   * TODO: подставить настоящий адрес деплоя.
-   */
-  DOCS: 'https://my-priorities-docs.vercel.app',
+  /** Сайт документации — отдельный проект Vercel (Root Directory = docs). */
+  DOCS: 'https://docs.mypriorities.life',
 
   /** Бот, через которого приложение открывается в Telegram. */
   BOT: 'https://t.me/MyMainPriorityBot',
@@ -26,9 +23,11 @@ export const SITE = {
   /**
    * Адрес самого лендинга. Нужен абсолютным: og:image и og:url относительных
    * не понимают — превью в мессенджере просто не соберётся.
-   * TODO: подставить после первого деплоя.
+   *
+   * Без www: на www.mypriorities.life стоит редирект сюда, и адрес, с которого
+   * переспрашивают, в og:url ставить незачем.
    */
-  SELF: 'https://my-priorities-landing.vercel.app',
+  SELF: 'https://mypriorities.life',
 
   /** Репозиторий. */
   REPO: 'https://github.com/XXimiCC/MyPriorities',
@@ -37,5 +36,5 @@ export const SITE = {
    * Сервер, который принимает тикеты встроенной панели отладки. Тот же Worker,
    * что и у синхронизации приложения. Пусто — панели на лендинге не будет.
    */
-  DEVKIT: 'https://mypri.mypri.workers.dev',
+  DEVKIT: 'https://api.mypriorities.life',
 };

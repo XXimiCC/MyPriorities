@@ -59,7 +59,7 @@ title: Панель отладки
 
 ## Не только в приложении
 
-Панель стоит и на этом сайте, и на [лендинге](https://my-priorities-landing.vercel.app):
+Панель стоит и на этом сайте, и на [лендинге](https://mypriorities.life):
 опечатка в тексте страницы или разъехавшаяся вёрстка ловятся тем же кадром с
 разметкой, что и баг в приложении. Нажмите `Ctrl` + `Shift` + `Q` прямо здесь.
 
@@ -100,7 +100,7 @@ npx --prefix worker wrangler secret put DEVKIT_INVITE
 Дальше человеку отправляется одна из двух ссылок:
 
 ```
-https://my-priorities-iota.vercel.app/?test=<ключ>
+https://app.mypriorities.life/?test=<ключ>
 t.me/<бот>/app?startapp=test_<ключ>
 ```
 
@@ -183,7 +183,7 @@ t.me/<бот>/app?startapp=test_<ключ>
 **Приложение** — `.env.local` (см. `.env.example`):
 
 ```
-VITE_DEVKIT_URL=https://mypri.mypri.workers.dev
+VITE_DEVKIT_URL=https://api.mypriorities.life
 ```
 
 Не задан — панели нет вовсе, и это нормальная сборка. Отдельно от
@@ -219,7 +219,7 @@ VITE_DEVKIT_DEV_TOKEN=<то же значение, что и DEVKIT_TOKEN>
 ## Разбор: страница тикетов
 
 ```
-https://mypri.mypri.workers.dev/devkit/admin
+https://api.mypriorities.life/devkit/admin
 ```
 
 Вход — тот же ключ `DEVKIT_TOKEN`, которым работает командная строка. Он живёт

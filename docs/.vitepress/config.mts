@@ -77,6 +77,9 @@ export default defineConfig({
   // страниц держится на перекрёстных ссылках, и молча протухшая ссылка хуже,
   // чем упавший деплой.
   ignoreDeadLinks: false,
+  // Карта сайта. Адрес нужен абсолютным — в карте сайта относительных ссылок
+  // не бывает, и без него VitePress её просто не соберёт.
+  sitemap: { hostname: 'https://docs.mypriorities.life' },
   // Приложение существует только в тёмном виде — светлой версии сайта быть не должно.
   appearance: 'force-dark',
   lastUpdated: true,
@@ -102,7 +105,7 @@ export default defineConfig({
       {
         type: 'module',
         src: '/devkit/devkit.js',
-        'data-devkit-url': 'https://mypri.mypri.workers.dev',
+        'data-devkit-url': 'https://api.mypriorities.life',
         'data-devkit-app': 'docs',
       },
     ],

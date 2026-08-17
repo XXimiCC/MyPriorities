@@ -8,6 +8,7 @@ import {
   clickStreak,
   computeBatteryStats,
   computeStats,
+  currentBatteryLevel,
   dailyBreakdown,
   drainCounts,
   fillFraction,
@@ -436,6 +437,38 @@ describe('длительности состояний батареи', () => {
     const journal = journalOf({}, { '2026-07-30': [[600, 2]] });
     const stats = computeBatteryStats(journal, ['2026-08-01'], NOW);
     expect(stats.perDayMinutes['2026-08-01']).toEqual({ 1: 0, 2: 0, 3: 0, 4: 0 });
+  });
+});
+
+describe('текущий уровень заряда', () => {
+  // NOW — 31 июля, 12:00: минута 720.
+  it('это последняя отметка, которая уже наступила', () => {
+    const journal = journalOf({}, { '2026-07-31': [[480, 3], [660, 2]] });
+    expect(currentBatteryLevel(journal, NOW)).toBe(2);
+  });
+
+  it('отметка на вечер, вписанная днём, текущим состоянием не становится', () => {
+    const journal = journalOf({}, { '2026-07-31': [[480, 3], [1200, 1]] });
+    expect(currentBatteryLevel(journal, NOW)).toBe(3);
+  });
+
+  it('когда всё сегодняшнее ещё впереди, состояние берётся с прошлых суток', () => {
+    const journal = journalOf({}, { '2026-07-30': [[600, 4]], '2026-07-31': [[1200, 1]] });
+    expect(currentBatteryLevel(journal, NOW)).toBe(4);
+  });
+
+  it('в прошедших сутках наступили все минуты — вечерняя отметка переносится вперёд', () => {
+    const journal = journalOf({}, { '2026-07-29': [[1380, 1]] });
+    expect(currentBatteryLevel(journal, NOW)).toBe(1);
+  });
+
+  it('день из будущего не перебивает сегодняшний', () => {
+    const journal = journalOf({}, { '2026-07-31': [[600, 2]], '2026-08-02': [[60, 1]] });
+    expect(currentBatteryLevel(journal, NOW)).toBe(2);
+  });
+
+  it('без отметок состояния нет', () => {
+    expect(currentBatteryLevel(journalOf({}), NOW)).toBeNull();
   });
 });
 

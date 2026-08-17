@@ -60,6 +60,12 @@
   color: var(--text-faint);
 }
 
+/* Набрано время, которого ещё не было: подпись объясняет, почему «Сохранить»
+   заперто. Цвет тот же, которым приложение говорит «стоп» в кнопке удаления. */
+.bshift__note--stop {
+  color: var(--battery-low);
+}
+
 .bshift__levels {
   display: grid;
   grid-template-columns: repeat(2, 1fr);

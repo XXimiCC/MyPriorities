@@ -582,10 +582,24 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       },
 
       setBatteryAt(day, minute, level, replace) {
+        /*
+         * Будущего в журнале не бывает: отметка означает «уже случилось», и
+         * время позже текущей минуты сделало бы «текущим» состояние, которое
+         * ещё не наступило. Шторка такое время сохранить не даёт, но правило
+         * стоит и здесь: иначе оно держалось бы на одном экране, а через него
+         * ходят и правка задним числом, и перенос времени.
+         *
+         * Время подрезается, а не отбрасывается вместе с действием: человек
+         * отмечает состояние, а не время, и молча потерять отметку хуже, чем
+         * поставить её на «сейчас».
+         */
+        const now = new Date();
+        const at = day === todayKey(now) ? Math.min(minute, minuteOfDay(now)) : minute;
+
         commit({
           type: 'battery-set',
           day,
-          minute,
+          minute: at,
           level,
           ...(replace === undefined ? {} : { replace }),
         });

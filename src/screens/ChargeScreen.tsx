@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { BatteryCaption, BatteryIcon } from '../components/BatteryIcon';
 import { usePickBattery } from '../components/BatteryPrompt';
@@ -6,32 +6,57 @@ import { BatteryShiftSheet, type EditedShift } from '../components/BatteryShiftS
 import { DayPicker } from '../components/DayPicker';
 import { HeaderBattery } from '../components/HeaderBattery';
 import { WallpaperSheet } from '../components/WallpaperSheet';
+import { useNow } from '../components/useNow';
 import { formatTime } from '../domain/battery';
-import { formatDayShort, formatMinutes, formatPercent, minuteOfDay } from '../domain/date';
+import { formatDayShort, formatMinutes, formatPercent, minuteOfDay, todayKey } from '../domain/date';
 import { batteryMeaning, batteryTheme, batteryTitle } from '../domain/palette';
-import { computeBatteryStats, currentBatteryLevel, levelBefore, periodDays } from '../domain/stats';
-import { PERIODS } from '../domain/periods';
+import { computeBatteryStats, currentBatteryLevel, levelBefore } from '../domain/stats';
 import { BATTERY_LEVELS } from '../domain/types';
 import { t } from '../i18n';
 import { useStore } from '../store/useStore';
 import { haptics } from '../telegram/sdk';
 import './ChargeScreen.css';
 
-const TODAY = PERIODS.find((p) => p.id === 'today')!;
 const MINUTES_IN_DAY = 1440;
 
 export function ChargeScreen(): JSX.Element {
-  const { journal, today, actions } = useStore();
+  const { journal, actions } = useStore();
   const pick = usePickBattery();
   const [wallpaperOpen, setWallpaperOpen] = useState(false);
-  /** День, отметки которого правим. Всегда начинаем с сегодняшнего. */
+  /*
+   * Часы экрана. Всё здесь — длительности: «сегодня в этом состоянии», хвост
+   * последней отметки, предел времени в шторке. Считать их от журнала, как
+   * было раньше, значит замирать до следующей записи, а её может не быть весь
+   * день. Отсюда же берутся сутки: раз время идёт по этим часам, то и день
+   * должен меняться по ним, а не по второму источнику.
+   */
+  const now = useNow();
+  const today = todayKey(now);
+
+  /** День, отметки которого правим. Начинаем с сегодняшнего и держимся за него. */
   const [editDay, setEditDay] = useState(today);
   const [editing, setEditing] = useState<EditedShift | null>(null);
 
-  const level = useMemo(() => currentBatteryLevel(journal), [journal]);
+  /*
+   * Наступила полночь при открытом приложении — переезжаем на новые сутки.
+   *
+   * Экран открывают вечером, а возвращаются к нему утром, и до этого правка
+   * молча оставалась на вчерашнем дне: «Добавить отметку» подставляла полдень
+   * и писала отметку во вчера. То же, что на главной и в навыках, и по той же
+   * причине. Открытая шторка закрывается: она правит минуту прежних суток.
+   */
+  const lastToday = useRef(today);
+  useEffect(() => {
+    if (lastToday.current === today) return;
+    lastToday.current = today;
+    setEditDay(today);
+    setEditing(null);
+  }, [today]);
+
+  const level = useMemo(() => currentBatteryLevel(journal, now), [journal, now]);
   const todayStats = useMemo(
-    () => computeBatteryStats(journal, periodDays(TODAY, journal)),
-    [journal],
+    () => computeBatteryStats(journal, [today], now),
+    [journal, today, now],
   );
 
   const dayShifts = journal.battery[editDay] ?? [];
@@ -41,8 +66,8 @@ export function ChargeScreen(): JSX.Element {
    * до «сейчас». Иначе сегодняшнее состояние показывало бы длительность авансом,
    * до конца ещё не прожитого дня.
    */
-  const dayEnd = editDay === today ? minuteOfDay(new Date()) : MINUTES_IN_DAY;
-  const defaultMinute = editDay === today ? minuteOfDay(new Date()) : 12 * 60;
+  const dayEnd = editDay === today ? minuteOfDay(now) : MINUTES_IN_DAY;
+  const defaultMinute = editDay === today ? minuteOfDay(now) : 12 * 60;
 
   const theme = level ? batteryTheme(level) : null;
 
@@ -215,6 +240,8 @@ export function ChargeScreen(): JSX.Element {
       <BatteryShiftSheet
         shift={editing}
         dayLabel={editDay === today ? t('charge.todayTitle') : formatDayShort(editDay)}
+        // Предел только у сегодняшнего дня: в прошедших сутках прошли все минуты.
+        maxMinute={editDay === today ? minuteOfDay(now) : undefined}
         onClose={() => setEditing(null)}
         onSave={(minute, option) => {
           actions.setBatteryAt(editDay, minute, option, editing?.at);

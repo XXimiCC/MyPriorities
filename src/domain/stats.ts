@@ -412,7 +412,6 @@ export function nearestChargeLevel(charge: number): BatteryLevel {
   return 1;
 }
 
-/** Текущий уровень: последний переход по всей истории. null — состояние ещё не задавали. */
 /**
  * Состояние, с которым день начался, — то, что перенеслось с прошлых суток.
  * Без него лента отметок непонятна: день, в котором ничего не переключали,
@@ -426,10 +425,34 @@ export function levelBefore(journal: Journal, day: DayKey): BatteryLevel | null 
   return shifts?.[shifts.length - 1]?.[1] ?? null;
 }
 
-export function currentBatteryLevel(journal: Journal): BatteryLevel | null {
+/**
+ * Уровень на текущую минуту. null — состояние ещё не задавали.
+ *
+ * Ищется последняя отметка, которая уже наступила, а не последняя в журнале.
+ * Разница видна там, где в сегодняшнем дне лежит время из будущего: отметка на
+ * вечер, поставленная утром, объявляла бы «текущим» состояние, до которого ещё
+ * полдня, и живое переключение в тот же уровень после этого молчало бы. Ставить
+ * будущее нельзя (`setBatteryAt` в store/useStore.tsx), но записи с чужих часов
+ * и из старых сборок уже могли лечь в журнал, и читаться они должны как время.
+ *
+ * По той же причине пропускаются целые дни впереди сегодняшнего: файл копии
+ * мог приехать с устройства, где дата сбита.
+ */
+export function currentBatteryLevel(journal: Journal, now: Date = new Date()): BatteryLevel | null {
+  const today = todayKey(now);
+  const minute = minuteOfDay(now);
   const days = batteryDaysSorted(journal);
-  const last = days[days.length - 1];
-  if (!last) return null;
-  const shifts = journal.battery[last];
-  return shifts?.[shifts.length - 1]?.[1] ?? null;
+
+  for (let i = days.length - 1; i >= 0; i -= 1) {
+    const day = days[i]!;
+    if (day > today) continue;
+
+    const shifts = journal.battery[day]!;
+    const ceiling = day === today ? minute : MINUTES_IN_DAY;
+    for (let j = shifts.length - 1; j >= 0; j -= 1) {
+      const shift = shifts[j]!;
+      if (shift[0] <= ceiling) return shift[1];
+    }
+  }
+  return null;
 }

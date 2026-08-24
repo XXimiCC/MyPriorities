@@ -25,6 +25,9 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const LANDING = path.join(ROOT, 'landing');
 const LANDING_SHOTS_DIR = path.join(LANDING, 'public', 'shots');
 
+/** Рукописные страницы лендинга: русская в корне, английская в /en. */
+const PAGES = ['index.html', path.join('en', 'index.html')];
+
 /**
  * Перевод строк нормализуется: `.gitattributes` в репозитории нет, и checkout
  * на Windows мог бы отдать одному файлу CRLF, а другому LF. Расхождение в
@@ -53,20 +56,18 @@ describe('копии лендинга', () => {
     expect(extra, 'кадры лежат, а в списке их нет').toEqual([]);
   });
 
-  it('страница ссылается только на кадры из списка', () => {
-    const html = text(path.join(LANDING, 'index.html'));
+  it.each(PAGES)('%s ссылается только на кадры из списка', (page) => {
+    const html = text(path.join(LANDING, page));
     const used = [...html.matchAll(/\/shots\/([\w-]+\.png)/g)].map((match) => match[1]!);
 
-    expect(used.length, 'на странице нет ни одного кадра — список поехал').toBeGreaterThan(0);
+    expect(used.length, `на ${page} нет ни одного кадра — список поехал`).toBeGreaterThan(0);
     for (const name of used) {
-      expect(LANDING_SHOTS, `index.html ссылается на ${name}, которого нет в списке`).toContain(
-        name,
-      );
+      expect(LANDING_SHOTS, `${page} ссылается на ${name}, которого нет в списке`).toContain(name);
     }
   });
 
-  it('адреса не разбросаны по разметке, а взяты метками', () => {
-    const html = text(path.join(LANDING, 'index.html'));
+  it.each(PAGES)('%s: адреса не разбросаны по разметке, а взяты метками', (page) => {
+    const html = text(path.join(LANDING, page));
     /*
      * Смысл проверки: появится свой домен — правится site.config.js и больше
      * ничего. Захардкоженная ссылка пережила бы переезд и увела бы человека
@@ -78,5 +79,34 @@ describe('копии лендинга', () => {
       .filter((url) => !url.startsWith('http://www.w3.org/'));
 
     expect(hardcoded, 'адреса живут в site.config.js и подставляются метками {{…}}').toEqual([]);
+  });
+
+  it('обе страницы знают друг о друге', () => {
+    /*
+     * Переключатель и hreflang — единственное, что связывает две рукописные
+     * страницы. Забыть их на одной из сторон легче всего в тот момент, когда
+     * правишь только вторую, а поисковик и человек узнают об этом последними.
+     */
+    for (const page of PAGES) {
+      const html = text(path.join(LANDING, page));
+      expect(html, `${page}: нет ссылки на русскую версию`).toContain('hreflang="ru"');
+      expect(html, `${page}: нет ссылки на английскую версию`).toContain('hreflang="en"');
+      expect(html, `${page}: не отмечен текущий язык`).toContain('aria-current="page"');
+    }
+  });
+
+  it('английская страница открывает английское приложение', () => {
+    /*
+     * Фрейм в герое и каждая ссылка «Открыть» ведут в само приложение, а язык
+     * оно выбирает само — по Telegram и браузеру. Без ?lang=en английская
+     * страница открывала бы русское приложение внутри собственного героя.
+     */
+    const html = text(path.join(LANDING, 'en', 'index.html'));
+    const appLinks = [...html.matchAll(/\{\{APP\}\}[^"']*/g)].map((match) => match[0]!);
+
+    expect(appLinks.length, 'на английской странице нет ни одной ссылки в приложение').toBeGreaterThan(0);
+    for (const link of appLinks) {
+      expect(link, 'ссылка в приложение без lang=en').toContain('lang=en');
+    }
   });
 });

@@ -60,9 +60,9 @@ export function DemoScreen(): JSX.Element {
                     <path key={d} d={d} />
                   ))}
                 </svg>
-                <span className="dcard__name">{profile.name}</span>
-                <span className="dcard__tagline">{profile.tagline}</span>
-                <span className="dcard__shows">{profile.shows}</span>
+                <span className="dcard__name">{t(profile.nameKey)}</span>
+                <span className="dcard__tagline">{t(profile.taglineKey)}</span>
+                <span className="dcard__shows">{t(profile.showsKey)}</span>
               </button>
             </li>
           ))}

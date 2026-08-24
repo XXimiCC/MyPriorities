@@ -7,6 +7,7 @@ import { GROUPS } from '../../achievements/types';
 import { DEMO_PROFILES } from '../../demo/profiles';
 import { PRESETS } from '../../domain/presets';
 import { NEON_PALETTE } from '../../domain/palette';
+import { t } from '../../i18n';
 import { Fact, Facts, Section } from '../parts';
 import { TOKEN_GROUPS, computedToken } from '../readTokens';
 
@@ -123,7 +124,7 @@ export function Icons(): JSX.Element {
               key={preset.id}
               className="bk__icon"
               style={{ color: NEON_PALETTE[preset.accentId]?.hex ?? '#f4f4f5' }}
-              title={preset.name}
+              title={t(preset.nameKey)}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 {preset.icon.map((d) => (
@@ -144,7 +145,7 @@ export function Icons(): JSX.Element {
               key={profile.id}
               className="bk__icon"
               style={{ color: NEON_PALETTE[profile.accentId]?.hex ?? '#f4f4f5' }}
-              title={profile.name}
+              title={t(profile.nameKey)}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 {profile.icon.map((d) => (

@@ -6,6 +6,17 @@ import { defineConfig } from 'vitepress';
  * base не задан намеренно: сайт живёт отдельным проектом Vercel на корне домена.
  * srcDir тоже не задан — markdown лежит прямо в docs/, третий уровень вложенности
  * ничего не даёт при трёх десятках страниц.
+ *
+ * Языков два, и они неравные. Русский — весь сайт: тридцать с лишним страниц,
+ * четыре раздела, справочники, собранные из кода. Английский — три входные
+ * страницы: «что это», «быстрый старт» и главная. Полный перевод четырёх
+ * разделов не окупается, а вход, за которым дальше идёт русский текст, —
+ * окупается: он отвечает на вопрос «что это вообще такое» тому, кто иначе
+ * закроет вкладку на первом же абзаце.
+ *
+ * Отсюда правило английского сайдбара: свои три страницы, а всё остальное —
+ * ссылками в русские разделы с пометкой (RU). Читатель видит, где кончается
+ * его язык, до того как туда нажмёт.
  */
 
 const sidebar = [
@@ -67,11 +78,54 @@ const sidebar = [
   },
 ];
 
-export default defineConfig({
-  lang: 'ru-RU',
-  title: 'Мои Приоритеты',
-  description: 'Документация Telegram Mini App «Мои Приоритеты»',
+const sidebarEn = [
+  {
+    text: 'Start here',
+    collapsed: false,
+    items: [
+      { text: 'What this is', link: '/en/guide/what' },
+      { text: 'Quick start', link: '/en/guide/quick-start' },
+    ],
+  },
+  {
+    /*
+     * Пометка (RU) стоит у раздела, а не у каждой ссылки: строк было бы
+     * двадцать четыре, и «(RU)» в каждой читалось бы как шум, а не как
+     * предупреждение.
+     */
+    text: 'The rest of the manual (RU)',
+    collapsed: false,
+    items: [
+      { text: 'Screens', link: '/screens/home' },
+      { text: 'How it works', link: '/topics/modules' },
+      { text: 'Data and sync', link: '/topics/data' },
+      { text: 'Limits', link: '/topics/limits' },
+      { text: 'Development', link: '/dev/setup' },
+    ],
+  },
+];
 
+/** Русский перевод локального поиска. У английского свой — умолчание VitePress. */
+const searchRu = {
+  button: { buttonText: 'Поиск', buttonAriaLabel: 'Поиск' },
+  modal: {
+    displayDetails: 'Показать подробности',
+    resetButtonTitle: 'Сбросить',
+    backButtonTitle: 'Назад',
+    noResultsText: 'Ничего не нашлось',
+    footer: {
+      selectText: 'выбрать',
+      selectKeyAriaLabel: 'Enter',
+      navigateText: 'листать',
+      navigateUpKeyAriaLabel: 'вверх',
+      navigateDownKeyAriaLabel: 'вниз',
+      closeText: 'закрыть',
+      closeKeyAriaLabel: 'Esc',
+    },
+  },
+};
+
+export default defineConfig({
   cleanUrls: true,
   // Битая внутренняя ссылка обязана ронять сборку: документация из тридцати
   // страниц держится на перекрёстных ссылках, и молча протухшая ссылка хуже,
@@ -116,45 +170,60 @@ export default defineConfig({
     image: { lazyLoading: true },
   },
 
-  themeConfig: {
-    nav: [
-      { text: 'Начало', link: '/guide/what' },
-      { text: 'Экраны', link: '/screens/home' },
-      { text: 'Разработка', link: '/dev/setup' },
-    ],
-    sidebar,
+  locales: {
+    root: {
+      label: 'Русский',
+      lang: 'ru-RU',
+      title: 'Мои Приоритеты',
+      description: 'Документация Telegram Mini App «Мои Приоритеты»',
+      themeConfig: {
+        nav: [
+          { text: 'Начало', link: '/guide/what' },
+          { text: 'Экраны', link: '/screens/home' },
+          { text: 'Разработка', link: '/dev/setup' },
+        ],
+        sidebar,
+        outline: { level: [2, 3], label: 'На этой странице' },
+        docFooter: { prev: 'Назад', next: 'Дальше' },
+        lastUpdatedText: 'Обновлено',
+        returnToTopLabel: 'Наверх',
+        sidebarMenuLabel: 'Разделы',
+        langMenuLabel: 'Сменить язык',
+        footer: { message: 'Мои Приоритеты — Telegram Mini App, который работает и в браузере' },
+      },
+    },
 
+    en: {
+      label: 'English',
+      lang: 'en-US',
+      link: '/en/',
+      title: 'My Priorities',
+      description: 'Documentation for the My Priorities Telegram Mini App',
+      themeConfig: {
+        nav: [
+          { text: 'Start here', link: '/en/guide/what' },
+          { text: 'Screens (RU)', link: '/screens/home' },
+        ],
+        sidebar: sidebarEn,
+        outline: { level: [2, 3], label: 'On this page' },
+        footer: { message: 'My Priorities — a Telegram Mini App that also works in a browser' },
+      },
+    },
+  },
+
+  themeConfig: {
+    /*
+     * Поиск общий: индекс один на сайт, и находить он должен обе локали —
+     * английских страниц три, и запирать читателя внутри них означало бы
+     * прятать от него всё остальное.
+     */
     search: {
       provider: 'local',
       options: {
         detailedView: true,
-        translations: {
-          button: { buttonText: 'Поиск', buttonAriaLabel: 'Поиск' },
-          modal: {
-            displayDetails: 'Показать подробности',
-            resetButtonTitle: 'Сбросить',
-            backButtonTitle: 'Назад',
-            noResultsText: 'Ничего не нашлось',
-            footer: {
-              selectText: 'выбрать',
-              selectKeyAriaLabel: 'Enter',
-              navigateText: 'листать',
-              navigateUpKeyAriaLabel: 'вверх',
-              navigateDownKeyAriaLabel: 'вниз',
-              closeText: 'закрыть',
-              closeKeyAriaLabel: 'Esc',
-            },
-          },
-        },
+        locales: { root: { translations: searchRu } },
       },
     },
-
-    outline: { level: [2, 3], label: 'На этой странице' },
-    docFooter: { prev: 'Назад', next: 'Дальше' },
-    lastUpdatedText: 'Обновлено',
-    returnToTopLabel: 'Наверх',
-    sidebarMenuLabel: 'Разделы',
     externalLinkIcon: true,
-    footer: { message: 'Мои Приоритеты — Telegram Mini App, который работает и в браузере' },
   },
 });

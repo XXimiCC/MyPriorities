@@ -1,4 +1,5 @@
 import { formatHoursParts } from '../domain/date';
+import { formats } from '../i18n';
 import './Hours.css';
 
 interface Props {
@@ -24,13 +25,17 @@ export function Hours({ minutes, gain }: Props): JSX.Element {
     <span className="hours">
       {gain ? '+' : ''}
       {head}
-      {fraction} {unit}
+      {fraction}
+      {formats().gap}
+      {unit}
       {/* Место под «,5» держится ПОСЛЕ единицы, а не между числом и ней:
           внутри строки пустой слот читался бы дырой («26932   ч»), а с краю
           он невидим и делает ровно то, ради чего нужен. */}
       {fraction ? null : (
         <span className="hours__pad" aria-hidden="true">
-          ,0
+          {/* Разделитель берётся из локали: запятая и точка разной ширины, и
+              распорка не той шириной — тот же прыжок, ради которого она есть. */}
+          {formats().decimal}0
         </span>
       )}
     </span>

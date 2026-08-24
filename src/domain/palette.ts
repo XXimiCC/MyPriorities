@@ -1,4 +1,4 @@
-import { t } from '../i18n';
+import { t, type StringKey } from '../i18n';
 import type { BatteryLevel } from './types';
 
 export interface NeonColor {
@@ -6,7 +6,8 @@ export interface NeonColor {
   hex: string;
   /** Светлый край градиента заливки: в референсах ячейка светлее своего контура. */
   soft: string;
-  name: string;
+  /** Только для экранного диктора: цвет называют, а не показывают. */
+  nameKey: StringKey;
 }
 
 /**
@@ -21,22 +22,22 @@ export interface NeonColor {
  * перекрасила бы чужие списки. Новое дописывается только в конец.
  */
 export const NEON_PALETTE: NeonColor[] = [
-  { hex: '#22e356', soft: '#6bf58f', name: 'Зелёный' },
-  { hex: '#35e0ff', soft: '#8df0ff', name: 'Циан' },
-  { hex: '#4d7cff', soft: '#8fabff', name: 'Синий' },
-  { hex: '#a56bff', soft: '#c9a5ff', name: 'Фиолетовый' },
-  { hex: '#ff5ce1', soft: '#ff9bee', name: 'Маджента' },
-  { hex: '#ff2b3d', soft: '#ff5f6b', name: 'Красный' },
-  { hex: '#ff7a1a', soft: '#ffab6b', name: 'Оранжевый' },
-  { hex: '#ffd400', soft: '#ffe23f', name: 'Жёлтый' },
-  { hex: '#00f0b5', soft: '#6bffd9', name: 'Мятный' },
-  { hex: '#ff4f8b', soft: '#ff8fb5', name: 'Розовый' },
-  { hex: '#b6ff3d', soft: '#d7ff8f', name: 'Лайм' },
-  { hex: '#00e5d0', soft: '#7bfff0', name: 'Бирюзовый' },
-  { hex: '#2b9bff', soft: '#8fcdff', name: 'Голубой' },
-  { hex: '#7a5cff', soft: '#b3a5ff', name: 'Индиго' },
-  { hex: '#d24dff', soft: '#e9a5ff', name: 'Пурпурный' },
-  { hex: '#ffa629', soft: '#ffcb85', name: 'Янтарный' },
+  { hex: '#22e356', soft: '#6bf58f', nameKey: 'color.green' },
+  { hex: '#35e0ff', soft: '#8df0ff', nameKey: 'color.cyan' },
+  { hex: '#4d7cff', soft: '#8fabff', nameKey: 'color.blue' },
+  { hex: '#a56bff', soft: '#c9a5ff', nameKey: 'color.violet' },
+  { hex: '#ff5ce1', soft: '#ff9bee', nameKey: 'color.magenta' },
+  { hex: '#ff2b3d', soft: '#ff5f6b', nameKey: 'color.red' },
+  { hex: '#ff7a1a', soft: '#ffab6b', nameKey: 'color.orange' },
+  { hex: '#ffd400', soft: '#ffe23f', nameKey: 'color.yellow' },
+  { hex: '#00f0b5', soft: '#6bffd9', nameKey: 'color.mint' },
+  { hex: '#ff4f8b', soft: '#ff8fb5', nameKey: 'color.pink' },
+  { hex: '#b6ff3d', soft: '#d7ff8f', nameKey: 'color.lime' },
+  { hex: '#00e5d0', soft: '#7bfff0', nameKey: 'color.turquoise' },
+  { hex: '#2b9bff', soft: '#8fcdff', nameKey: 'color.sky' },
+  { hex: '#7a5cff', soft: '#b3a5ff', nameKey: 'color.indigo' },
+  { hex: '#d24dff', soft: '#e9a5ff', nameKey: 'color.purple' },
+  { hex: '#ffa629', soft: '#ffcb85', nameKey: 'color.amber' },
 ];
 
 export function colorOf(colorId: number): NeonColor {

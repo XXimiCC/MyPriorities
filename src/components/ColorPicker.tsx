@@ -1,4 +1,5 @@
 import { NEON_PALETTE } from '../domain/palette';
+import { t } from '../i18n';
 import { haptics } from '../telegram/sdk';
 import './ColorPicker.css';
 
@@ -18,7 +19,7 @@ export function ColorPicker({ value, onChange }: Props): JSX.Element {
           type="button"
           className={`picker__dot${index === value ? ' picker__dot--on' : ''}`}
           style={{ '--accent': color.hex } as React.CSSProperties}
-          aria-label={color.name}
+          aria-label={t(color.nameKey)}
           aria-pressed={index === value}
           onClick={() => {
             haptics.select();

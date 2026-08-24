@@ -20,6 +20,8 @@ export const LANDING_SHOTS = [
    * читались бы как подмена приложения на другое.
    */
   'home-frame.png',
+  // Тот же постер по-английски — под фреймом страницы /en.
+  'home-frame-en.png',
   'home-today.png',
   'charge-list.png',
   'skills-list.png',

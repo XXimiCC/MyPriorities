@@ -24,6 +24,7 @@ import { BUILD_ID, BUILD_TIME } from './build';
 import { DEMO_MODE, GUEST_MODE } from './demo/mode';
 import { mountDevkit } from './devkit';
 import { readDiagnosticSnapshot } from './devkitHost';
+import { useLocale } from './i18n/useLocale';
 import { StoreProvider } from './store/useStore';
 import { ensureSession } from './sync/auth';
 import { backButton, clientInfo, haptics, initTelegram, isTelegram, startParam } from './telegram/sdk';
@@ -79,11 +80,31 @@ if ('serviceWorker' in navigator && !isTelegram && !DEMO_MODE && window.top === 
 const container = document.getElementById('root');
 if (!container) throw new Error('Не найден корневой элемент #root');
 
+/**
+ * Смена языка — пересборка дерева, а не перерисовка.
+ *
+ * Модульных вызовов t() в приложении нет, но два списка обёрнуты в memo
+ * (components/PriorityRow.tsx, skills/SkillRow.tsx) и на смену языка не
+ * откликнутся: пропсы у них те же. Сегодня оба живут на вкладках, которых при
+ * нажатии не видно, но это совпадение, а не правило. Ключ по коду языка снимает
+ * вопрос целиком — новое дерево, и ни одна строка не может остаться прежней.
+ *
+ * Провайдер стоит НАД ключом: хранилище поднимается из IndexedDB асинхронно, и
+ * пересобрать его вместе с приложением значило бы показать «Загрузка» тому, кто
+ * всего лишь нажал «English».
+ */
+function Root(): JSX.Element {
+  const locale = useLocale();
+  return (
+    <StoreProvider>
+      <App key={locale} />
+    </StoreProvider>
+  );
+}
+
 createRoot(container).render(
   <StrictMode>
-    <StoreProvider>
-      <App />
-    </StoreProvider>
+    <Root />
   </StrictMode>,
 );
 

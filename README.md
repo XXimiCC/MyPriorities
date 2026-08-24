@@ -11,10 +11,15 @@ family, that a skill has been “in progress” for two years — and who would 
 see the number than argue with the feeling. The app never advises how to live.
 It shows how you live and lets you see the imbalance for yourself.
 
-[**Open the app**](https://app.mypriorities.life) ·
-[Landing page](https://mypriorities.life) ·
-[Documentation (RU)](https://docs.mypriorities.life) ·
+[**Try the demo**](https://app.mypriorities.life/?demo=max&lang=en) ·
+[Open the app](https://app.mypriorities.life) ·
+[Landing page](https://mypriorities.life/en) ·
+[Documentation](https://docs.mypriorities.life/en/) ·
 [Telegram bot](https://t.me/MyMainPriorityBot)
+
+<sub>The demo opens in a browser — no Telegram, no sign-up: a ready profile with
+thirteen months of history and every screen filled with real numbers. Writing is
+disabled there; nothing is saved and nothing is sent anywhere.</sub>
 
 <p align="center">
   <img src="docs/public/shots/home-today.png" width="205" alt="Priorities">
@@ -22,7 +27,7 @@ It shows how you live and lets you see the imbalance for yourself.
   <img src="docs/public/shots/skills-list.png" width="205" alt="Skills">
   <img src="docs/public/shots/stats-month.png" width="205" alt="Statistics">
 </p>
-<p align="center"><sub>Priorities · Charge · Skills · Statistics — the interface is Russian-only for now</sub></p>
+<p align="center"><sub>Priorities · Charge · Skills · Statistics — the screenshots are the Russian build; the app also speaks English</sub></p>
 
 **How it works.** You keep a list of directions: work, family, health, whatever
 matters to you. Gave one a focused block of time — tap “+”. One tap is half an
@@ -65,9 +70,13 @@ a neon three-segment battery, a caption in wide-tracked caps between two thin
 lines. The app is deliberately dark-only.
 
 **Localization.** Not a single line of interface text sits inside a component:
-everything lives in [`src/i18n/ru.ts`](src/i18n/ru.ts) behind an i18n layer with
-its own plural rules. The app speaks Russian today; an English version is
-planned, and it means adding one file rather than going through the components.
+everything lives in [`src/i18n/ru.ts`](src/i18n/ru.ts) and
+[`src/i18n/en.ts`](src/i18n/en.ts) behind an i18n layer with its own plural
+rules, date tables and number formats. The Russian locale is the reference: the
+key types are derived from it, so a missing key in a new translation is a compile
+error rather than a blank spot on the screen. Adding a third language means one
+file and one line, not a pass over the components. The app picks the language
+from Telegram or the browser, and the switch is the first thing in its settings.
 
 ## Engineering notes
 
@@ -117,7 +126,8 @@ landing page, plus the whole icon set, the favicons and the link preview.
 ## Documentation
 
 **Every screen, every feature, every scenario and edge case is described in
-detail on the documentation site: [`docs/`](docs/)** — in Russian.
+detail on the documentation site: [`docs/`](docs/).** The entry pages are in
+English, the thirty-odd pages behind them are in Russian.
 
 ```bash
 npm run docs:dev
@@ -205,6 +215,29 @@ everything it carries is public by definition. The bot token is never needed
 there: it only signs server-side Bot API calls, it lives as a Cloudflare secret
 next to the Worker, and it is not in this repository — see [`worker/`](worker/)
 for the full list of what the server expects.
+
+## How it was built
+
+Much of the code here was written by an AI assistant — Claude — working under my
+direction. The commit trailers say so, and I would rather state it plainly than
+have you discover it.
+
+What that leaves is the part a project is actually made of. The architecture is
+mine: an operation log instead of stored totals, a server that stores and never
+merges, a hard budget on dependencies. So are the constraints, the things this
+app deliberately does not do, and the review of every change before it landed —
+along with the responsibility for all of it.
+
+Most of those constraints are kept by machines rather than by good intentions,
+because code that is written quickly drifts from its own conventions just as
+quickly. One test fails the build on an undeclared runtime dependency, another
+forbids the debug panel from importing anything outside itself, a third walks
+the documentation looking for links that no longer resolve. Deciding what to
+guard is the part that cannot be delegated.
+
+The commit messages are the record. Each one says what was wrong, why this fix
+and not another, and what was left alone on purpose. If you want to judge the
+thinking rather than the typing, that is where to look.
 
 ## License
 

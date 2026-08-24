@@ -55,6 +55,19 @@ describe('зависимости приложения', () => {
     expect(read('README.md')).toContain('modern-screenshot');
     expect(read('docs/dev/architecture.md')).toContain('modern-screenshot');
   });
+
+  it('файлы локалей ничего не импортируют', () => {
+    /*
+     * На этом держится tools/shots/labels.mjs: он читает ru.ts напрямую нодой,
+     * без сборщика, — стрипание типов включено, а разрешение импортов нет.
+     * Первый же import сломает съёмку, и не ошибкой компиляции, а падением
+     * скрипта, до которого доходят раз в неделю. Соблазн реальный: аннотировать
+     * ruFormats типом LocaleFormats из index.ts выглядит как наведение порядка.
+     */
+    for (const file of ['src/i18n/ru.ts', 'src/i18n/en.ts']) {
+      expect(specifiers(read(file)), file).toEqual([]);
+    }
+  });
 });
 
 describe('переносимость панели отладки', () => {

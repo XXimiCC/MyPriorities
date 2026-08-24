@@ -21,7 +21,7 @@ import {
 import { writeDiagnosticSnapshot } from '../devkitHost';
 import { minuteOfDay, todayKey } from '../domain/date';
 import { nextFreeColorId } from '../domain/palette';
-import { PRESETS } from '../domain/presets';
+import { PRESETS, titlesOf } from '../domain/presets';
 import {
   MAX_PRIORITIES,
   MIN_PRIORITIES,
@@ -689,7 +689,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         if (!preset) return;
         const current = latest.current.settings;
         const known = [...current.priorities, ...current.archived];
-        const priorities = materialize(preset.priorities, known);
+        const priorities = materialize(titlesOf(preset.priorities), known);
 
         const keptIds = new Set(priorities.map((p) => p.id));
         const archived = [

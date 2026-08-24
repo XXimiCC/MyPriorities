@@ -610,6 +610,21 @@ const framed = [
   },
 ];
 
+/*
+ * Тот же постер по-английски — под фреймом страницы /en.
+ *
+ * Отдельный прогон, а не флаг у первого: язык задаётся адресом, а адрес у
+ * прогона один. Локаторов здесь нет вовсе, поэтому английский экран снимается
+ * тем же кодом, и labels.mjs остаётся русским, как и был.
+ */
+const framedEn = [
+  {
+    name: 'home-frame-en',
+    note: 'То же самое под фреймом английской версии лендинга',
+    setup: () => Promise.resolve(),
+  },
+];
+
 export const RUNS = [
   { id: 'demo', url: '/?mock=1', shots: demo },
   { id: 'empty', url: '/', shots: empty },
@@ -617,4 +632,5 @@ export const RUNS = [
   { id: 'guest', url: '/?demo=max', shots: guest },
   { id: 'maxed', url: '/?mock=max', shots: maxed },
   { id: 'framed', url: '/?mock=max', shots: framed, viewport: FRAME },
+  { id: 'framed-en', url: '/?mock=max&lang=en', shots: framedEn, viewport: FRAME },
 ];

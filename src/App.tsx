@@ -95,6 +95,16 @@ export function readCurrentRoute(): string {
   return route;
 }
 
+/*
+ * Открытая вкладка переживает пересборку дерева.
+ *
+ * При смене языка приложение пересобирается целиком (см. main.tsx), а «English»
+ * нажимают стоя в настройках — без этой строки человек оказывался бы на главной
+ * и гадал, что он сделал. Модульная переменная, как и route выше: роутера нет,
+ * а класть вкладку в Settings значило бы синхронизировать её между устройствами.
+ */
+let openTab: Tab = 'home';
+
 const OVERLAY_ACTION: Record<Exclude<Overlay, null>, StringKey> = {
   edit: 'common.done',
   presets: 'common.back',
@@ -105,8 +115,15 @@ const OVERLAY_ACTION: Record<Exclude<Overlay, null>, StringKey> = {
 
 export function App(): JSX.Element {
   const { ready, settings } = useStore();
-  const [tab, setTab] = useState<Tab>('home');
+  const [tab, setTab] = useState<Tab>(openTab);
   const [overlay, setOverlay] = useState<Overlay>(BRAND_ASKED ? 'brand' : null);
+
+  /* Единственный путь смены вкладки: модульная переменная обязана знать о ней
+     столько же, сколько состояние, иначе пересборка вернёт человека назад. */
+  const goTab = (next: Tab): void => {
+    openTab = next;
+    setTab(next);
+  };
 
   // На вложенном экране системная «назад» возвращает к вкладкам, а не закрывает мини-апп.
   useEffect(() => {
@@ -128,7 +145,7 @@ export function App(): JSX.Element {
 
   // Выключенный модуль не должен оставить пользователя на исчезнувшей вкладке.
   useEffect(() => {
-    if (!modules.skills && tab === 'skills') setTab('home');
+    if (!modules.skills && tab === 'skills') goTab('home');
   }, [modules.skills, tab]);
 
   useEffect(() => {
@@ -213,7 +230,7 @@ export function App(): JSX.Element {
               onClick={() => {
                 if (tab === item.id) return;
                 haptics.select();
-                setTab(item.id);
+                goTab(item.id);
               }}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

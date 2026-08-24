@@ -3,7 +3,7 @@ import { Hours } from './Hours';
 
 import { colorOf } from '../domain/palette';
 import type { DayKey } from '../domain/types';
-import { t } from '../i18n';
+import { formats, t } from '../i18n';
 import { levelTitle } from './levels';
 import { SkillHistory } from './SkillHistory';
 import type { SkillTotal } from './total';
@@ -67,7 +67,7 @@ export const SkillRow = memo(function SkillRow({
             <span className="srow__next">
               {t('level.threshold', {
                 hours: formatNumber(progress.next.hours),
-                unit: 'ч',
+                unit: formats().hour,
               })}
             </span>
           )}
@@ -91,5 +91,5 @@ export const SkillRow = memo(function SkillRow({
 
 /** Пятизначные пороги без разделителя читаются как случайный набор цифр. */
 export function formatNumber(value: number): string {
-  return value >= 10_000 ? value.toLocaleString('ru-RU') : String(value);
+  return value >= 10_000 ? value.toLocaleString(formats().numberLocale) : String(value);
 }

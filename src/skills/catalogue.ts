@@ -6,52 +6,69 @@
  * формулировке. Готовый список снимает этот ступор и заодно задаёт масштаб —
  * сюда попало только то, во что действительно вкладывают годы.
  *
- * Названия лежат прямо здесь, а не в i18n: это содержимое, как и названия
- * приоритетов в наборах, а не текст интерфейса.
+ * Названия — ключи строк, как и в наборах приоритетов: список один, а языков
+ * два. Разворачиваются они при отрисовке, а в данные попадают уже словом.
  */
+
+import { t, type StringKey } from '../i18n';
 
 export interface SkillGroup {
   /** Заголовок раздела в списке подсказок. */
-  title: string;
-  titles: string[];
+  titleKey: StringKey;
+  titles: StringKey[];
 }
 
 export const SKILL_SUGGESTIONS: SkillGroup[] = [
   {
-    title: 'Языки',
-    titles: ['Английский', 'Испанский', 'Немецкий', 'Французский', 'Китайский'],
+    titleKey: 'word.g.languages',
+    titles: ['word.english', 'word.spanish', 'word.german', 'word.french', 'word.chinese'],
   },
   {
-    title: 'Ремесло',
+    titleKey: 'word.g.craft',
     titles: [
-      'Программирование',
-      'Дизайн',
-      'Копирайтинг',
-      'Аналитика',
-      'Продажи',
-      'Публичные выступления',
-      'Фотография',
-      'Видеомонтаж',
-      '3D-графика',
+      'word.coding',
+      'word.design',
+      'word.copywriting',
+      'word.analytics',
+      'word.sales',
+      'word.speaking',
+      'word.photography',
+      'word.videoEditing',
+      'word.graphics3d',
     ],
   },
   {
-    title: 'Музыка',
-    titles: ['Гитара', 'Фортепиано', 'Барабаны', 'Вокал', 'Музыкальное производство'],
+    titleKey: 'word.g.music',
+    titles: ['word.guitar', 'word.piano', 'word.drums', 'word.vocals', 'word.musicProduction'],
   },
   {
-    title: 'Тело',
-    titles: ['Бег', 'Плавание', 'Силовые тренировки', 'Йога', 'Единоборства', 'Танцы', 'Скалолазание'],
+    titleKey: 'word.g.body',
+    titles: [
+      'word.running',
+      'word.swimming',
+      'word.strength',
+      'word.yoga',
+      'word.martialArts',
+      'word.dancing',
+      'word.climbing',
+    ],
   },
   {
-    title: 'Голова',
-    titles: ['Чтение', 'Шахматы', 'Математика', 'Инвестирование', 'Медитация', 'Письмо'],
+    titleKey: 'word.g.mind',
+    titles: ['word.reading', 'word.chess', 'word.math', 'word.investing', 'word.meditation', 'word.writing'],
   },
   {
-    title: 'Руки',
-    titles: ['Готовка', 'Рисование', 'Столярное дело', 'Вождение', 'Садоводство'],
+    titleKey: 'word.g.hands',
+    titles: ['word.cooking', 'word.drawing', 'word.woodwork', 'word.driving', 'word.gardening'],
   },
 ];
 
-/** Плоский список — для проверки, что название уже занято. */
-export const ALL_SUGGESTIONS: string[] = SKILL_SUGGESTIONS.flatMap((group) => group.titles);
+/**
+ * Плоский список готовыми строками — для проверки, что название уже занято.
+ *
+ * Функция, а не константа: список зависит от языка, а модуль вычисляется один
+ * раз на запуск. Вызов на каждое нажатие клавиши здесь ничего не стоит.
+ */
+export function allSuggestions(): string[] {
+  return SKILL_SUGGESTIONS.flatMap((group) => group.titles.map((key) => t(key)));
+}

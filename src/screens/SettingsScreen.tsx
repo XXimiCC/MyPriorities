@@ -11,7 +11,8 @@ import { findPreset } from '../domain/presets';
 import { computeStats, earliestDay, periodDays } from '../domain/stats';
 import { PERIODS } from '../domain/periods';
 import { BLOCK_OPTIONS, blockMinutesOf, modulesOf } from '../domain/types';
-import { plural, t, type StringKey } from '../i18n';
+import { chooseLanguage, LANGUAGES, plural, t, type StringKey } from '../i18n';
+import { useLocale } from '../i18n/useLocale';
 import { DEMO_MODE, GUEST_MODE } from '../demo/mode';
 import { SnapshotError } from '../domain/snapshot';
 import { useStore } from '../store/useStore';
@@ -55,6 +56,9 @@ export function SettingsScreen({ onPresets, onAchievements, onDemo, onBrand }: P
   const [sync, setSync] = useState<SyncState>(syncState);
   const [server, setServer] = useState<string | undefined>(undefined);
   const [hasBefore, setHasBefore] = useState(false);
+  /* Хук, а не currentLocale(): экран сейчас пересобирается целиком, но это
+     решение main.tsx, а не его — подписка остаётся верной и без ключа. */
+  const locale = useLocale();
   const devkitHold = useLongPress(revealDevkit, SECRET_HOLD_MS);
 
   const blockMinutes = blockMinutesOf(settings);
@@ -200,6 +204,46 @@ export function SettingsScreen({ onPresets, onAchievements, onDemo, onBrand }: P
       </header>
 
       <div className="app__body">
+        {/*
+          Язык — первым разделом, и это не про важность.
+
+          Тот, кто открыл приложение не на своём языке, ищет ровно этот
+          переключатель и не может прочитать ни одну подпись, которая к нему
+          ведёт. Значит, он обязан лежать там, куда попадаешь, а кнопки —
+          называть себя сами. Заодно снимается вопрос про скролл: смена языка
+          пересобирает дерево (см. main.tsx) и отматывает список наверх, а
+          наверху это незаметно.
+
+          Раздела нет, пока язык один: выбор из одного варианта объяснять
+          дороже, чем не показывать.
+        */}
+        {LANGUAGES.length > 1 && (
+          <>
+            <div className="divider-label">
+              <span>{t('settings.languageTitle')}</span>
+            </div>
+
+            <div className="sset__lang">
+              {LANGUAGES.map((language) => (
+                <button
+                  key={language.code}
+                  className={`sset__block${language.code === locale ? ' sset__block--on' : ''}`}
+                  type="button"
+                  lang={language.code}
+                  onClick={() => {
+                    if (language.code === locale) return;
+                    haptics.select();
+                    chooseLanguage(language.code);
+                  }}
+                >
+                  {language.name}
+                </button>
+              ))}
+            </div>
+            <p className="note">{t('settings.languageNote')}</p>
+          </>
+        )}
+
         <div className="divider-label">
           <span>{t('settings.prioritiesTitle')}</span>
         </div>
@@ -208,7 +252,7 @@ export function SettingsScreen({ onPresets, onAchievements, onDemo, onBrand }: P
           <span className="navrow__text">
             <b>{t('settings.presetsRow')}</b>
             <small>
-              {current ? t('settings.presetsCurrent', { name: current.name }) : t('settings.presetsNone')}
+              {current ? t('settings.presetsCurrent', { name: t(current.nameKey) }) : t('settings.presetsNone')}
             </small>
           </span>
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true">

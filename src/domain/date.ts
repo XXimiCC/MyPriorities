@@ -1,9 +1,14 @@
+import { formats } from '../i18n';
 import type { DayKey } from './types';
 
 /**
  * Вся работа с датами идёт в локальном времени устройства: день для пользователя
  * начинается в его полночь, а не в UTC. Сдвиг по дням делается через setDate,
  * а не прибавлением 86 400 000 мс — иначе переход на летнее время съедает сутки.
+ *
+ * Подписи — из активной локали (см. ruFormats в i18n/ru.ts). Читаются внутри
+ * функций, а не разложены по параметрам: все они чистые и зовутся при отрисовке,
+ * поэтому ни один из семи десятков вызовов не пришлось менять.
  */
 
 const pad2 = (n: number): string => (n < 10 ? `0${n}` : String(n));
@@ -95,20 +100,14 @@ export function daysBetween(from: DayKey, to: DayKey): number {
   return Math.round(ms / 86_400_000) + 1;
 }
 
-const MONTHS_GENITIVE = [
-  'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
-  'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
-];
-
-const WEEKDAYS_SHORT = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
-
 export function formatDayShort(key: DayKey): string {
   const d = parseDayKey(key);
-  return `${d.getDate()} ${MONTHS_GENITIVE[d.getMonth()]}`;
+  const { months, dayMonth } = formats();
+  return dayMonth(d.getDate(), months[d.getMonth()] ?? '');
 }
 
 export function weekdayShort(key: DayKey): string {
-  return WEEKDAYS_SHORT[parseDayKey(key).getDay()] ?? '';
+  return formats().weekdays[parseDayKey(key).getDay()] ?? '';
 }
 
 /**
@@ -116,21 +115,23 @@ export function weekdayShort(key: DayKey): string {
  * приходят как кратные BLOCK_MINUTES для приоритетов и произвольные для батареи.
  */
 export function formatMinutes(minutes: number): string {
+  const { hour, minute, gap } = formats();
   const total = Math.max(0, Math.round(minutes));
   const h = Math.floor(total / 60);
   const m = total % 60;
-  if (h === 0) return `${m} м`;
-  if (m === 0) return `${h} ч`;
-  return `${h} ч ${m} м`;
+  if (h === 0) return `${m}${gap}${minute}`;
+  if (m === 0) return `${h}${gap}${hour}`;
+  return `${h}${gap}${hour} ${m}${gap}${minute}`;
 }
 
 /** Компактная форма для тесных мест: «4,5 ч». */
 export function formatHoursCompact(minutes: number): string {
+  const { hour, minute, gap, decimal } = formats();
   const hours = minutes / 60;
-  if (hours === 0) return '0 ч';
-  if (hours < 1) return `${Math.round(minutes)} м`;
+  if (hours === 0) return `0${gap}${hour}`;
+  if (hours < 1) return `${Math.round(minutes)}${gap}${minute}`;
   const rounded = Math.round(hours * 10) / 10;
-  return `${String(rounded).replace('.', ',')} ч`;
+  return `${String(rounded).replace('.', decimal)}${gap}${hour}`;
 }
 
 /**
@@ -144,18 +145,19 @@ export function formatHoursCompact(minutes: number): string {
  * регуляркой сломался бы на первом же изменении формата.
  */
 export function formatHoursParts(minutes: number): { head: string; fraction: string; unit: string } {
+  const { hour, minute, decimal } = formats();
   const hours = minutes / 60;
-  if (hours === 0) return { head: '0', fraction: '', unit: 'ч' };
-  if (hours < 1) return { head: String(Math.round(minutes)), fraction: '', unit: 'м' };
+  if (hours === 0) return { head: '0', fraction: '', unit: hour };
+  if (hours < 1) return { head: String(Math.round(minutes)), fraction: '', unit: minute };
 
   const rounded = Math.round(hours * 10) / 10;
   const whole = Math.trunc(rounded);
   const tenth = Math.round((rounded - whole) * 10);
-  return { head: String(whole), fraction: tenth ? `,${tenth}` : '', unit: 'ч' };
+  return { head: String(whole), fraction: tenth ? `${decimal}${tenth}` : '', unit: hour };
 }
 
 export function formatPercent(fraction: number): string {
   if (!Number.isFinite(fraction) || fraction <= 0) return '0%';
   const pct = fraction * 100;
-  return `${pct < 1 ? pct.toFixed(1).replace('.', ',') : Math.round(pct)}%`;
+  return `${pct < 1 ? pct.toFixed(1).replace('.', formats().decimal) : Math.round(pct)}%`;
 }

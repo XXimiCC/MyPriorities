@@ -35,7 +35,7 @@ export function DemoBar(): JSX.Element | null {
     >
       <span className="demobar__dot" aria-hidden="true" />
       <span className="demobar__text">
-        {t('demo.bar')} · <b>{profile.name}</b>
+        {t('demo.bar')} · <b>{t(profile.nameKey)}</b>
       </span>
       <button className="demobar__exit press" type="button" onClick={exit}>
         {t('demo.exit')}

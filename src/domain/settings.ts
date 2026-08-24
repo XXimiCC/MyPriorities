@@ -8,7 +8,7 @@
  * подменить транспорт, не задев проверки, было нельзя.
  */
 
-import { DEFAULT_PRIORITIES } from './presets';
+import { DEFAULT_PRIORITIES, titlesOf } from './presets';
 import type { Priority, Settings } from './types';
 import { DEFAULT_BLOCK_MINUTES, DEFAULT_MODULES, MAX_PRIORITIES, sanitizeModules } from './types';
 
@@ -75,7 +75,7 @@ export function materialize(
 
 export function defaultSettings(): Settings {
   const base = emptySettings();
-  return { ...base, priorities: materialize(DEFAULT_PRIORITIES, []) };
+  return { ...base, priorities: materialize(titlesOf(DEFAULT_PRIORITIES), []) };
 }
 
 export function sanitizeSettings(raw: unknown): Settings | undefined {

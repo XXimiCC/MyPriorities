@@ -1,22 +1,27 @@
 /**
- * Девять готовых наборов приоритетов — «сборники» с главного экрана.
- * У каждого свой типаж, иконка и акцент; по картинке должно быть понятно,
- * что у этого человека во главе угла.
+ * Готовые наборы приоритетов — «сборники» с главного экрана. У каждого свой
+ * типаж, иконка и акцент; по картинке должно быть понятно, что у этого
+ * человека во главе угла.
  *
  * Идентификаторы приоритетов здесь не хранятся намеренно: при применении
  * набора они подбираются по названию из уже существующих и архивных, чтобы
  * «Работа» осталась той же самой «Работой» и не потеряла историю.
+ *
+ * Названия — ключи строк, а не слова: набор один, а языков два. Разворачивает
+ * их titlesOf() в тот момент, когда они попадают на экран или в данные.
  */
 
+import { t, type StringKey } from '../i18n';
+
 export interface PresetPriority {
-  title: string;
+  titleKey: StringKey;
   colorId: number;
 }
 
 export interface Preset {
   id: string;
-  name: string;
-  tagline: string;
+  nameKey: StringKey;
+  taglineKey: StringKey;
   /** Акцент карточки — берётся из NEON_PALETTE по индексу. */
   accentId: number;
   /** Штрихованные пути в системе координат 24×24. */
@@ -24,15 +29,25 @@ export interface Preset {
   priorities: PresetPriority[];
 }
 
+/**
+ * Названия готовыми строками — на языке, который сейчас на экране.
+ *
+ * Дальше слово живёт в данных обычной строкой: приоритет, созданный из набора,
+ * ничем не отличается от вписанного руками, и смена языка его не переименует.
+ */
+export function titlesOf(items: PresetPriority[]): Array<{ title: string; colorId: number }> {
+  return items.map(({ titleKey, colorId }) => ({ title: t(titleKey), colorId }));
+}
+
 /** Стартовый набор. Он же первая карточка сборников — отдельной кнопки под ним не нужно. */
 export const DEFAULT_PRIORITIES: PresetPriority[] = [
-  { title: 'Работа', colorId: 1 },
-  { title: 'Семья', colorId: 9 },
-  { title: 'Здоровье', colorId: 0 },
-  { title: 'Развитие', colorId: 3 },
-  { title: 'Финансы', colorId: 7 },
-  { title: 'Друзья', colorId: 4 },
-  { title: 'Отдых', colorId: 6 },
+  { titleKey: 'word.work', colorId: 1 },
+  { titleKey: 'word.family', colorId: 9 },
+  { titleKey: 'word.health', colorId: 0 },
+  { titleKey: 'word.growth', colorId: 3 },
+  { titleKey: 'word.finance', colorId: 7 },
+  { titleKey: 'word.friends', colorId: 4 },
+  { titleKey: 'word.rest', colorId: 6 },
 ];
 
 export const BASIC_PRESET_ID = 'basic';
@@ -40,8 +55,8 @@ export const BASIC_PRESET_ID = 'basic';
 export const PRESETS: Preset[] = [
   {
     id: BASIC_PRESET_ID,
-    name: 'Базовый',
-    tagline: 'Ровный старт: семь опор без перекоса',
+    nameKey: 'preset.basic',
+    taglineKey: 'preset.basic.note',
     accentId: 8,
     icon: [
       'M12 21a9 9 0 100-18 9 9 0 000 18',
@@ -52,8 +67,8 @@ export const PRESETS: Preset[] = [
   },
   {
     id: 'family',
-    name: 'Семьянин',
-    tagline: 'Дом, дети и близкие впереди всего',
+    nameKey: 'preset.family',
+    taglineKey: 'preset.family.note',
     accentId: 9,
     icon: [
       'M8.5 11a3 3 0 100-6 3 3 0 000 6',
@@ -62,19 +77,19 @@ export const PRESETS: Preset[] = [
       'M16 20v-1.4a3.6 3.6 0 013.6-3.6 2.6 2.6 0 012.4 1.6',
     ],
     priorities: [
-      { title: 'Семья', colorId: 9 },
-      { title: 'Дети', colorId: 4 },
-      { title: 'Дом', colorId: 6 },
-      { title: 'Работа', colorId: 2 },
-      { title: 'Здоровье', colorId: 0 },
-      { title: 'Отношения', colorId: 5 },
-      { title: 'Отдых', colorId: 1 },
+      { titleKey: 'word.family', colorId: 9 },
+      { titleKey: 'word.kids', colorId: 4 },
+      { titleKey: 'word.home', colorId: 6 },
+      { titleKey: 'word.work', colorId: 2 },
+      { titleKey: 'word.health', colorId: 0 },
+      { titleKey: 'word.relationships', colorId: 5 },
+      { titleKey: 'word.rest', colorId: 1 },
     ],
   },
   {
     id: 'founder',
-    name: 'Основатель',
-    tagline: 'Продукт, продажи и команда каждый день',
+    nameKey: 'preset.founder',
+    taglineKey: 'preset.founder.note',
     accentId: 6,
     icon: [
       'M12 2.5c3.2 2.6 4.8 6.2 4.8 9.8L12 17l-4.8-4.7c0-3.6 1.6-7.2 4.8-9.8z',
@@ -83,35 +98,35 @@ export const PRESETS: Preset[] = [
       'M15.8 13.6L18.4 16l-.7 3.4-3-1.7',
     ],
     priorities: [
-      { title: 'Продукт', colorId: 6 },
-      { title: 'Продажи', colorId: 0 },
-      { title: 'Команда', colorId: 1 },
-      { title: 'Финансы', colorId: 7 },
-      { title: 'Обучение', colorId: 3 },
-      { title: 'Здоровье', colorId: 8 },
-      { title: 'Отдых', colorId: 2 },
+      { titleKey: 'word.product', colorId: 6 },
+      { titleKey: 'word.sales', colorId: 0 },
+      { titleKey: 'word.team', colorId: 1 },
+      { titleKey: 'word.finance', colorId: 7 },
+      { titleKey: 'word.learning', colorId: 3 },
+      { titleKey: 'word.health', colorId: 8 },
+      { titleKey: 'word.rest', colorId: 2 },
     ],
   },
   {
     id: 'athlete',
-    name: 'Атлет',
-    tagline: 'Тело как главный проект',
+    nameKey: 'preset.athlete',
+    taglineKey: 'preset.athlete.note',
     accentId: 0,
     icon: ['M3.5 9.5v5', 'M7 7v10', 'M17 7v10', 'M20.5 9.5v5', 'M7 12h10'],
     priorities: [
-      { title: 'Тренировки', colorId: 0 },
-      { title: 'Питание', colorId: 8 },
-      { title: 'Сон', colorId: 2 },
-      { title: 'Восстановление', colorId: 1 },
-      { title: 'Работа', colorId: 3 },
-      { title: 'Близкие', colorId: 9 },
-      { title: 'Отдых', colorId: 6 },
+      { titleKey: 'word.training', colorId: 0 },
+      { titleKey: 'word.nutrition', colorId: 8 },
+      { titleKey: 'word.sleep', colorId: 2 },
+      { titleKey: 'word.recovery', colorId: 1 },
+      { titleKey: 'word.work', colorId: 3 },
+      { titleKey: 'word.loved', colorId: 9 },
+      { titleKey: 'word.rest', colorId: 6 },
     ],
   },
   {
     id: 'student',
-    name: 'Студент',
-    tagline: 'Учиться быстрее, чем меняется мир',
+    nameKey: 'preset.student',
+    taglineKey: 'preset.student.note',
     accentId: 2,
     icon: [
       'M2.5 9L12 5l9.5 4-9.5 4-9.5-4z',
@@ -119,54 +134,54 @@ export const PRESETS: Preset[] = [
       'M21.5 9v5.5',
     ],
     priorities: [
-      { title: 'Учёба', colorId: 2 },
-      { title: 'Проекты', colorId: 6 },
-      { title: 'Языки', colorId: 3 },
-      { title: 'Спорт', colorId: 0 },
-      { title: 'Друзья', colorId: 4 },
-      { title: 'Сон', colorId: 1 },
-      { title: 'Отдых', colorId: 7 },
+      { titleKey: 'word.studies', colorId: 2 },
+      { titleKey: 'word.projects', colorId: 6 },
+      { titleKey: 'word.languages', colorId: 3 },
+      { titleKey: 'word.sport', colorId: 0 },
+      { titleKey: 'word.friends', colorId: 4 },
+      { titleKey: 'word.sleep', colorId: 1 },
+      { titleKey: 'word.rest', colorId: 7 },
     ],
   },
   {
     id: 'creator',
-    name: 'Творец',
-    tagline: 'Делать своё и показывать это людям',
+    nameKey: 'preset.creator',
+    taglineKey: 'preset.creator.note',
     accentId: 4,
     icon: [
       'M12 2.5l2 5.5 5.5 2-5.5 2-2 5.5-2-5.5-5.5-2 5.5-2z',
       'M18.5 15l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z',
     ],
     priorities: [
-      { title: 'Творчество', colorId: 4 },
-      { title: 'Насмотренность', colorId: 3 },
-      { title: 'Ремесло', colorId: 1 },
-      { title: 'Аудитория', colorId: 6 },
-      { title: 'Деньги', colorId: 7 },
-      { title: 'Тело', colorId: 0 },
-      { title: 'Отдых', colorId: 2 },
+      { titleKey: 'word.creativity', colorId: 4 },
+      { titleKey: 'word.inspiration', colorId: 3 },
+      { titleKey: 'word.craft', colorId: 1 },
+      { titleKey: 'word.audience', colorId: 6 },
+      { titleKey: 'word.money', colorId: 7 },
+      { titleKey: 'word.body', colorId: 0 },
+      { titleKey: 'word.rest', colorId: 2 },
     ],
   },
   {
     id: 'career',
-    name: 'Карьера',
-    tagline: 'Расти в профессии и быть на виду',
+    nameKey: 'preset.career',
+    taglineKey: 'preset.career.note',
     accentId: 1,
     icon: ['M3.5 20h17', 'M5.5 16.5l4.5-5.5 3.5 3 5-6.5', 'M14.5 7.5H18.5V11.5'],
     priorities: [
-      { title: 'Работа', colorId: 1 },
-      { title: 'Навыки', colorId: 2 },
-      { title: 'Нетворкинг', colorId: 6 },
-      { title: 'Репутация', colorId: 7 },
-      { title: 'Здоровье', colorId: 0 },
-      { title: 'Семья', colorId: 9 },
-      { title: 'Отдых', colorId: 3 },
+      { titleKey: 'word.work', colorId: 1 },
+      { titleKey: 'word.skills', colorId: 2 },
+      { titleKey: 'word.networking', colorId: 6 },
+      { titleKey: 'word.reputation', colorId: 7 },
+      { titleKey: 'word.health', colorId: 0 },
+      { titleKey: 'word.family', colorId: 9 },
+      { titleKey: 'word.rest', colorId: 3 },
     ],
   },
   {
     id: 'inward',
-    name: 'Путь внутрь',
-    tagline: 'Тишина, практика и честность с собой',
+    nameKey: 'preset.inward',
+    taglineKey: 'preset.inward.note',
     accentId: 3,
     icon: [
       'M12 6.5a2 2 0 100-4 2 2 0 000 4',
@@ -175,19 +190,19 @@ export const PRESETS: Preset[] = [
       'M4 18.5c2.2-1.7 5.2-2.6 8-2.6s5.8.9 8 2.6',
     ],
     priorities: [
-      { title: 'Медитация', colorId: 3 },
-      { title: 'Чтение', colorId: 2 },
-      { title: 'Дневник', colorId: 1 },
-      { title: 'Природа', colorId: 0 },
-      { title: 'Тело', colorId: 8 },
-      { title: 'Близкие', colorId: 9 },
-      { title: 'Тишина', colorId: 4 },
+      { titleKey: 'word.meditation', colorId: 3 },
+      { titleKey: 'word.reading', colorId: 2 },
+      { titleKey: 'word.journal', colorId: 1 },
+      { titleKey: 'word.nature', colorId: 0 },
+      { titleKey: 'word.body', colorId: 8 },
+      { titleKey: 'word.loved', colorId: 9 },
+      { titleKey: 'word.quiet', colorId: 4 },
     ],
   },
   {
     id: 'balance',
-    name: 'Баланс',
-    tagline: 'Ровно по всем фронтам, без перекосов',
+    nameKey: 'preset.balance',
+    taglineKey: 'preset.balance.note',
     accentId: 8,
     icon: [
       'M12 3.5v16',
@@ -197,32 +212,32 @@ export const PRESETS: Preset[] = [
       'M20 8l2.2 5a3 3 0 01-4.4 0z',
     ],
     priorities: [
-      { title: 'Работа', colorId: 1 },
-      { title: 'Семья', colorId: 9 },
-      { title: 'Здоровье', colorId: 0 },
-      { title: 'Друзья', colorId: 4 },
-      { title: 'Развитие', colorId: 3 },
-      { title: 'Финансы', colorId: 7 },
-      { title: 'Отдых', colorId: 6 },
+      { titleKey: 'word.work', colorId: 1 },
+      { titleKey: 'word.family', colorId: 9 },
+      { titleKey: 'word.health', colorId: 0 },
+      { titleKey: 'word.friends', colorId: 4 },
+      { titleKey: 'word.growth', colorId: 3 },
+      { titleKey: 'word.finance', colorId: 7 },
+      { titleKey: 'word.rest', colorId: 6 },
     ],
   },
   {
     id: 'recovery',
-    name: 'Восстановление',
-    tagline: 'Выбраться из выгорания и собрать себя',
+    nameKey: 'preset.recovery',
+    taglineKey: 'preset.recovery.note',
     accentId: 7,
     icon: [
       'M20 3.5C11 3.5 5 8.2 5 14.8a5 5 0 007.6 4.3C18.2 16.3 20 10.2 20 3.5z',
       'M7.5 18c2.2-4.4 6-7.7 10.5-9.2',
     ],
     priorities: [
-      { title: 'Сон', colorId: 2 },
-      { title: 'Тело', colorId: 0 },
-      { title: 'Природа', colorId: 8 },
-      { title: 'Тишина', colorId: 3 },
-      { title: 'Близкие', colorId: 9 },
-      { title: 'Терапия', colorId: 4 },
-      { title: 'Работа', colorId: 1 },
+      { titleKey: 'word.sleep', colorId: 2 },
+      { titleKey: 'word.body', colorId: 0 },
+      { titleKey: 'word.nature', colorId: 8 },
+      { titleKey: 'word.quiet', colorId: 3 },
+      { titleKey: 'word.loved', colorId: 9 },
+      { titleKey: 'word.therapy', colorId: 4 },
+      { titleKey: 'word.work', colorId: 1 },
     ],
   },
 ];

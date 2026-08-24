@@ -1,0 +1,734 @@
+<!doctype html>
+<html lang="en">
+  <!--
+    English landing page.
+
+    A translation of ../index.html, not a fork: the markup, the class names and
+    the SVG symbols are the same on purpose, and a structural change belongs in
+    both files. The long comments explaining *why* the markup looks like this
+    live in the Russian page — repeating them here would guarantee that one copy
+    goes stale. Only the prose is different.
+
+    Everything the app itself links to carries ?lang=en, the frame included:
+    without it an English page would open a Russian app inside its own hero.
+  -->
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="color-scheme" content="dark" />
+
+    <title>My Priorities — find out where your life actually goes</title>
+    <meta
+      name="description"
+      content="In 7 days you will see how you live and what your main priority really is. No sign-up, no SMS."
+    />
+    <link rel="canonical" href="{{SELF}}/en" />
+    <link rel="alternate" hreflang="ru" href="{{SELF}}/" />
+    <link rel="alternate" hreflang="en" href="{{SELF}}/en" />
+    <link rel="alternate" hreflang="x-default" href="{{SELF}}/" />
+
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- og:image and og:url have to be absolute or the preview will not build. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:site_name" content="My Priorities" />
+    <meta property="og:title" content="Find out where your life actually goes" />
+    <meta
+      property="og:description"
+      content="In 7 days you will see how you live and what your main priority really is."
+    />
+    <meta property="og:url" content="{{SELF}}/en" />
+    <meta property="og:image" content="{{SELF}}/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <link rel="stylesheet" href="/src/tokens.css" />
+    <link rel="stylesheet" href="/src/landing.css" />
+    <script type="module" src="/src/demo.js"></script>
+    <script type="module" src="/src/mini.js"></script>
+    <script type="module" src="/src/entry.js"></script>
+    <script type="module" src="/src/motion.js"></script>
+
+    <!-- Debug panel: Ctrl+Shift+Q shows the badge, the badge opens the panel. -->
+    <script
+      type="module"
+      src="/devkit/devkit.js"
+      data-devkit-url="{{DEVKIT}}"
+      data-devkit-app="landing"
+    ></script>
+  </head>
+
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <div class="aurora" aria-hidden="true"></div>
+
+    <header class="top">
+      <div class="wrap top__inner">
+        <a class="top__brand" href="#main" aria-label="My Priorities">
+          <svg class="mark" viewBox="0 0 112 53" aria-hidden="true" focusable="false">
+            <use href="#bat-3" />
+          </svg>
+          <span>My&nbsp;Priorities</span>
+        </a>
+
+        <nav class="top__nav">
+          <a class="top__tg" href="{{BOT}}" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                d="M9.04 15.35 8.87 19c.5 0 .72-.22.98-.48l2.35-2.25 4.87 3.57c.9.5 1.53.24 1.77-.83l3.21-15.05c.29-1.33-.48-1.85-1.35-1.53L1.6 9.32c-1.3.5-1.28 1.22-.22 1.55l4.95 1.54L17.8 5.6c.54-.36 1.03-.16.63.2z"
+                fill="currentColor"
+              />
+            </svg>
+            <span>@MyMainPriorityBot</span>
+          </a>
+          <span class="top__lang">
+            <a href="{{SELF}}/" hreflang="ru" lang="ru">RU</a>
+            <a href="{{SELF}}/en" hreflang="en" lang="en" aria-current="page">EN</a>
+          </span>
+          <a class="btn btn--enter press" href="{{APP}}/?lang=en">Sign in</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <!-- ── 1. Hero ──────────────────────────────────────────────────── -->
+      <section class="hero wrap" data-reveal>
+        <div class="field" data-field aria-hidden="true">
+          <div class="field__grid"></div>
+          <div class="field__glow"></div>
+        </div>
+
+        <div class="hero__text">
+          <p class="eyebrow">The app: My Priorities</p>
+          <h1 class="hero__title">Find out where your life actually goes</h1>
+          <p class="hero__lead">
+            In 7 days you will see how you live and what your main priority really is
+          </p>
+
+          <div class="hero__actions">
+            <a class="btn btn--go btn--big press" href="{{APP}}/?lang=en">Try it free</a>
+          </div>
+
+          <p class="hero__note">No sign-up, no SMS :)</p>
+        </div>
+
+        <!-- Two different demos, and that is not duplication — see ../index.html. -->
+        <div class="slot" data-demo-frame data-src="{{APP}}/?mock=max&amp;lang=en" data-away="{{APP}}/?demo=max&amp;lang=en">
+          <div class="phone">
+            <div class="phone__screen">
+              <img
+                class="phone__poster"
+                src="/shots/home-frame-en.png"
+                width="390"
+                height="720"
+                alt="The priorities screen of the “Maximum” profile: ten priorities for today"
+                fetchpriority="high"
+              />
+              <div class="phone__veil">
+                <span class="phone__spinner"></span>
+                <p class="phone__hint">Starting the live app…</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- The compact example for phones. src/mini.js drives the numbers. -->
+          <div class="mini" data-mini>
+            <p class="mini__head">
+              <span class="mini__eyebrow">Today</span>
+              <span class="mini__sum" data-mini-sum></span>
+            </p>
+
+            <div class="mini__rows">
+              <div class="mini__row" data-mini-row data-title="Work" data-blocks="4" style="--accent: var(--p5); --accent-soft: #ff5f6b"></div>
+              <div class="mini__row" data-mini-row data-title="Family" data-blocks="2" style="--accent: var(--p0); --accent-soft: #6bf58f"></div>
+              <div class="mini__row" data-mini-row data-title="Health" data-blocks="1" style="--accent: var(--p1); --accent-soft: #8df0ff"></div>
+              <div class="mini__row" data-mini-row data-title="My own thing" data-blocks="0" style="--accent: var(--p7); --accent-soft: #ffe23f"></div>
+            </div>
+
+            <p class="mini__foot">
+              <span data-mini-hint>Tap “+” — that is half an hour of your life</span>
+              <button class="slot__link" type="button" data-mini-reset hidden>↻ Start over</button>
+            </p>
+          </div>
+
+          <p class="slot__under" data-demo-after>
+            <button class="slot__link" type="button" data-demo-reload>↻ Start over</button>
+            <a class="slot__link" data-entry data-entry-web="{{APP}}/?demo=max&amp;lang=en" data-entry-tg="{{BOT}}/app?startapp=demo_max" href="{{APP}}/?demo=max&amp;lang=en">
+              Full screen ↗
+            </a>
+          </p>
+
+          <p class="slot__away">
+            <a data-entry data-entry-web="{{APP}}/?demo=max&amp;lang=en" data-entry-tg="{{BOT}}/app?startapp=demo_max" href="{{APP}}/?demo=max&amp;lang=en">
+              Open the full version ↗
+            </a>
+          </p>
+        </div>
+      </section>
+
+      <!-- ── 2. A reality check ───────────────────────────────────────── -->
+      <section class="wrap section" data-reveal>
+        <p class="divider-label"><span>Why bother</span></p>
+        <h2 class="section__title">Run a check on your own reality</h2>
+        <p class="section__lead">
+          Find out what you actually spend time on, what takes your energy and what gives it back,
+          and which skills you are really building. Learn to focus on what matters.
+        </p>
+
+        <div class="pains">
+          <article class="pain" style="--accent: var(--p5); --accent-soft: #ff5f6b">
+            <p class="pain__q">“A year went by, and I cannot say on what”</p>
+            <p class="pain__a">
+              Plans lie, marks do not. You think you live for your family, and a week of marks
+              shows two thirds of it went into work. That is not a reproach, it is a number you
+              cannot argue with.
+            </p>
+          </article>
+
+          <article class="pain" style="--accent: var(--p6); --accent-soft: #ffab6b">
+            <p class="pain__q">“I am tired, and I cannot remember what from”</p>
+            <p class="pain__a">
+              Four hours of work at full charge and four hours on empty are two different four
+              hours. The app asks what drained the battery, and a month later you have a list —
+              with the same line at the top every time.
+            </p>
+          </article>
+
+          <article class="pain" style="--accent: var(--p3); --accent-soft: #c9a5ff">
+            <p class="pain__q">“Years went in, and there is nothing to be proud of”</p>
+            <p class="pain__a">
+              Noticing the ground already covered makes the walking easier. The hours you put into
+              a skill stop being a feeling and become a step, with a concrete number to the next
+              one.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <!-- ── 3. The idea ──────────────────────────────────────────────── -->
+      <section class="wrap section" data-reveal>
+        <p class="divider-label"><span>The plan</span></p>
+        <h2 class="section__title">What the app is for</h2>
+        <p class="section__lead">
+          Mark where you invest your time and energy. A week later you get the picture and your
+          first conclusions, tune your life by them, and start moving where you actually wanted to.
+        </p>
+
+        <!-- A loop, not a list: the last step returns to the first, and that is the point. -->
+        <ol class="loop">
+          <li class="loop__step" style="--accent: var(--p0)">
+            <span class="loop__n">1</span>
+            <h3 class="loop__title">Mark it</h3>
+            <p class="loop__text">
+              Where the time went, what your charge is right now, what you did for a skill. One tap
+              each.
+            </p>
+          </li>
+          <li class="loop__step" style="--accent: var(--p1)">
+            <span class="loop__n">2</span>
+            <h3 class="loop__title">See it</h3>
+            <p class="loop__text">
+              After 7 days the picture is there: where the tilt is, what takes your energy, where
+              you are actually growing. Facts, built on numbers.
+            </p>
+          </li>
+          <li class="loop__step" style="--accent: var(--p7)">
+            <span class="loop__n">3</span>
+            <h3 class="loop__title">Tune your life</h3>
+            <p class="loop__text">
+              What you change is not the app but the arrangement: drop what eats time and gives
+              nothing back, add what all of it was for.
+            </p>
+          </li>
+          <li class="loop__step" style="--accent: var(--p3)">
+            <span class="loop__n">4</span>
+            <h3 class="loop__title">Get somewhere new</h3>
+            <p class="loop__text">
+              Now you are moving where you really wanted to. The skills grow, and the energy stops
+              draining into nowhere.
+            </p>
+          </li>
+        </ol>
+
+        <h3 class="section__sub">In 7 days you will answer four questions for yourself</h3>
+
+        <div class="asks">
+          <article class="ask" style="--accent: var(--p5)">
+            <p class="ask__q">What do I actually spend my time on?</p>
+            <p class="ask__a">
+              Bars by direction for a day, a week and a month. The leader is always full width, so
+              the tilt is visible without doing any math.
+            </p>
+          </article>
+
+          <article class="ask" style="--accent: var(--p6)">
+            <p class="ask__q">What takes my energy, and what gives it back?</p>
+            <p class="ask__a">
+              Every time you run to empty, the app asks why. A month later the answers add up into
+              a list — and the top line is usually the same one.
+            </p>
+          </article>
+
+          <article class="ask" style="--accent: var(--battery-charge)">
+            <p class="ask__q">How much energy do I have through the day, and how does it move?</p>
+            <p class="ask__a">
+              How many hours you lived in each state, when your battery usually runs down, and how
+              your average charge moved from week to week.
+            </p>
+          </article>
+
+          <article class="ask" style="--accent: var(--p3)">
+            <p class="ask__q">Which skills do I have, and at what level?</p>
+            <p class="ask__a">
+              A step from novice to master for every skill, the hours collected and the pace over
+              30 days — including the years that came before the app.
+            </p>
+          </article>
+        </div>
+
+        <!-- The priority bar live rather than as a picture: the most recognizable element. -->
+        <figure class="bars" data-bars>
+          <div class="bar" style="--accent: var(--p5); --accent-soft: #ff5f6b">
+            <span class="bar__name">Work</span>
+            <span class="bar__track"><span class="bar__fill" data-width="100"></span></span>
+            <span class="bar__value">48h</span>
+          </div>
+          <div class="bar" style="--accent: var(--p0); --accent-soft: #6bf58f">
+            <span class="bar__name">Family</span>
+            <span class="bar__track"><span class="bar__fill" data-width="41"></span></span>
+            <span class="bar__value">12h</span>
+          </div>
+          <div class="bar" style="--accent: var(--p1); --accent-soft: #8df0ff">
+            <span class="bar__name">Hobby</span>
+            <span class="bar__track"><span class="bar__fill" data-width="16"></span></span>
+            <span class="bar__value">2h</span>
+          </div>
+          <div class="bar" style="--accent: var(--p7); --accent-soft: #ffe23f">
+            <span class="bar__name">Health</span>
+            <span class="bar__track"><span class="bar__fill" data-width="8"></span></span>
+            <span class="bar__value">30m</span>
+          </div>
+          <figcaption>An ordinary week. The tilt needs no explaining</figcaption>
+        </figure>
+
+        <p class="creed">
+          Now you can actually see yourself moving toward what you wanted.
+        </p>
+      </section>
+
+      <!-- ── 4. Four states ───────────────────────────────────────────── -->
+      <section class="wrap section" data-reveal>
+        <p class="divider-label"><span>Your own energy</span></p>
+        <h2 class="section__title">Four states</h2>
+        <p class="section__lead">
+          How much energy do you really have through the day, and what exactly is taking it?
+        </p>
+
+        <div class="levels">
+          <article class="level" style="--accent: var(--battery-high); --accent-soft: #6bf58f">
+            <svg class="level__mark" viewBox="0 0 112 53" aria-hidden="true"><use href="#bat-3" /></svg>
+            <p class="level__label">HIGH</p>
+            <h3 class="level__title">Full charge</h3>
+            <p class="level__text">You have it in you for hard things. Take on what needs a head.</p>
+          </article>
+
+          <article class="level" style="--accent: var(--battery-mid); --accent-soft: #ffe23f">
+            <svg class="level__mark" viewBox="0 0 112 53" aria-hidden="true"><use href="#bat-2" /></svg>
+            <p class="level__label">MEDIUM</p>
+            <h3 class="level__title">Medium charge</h3>
+            <p class="level__text">Working order. Routine is fine, heroics are not.</p>
+          </article>
+
+          <article class="level" style="--accent: var(--battery-low); --accent-soft: #ff5f6b">
+            <svg class="level__mark" viewBox="0 0 112 53" aria-hidden="true"><use href="#bat-1" /></svg>
+            <p class="level__label">LOW</p>
+            <h3 class="level__title">Running on empty</h3>
+            <p class="level__text">Nothing left in the tank. Whatever gets done now gets forced.</p>
+          </article>
+
+          <article class="level" style="--accent: var(--battery-charge); --accent-soft: #8df0ff">
+            <svg class="level__mark" viewBox="0 0 112 53" aria-hidden="true"><use href="#bat-4" /></svg>
+            <p class="level__label">CHARGING</p>
+            <h3 class="level__title">Recharging</h3>
+            <p class="level__text">You are refilling: sleep, quiet, a walk, doing nothing.</p>
+          </article>
+        </div>
+
+        <p class="creed">
+          All you mark is <strong>the moment the state changed</strong> — the app counts the time
+          between switches itself. One tap in the morning describes the whole morning, and by
+          evening you have the day laid out without filling in a single form.
+        </p>
+      </section>
+
+      <!-- ── 5. Features ──────────────────────────────────────────────── -->
+      <section class="wrap section" data-reveal>
+        <p class="divider-label"><span>What it does</span></p>
+        <div class="feats">
+          <article class="feat" style="--accent: var(--p1)">
+            <div class="feat__text">
+              <p class="eyebrow">My Priorities</p>
+              <h3 class="feat__title">Where today, this week and this month went</h3>
+              <dl class="spec">
+                <dt>Why you want it</dt>
+                <dd>
+                  To see where your life actually passes — not by a feeling at the end of the year,
+                  but by marks you cannot argue with.
+                </dd>
+                <dt>What you get</dt>
+                <dd>
+                  An honest picture of the week: who leads, who got nothing at all, and how big the
+                  tilt is.
+                </dd>
+                <dt>What it costs</dt>
+                <dd>Opening the app a couple of times a day and spending ten seconds marking where your time went.</dd>
+              </dl>
+            </div>
+            <div class="feat__shot">
+              <img src="/shots/home-today.png" width="390" height="844" alt="The priorities screen for today" loading="lazy" decoding="async" />
+            </div>
+          </article>
+
+          <article class="feat feat--flip" style="--accent: var(--battery-high)">
+            <div class="feat__text">
+              <p class="eyebrow">My Charge</p>
+              <h3 class="feat__title">How you actually feel</h3>
+              <dl class="spec">
+                <dt>Why you want it</dt>
+                <dd>
+                  You get to know your own rhythm and your real working hours — and learn to run
+                  them instead of being run by them.
+                </dd>
+                <dt>What you get</dt>
+                <dd>
+                  The hour your personal battery usually runs down, and what exactly runs it down.
+                </dd>
+                <dt>What it costs</dt>
+                <dd>A tap when the state changed. Three or four times a day.</dd>
+              </dl>
+            </div>
+            <div class="feat__shot">
+              <img src="/shots/charge-list.png" width="390" height="844" alt="The charge screen: four states with today’s time in each" loading="lazy" decoding="async" />
+            </div>
+          </article>
+
+          <article class="feat" style="--accent: var(--p3)">
+            <div class="feat__text">
+              <p class="eyebrow">My Skills</p>
+              <h3 class="feat__title">Seventeen steps of mastery</h3>
+              <dl class="spec">
+                <dt>Why you want it</dt>
+                <dd>
+                  Long investments do not feel like anything. Guitar, a language, code — the years
+                  are there, the sense of movement is not.
+                </dd>
+                <dt>What you get</dt>
+                <dd>
+                  A step from novice to master, the hours collected (including the ones from before
+                  the app), the pace over 30 days and the date the next step arrives at that pace.
+                </dd>
+                <dt>What it costs</dt>
+                <dd>
+                  The same tap. And if you link a skill to a priority — nothing at all, it grows on
+                  its own.
+                </dd>
+              </dl>
+            </div>
+            <div class="feat__shot">
+              <img src="/shots/skills-list.png" width="390" height="844" alt="The skill list: the step, the hours collected and the gain over thirty days" loading="lazy" decoding="async" />
+            </div>
+          </article>
+
+          <article class="feat feat--flip" style="--accent: var(--p4)">
+            <div class="feat__text">
+              <p class="eyebrow">My stats and observations</p>
+              <h3 class="feat__title">Draw conclusions from what you collected</h3>
+              <dl class="spec">
+                <dt>Why you want it</dt>
+                <dd>
+                  Numbers do not lie. There is no arguing with them. That is exactly the kind of
+                  clarity you need.
+                </dd>
+                <dt>What you get</dt>
+                <dd>
+                  Observations taken from your own marks. Facts, and nothing else.
+                </dd>
+                <dt>What it costs</dt>
+                <dd>Nothing. It counts itself out of what you already marked.</dd>
+              </dl>
+            </div>
+            <div class="feat__shot feat__shot--pair">
+              <img src="/shots/stats-week.png" width="390" height="844" alt="Stats for the week: totals, observations and where the time goes" loading="lazy" decoding="async" />
+              <img src="/shots/stats-drains.png" width="390" height="844" alt="The list of what drains the battery most often" loading="lazy" decoding="async" />
+            </div>
+          </article>
+
+          <article class="feat" style="--accent: var(--p7)">
+            <div class="feat__text">
+              <p class="eyebrow">My achievements</p>
+              <h3 class="feat__title">Seventy-five marks</h3>
+              <dl class="spec">
+                <dt>Why you want it</dt>
+                <dd>
+                  There is no walking a long road without milestones: to keep going you need to
+                  notice and record the ground already covered.
+                </dd>
+              </dl>
+            </div>
+            <div class="feat__shot">
+              <img src="/shots/achievements-full.png" width="390" height="844" alt="A full achievement registry: all seventy-five with dates" loading="lazy" decoding="async" />
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ── 6. Somebody else’s life ──────────────────────────────────── -->
+      <section class="wrap section" data-reveal>
+        <p class="divider-label"><span>Want to try?</span></p>
+        <h2 class="section__title">Try somebody else’s life on</h2>
+        <p class="section__lead">
+          Three ready stories — the same app, only filled in for you. Open the one that looks like
+          you and take a look at it from the outside.
+        </p>
+
+        <div class="roles">
+          <a class="role press" data-entry data-entry-web="{{APP}}/?demo=m&amp;lang=en" data-entry-tg="{{BOT}}/app?startapp=demo_m" href="{{APP}}/?demo=m&amp;lang=en" style="--accent: var(--p5); --accent-soft: #ff5f6b; --bat: var(--battery-mid)">
+            <span class="role__head">
+              <span class="role__name">Alex</span>
+              <span class="role__span">45 days</span>
+            </span>
+
+            <span class="role__chart" aria-hidden="true">
+              <span class="role__bar" style="--w: 100%"></span>
+              <span class="role__bar" style="--w: 28%"></span>
+              <span class="role__bar" style="--w: 16%"></span>
+              <span class="role__bar" style="--w: 7%"></span>
+            </span>
+
+            <span class="role__state">
+              <svg viewBox="0 0 112 53" aria-hidden="true"><use href="#bat-2" /></svg>
+              <span>most often — medium charge</span>
+            </span>
+
+            <span class="role__title">Work ate almost everything</span>
+            <span class="role__line">
+              The most likely story: you live for your family, supposedly, and two thirds of the
+              week goes into one bar. See what that looks like from the outside.
+            </span>
+            <span class="role__go">Open this life →</span>
+          </a>
+
+          <a class="role press" data-entry data-entry-web="{{APP}}/?demo=burnout&amp;lang=en" data-entry-tg="{{BOT}}/app?startapp=demo_burnout" href="{{APP}}/?demo=burnout&amp;lang=en" style="--accent: var(--p6); --accent-soft: #ffab6b; --bat: var(--battery-low)">
+            <span class="role__head">
+              <span class="role__name">Burnout</span>
+              <span class="role__span">4 months</span>
+            </span>
+
+            <span class="role__chart" aria-hidden="true">
+              <span class="role__bar" style="--w: 100%"></span>
+              <span class="role__bar" style="--w: 62%"></span>
+              <span class="role__bar" style="--w: 40%"></span>
+              <span class="role__bar" style="--w: 12%"></span>
+            </span>
+
+            <span class="role__state">
+              <svg viewBox="0 0 112 53" aria-hidden="true"><use href="#bat-1" /></svg>
+              <span>most often — running on empty</span>
+            </span>
+
+            <span class="role__title">The charge is down, the reason never changes</span>
+            <span class="role__line">
+              There seems to be enough time, but no strength left. Here you can see when the
+              battery usually runs down and which line stands first on the list of reasons every
+              time.
+            </span>
+            <span class="role__go">Open this life →</span>
+          </a>
+
+          <a class="role press" data-entry data-entry-web="{{APP}}/?demo=f&amp;lang=en" data-entry-tg="{{BOT}}/app?startapp=demo_f" href="{{APP}}/?demo=f&amp;lang=en" style="--accent: var(--p0); --accent-soft: #6bf58f; --bat: var(--battery-high)">
+            <span class="role__head">
+              <span class="role__name">Marina</span>
+              <span class="role__span">8 months</span>
+            </span>
+
+            <span class="role__chart" aria-hidden="true">
+              <span class="role__bar" style="--w: 100%"></span>
+              <span class="role__bar" style="--w: 84%"></span>
+              <span class="role__bar" style="--w: 66%"></span>
+              <span class="role__bar" style="--w: 52%"></span>
+            </span>
+
+            <span class="role__state">
+              <svg viewBox="0 0 112 53" aria-hidden="true"><use href="#bat-3" /></svg>
+              <span>most often — full charge</span>
+            </span>
+
+            <span class="role__title">This is what it looks like when it worked</span>
+            <span class="role__line">
+              Home, kids and her own things — without tilting one way, eight months running. This
+              picture is what the whole thing is for.
+            </span>
+            <span class="role__go">Open this life →</span>
+          </a>
+        </div>
+      </section>
+
+      <!-- ── 7. Objections ────────────────────────────────────────────── -->
+      <section class="wrap section" data-reveal>
+        <p class="divider-label"><span>Before you start</span></p>
+        <h2 class="section__title">The short answers</h2>
+
+        <dl class="faq">
+          <div class="faq__item">
+            <dt>What does it cost?</dt>
+            <dd>
+              Nothing. No subscription, no ads, no paid features — everything described above is
+              open from the start.
+            </dd>
+          </div>
+
+          <div class="faq__item">
+            <dt>How much time does it take a day?</dt>
+            <dd>
+              Seconds. A couple of taps when you gave something time, and a couple more when your
+              state changed. There is nothing to fill in and nowhere to type.
+            </dd>
+          </div>
+
+          <div class="faq__item">
+            <dt>Do I need Telegram?</dt>
+            <dd>
+              No. The app opens in an ordinary browser and works there in full. Signing in with
+              Telegram is only for seeing one history on your phone and your computer at once.
+            </dd>
+          </div>
+
+          <div class="faq__item">
+            <dt>Where are my marks kept?</dt>
+            <dd>
+              On your device. Until you sign in, the app knows nothing about you and sends nothing
+              anywhere.
+            </dd>
+          </div>
+
+          <div class="faq__item">
+            <dt>What if I have been at this for years already?</dt>
+            <dd>
+              Type in the hours you have collected when you create the skill — the ladder starts
+              not at zero but at the step you already reached.
+            </dd>
+          </div>
+
+          <div class="faq__item">
+            <dt>What if I quit after a week?</dt>
+            <dd>
+              A week of marks already answers the first question. Even if it goes no further, you
+              will know where your time goes.
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      <!-- ── 8. Closing ───────────────────────────────────────────────── -->
+      <section class="wrap final" data-reveal>
+        <svg class="final__mark" viewBox="0 0 112 53" aria-hidden="true" focusable="false">
+          <use href="#bat-3" data-battery-shape />
+        </svg>
+        <div class="divider-label final__caption">
+          <span data-battery-label>HIGH</span>
+        </div>
+
+        <h2 class="final__title">In a week you will know more about yourself than you learned all last year</h2>
+
+        <div class="final__actions">
+          <a class="btn btn--go btn--big press" href="{{APP}}/?lang=en">Try it free</a>
+          <a class="btn btn--ghost press" href="{{BOT}}">Open in Telegram</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <div class="wrap foot__inner">
+        <a class="top__brand" href="#main" aria-label="My Priorities">
+          <svg class="mark mark--small" viewBox="0 0 112 53" aria-hidden="true" focusable="false">
+            <use href="#bat-3" />
+          </svg>
+          <span>My&nbsp;Priorities</span>
+        </a>
+        <span class="foot__links">
+          <a href="{{DOCS}}/en/guide/what">Documentation</a>
+          <a href="{{BOT}}">@MyMainPriorityBot</a>
+        </span>
+      </div>
+    </footer>
+
+    <!--
+      The battery symbols. Same geometry as the app and the icons; the reasoning
+      is written out over the identical block in ../index.html. They are repeated
+      rather than shared because <use href="#id"> resolves inside one document.
+    -->
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <defs>
+        <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.4" />
+          <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+        </linearGradient>
+
+        <g id="bat-shell" fill="none">
+          <rect x="1.4" y="1.4" width="100" height="50" rx="8.5" stroke="currentColor" stroke-width="2.4" />
+          <path
+            d="M101.4 15.4 h5.5 a3 3 0 0 1 3 3 v16 a3 3 0 0 1 -3 3 h-5.5"
+            stroke="currentColor"
+            stroke-width="2.4"
+            stroke-linecap="round"
+          />
+        </g>
+
+        <g id="bat-1">
+          <use href="#bat-shell" />
+          <rect x="8.9" y="7.8" width="24.8" height="37.2" rx="4" fill="currentColor" />
+          <rect x="8.9" y="7.8" width="24.8" height="37.2" rx="4" fill="url(#sheen)" />
+          <rect x="39" y="7.8" width="24.8" height="37.2" rx="4" fill="none" stroke="currentColor" stroke-width="1.8" opacity="0.45" />
+          <rect x="69.1" y="7.8" width="24.8" height="37.2" rx="4" fill="none" stroke="currentColor" stroke-width="1.8" opacity="0.45" />
+        </g>
+
+        <g id="bat-2">
+          <use href="#bat-shell" />
+          <rect x="8.9" y="7.8" width="24.8" height="37.2" rx="4" fill="currentColor" />
+          <rect x="8.9" y="7.8" width="24.8" height="37.2" rx="4" fill="url(#sheen)" />
+          <rect x="39" y="7.8" width="24.8" height="37.2" rx="4" fill="currentColor" />
+          <rect x="39" y="7.8" width="24.8" height="37.2" rx="4" fill="url(#sheen)" />
+          <rect x="69.1" y="7.8" width="24.8" height="37.2" rx="4" fill="none" stroke="currentColor" stroke-width="1.8" opacity="0.45" />
+        </g>
+
+        <g id="bat-3">
+          <use href="#bat-shell" />
+          <rect x="8.9" y="7.8" width="24.8" height="37.2" rx="4" fill="currentColor" />
+          <rect x="8.9" y="7.8" width="24.8" height="37.2" rx="4" fill="url(#sheen)" />
+          <rect x="39" y="7.8" width="24.8" height="37.2" rx="4" fill="currentColor" />
+          <rect x="39" y="7.8" width="24.8" height="37.2" rx="4" fill="url(#sheen)" />
+          <rect x="69.1" y="7.8" width="24.8" height="37.2" rx="4" fill="currentColor" />
+          <rect x="69.1" y="7.8" width="24.8" height="37.2" rx="4" fill="url(#sheen)" />
+        </g>
+
+        <!-- The bolt over filled cells is the only thing telling charging from full. -->
+        <g id="bat-4">
+          <use href="#bat-3" />
+          <path
+            d="M56 9 L38.5 30.5 H49 L46 45 L63.5 23.5 H53 Z"
+            fill="#000000"
+            stroke="currentColor"
+            stroke-width="2.16"
+            stroke-linejoin="round"
+          />
+        </g>
+      </defs>
+    </svg>
+  </body>
+</html>

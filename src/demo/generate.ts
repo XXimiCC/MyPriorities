@@ -11,8 +11,9 @@
  */
 
 import { addDays, dayKey, minuteOfDay } from '../domain/date';
-import { DEFAULT_PRIORITIES, findPreset, type PresetPriority } from '../domain/presets';
+import { DEFAULT_PRIORITIES, findPreset, titlesOf, type PresetPriority } from '../domain/presets';
 import { MAX_ARCHIVED } from '../domain/settings';
+import { t, type StringKey } from '../i18n';
 import type { SnapshotContents } from '../domain/snapshot';
 import {
   DEFAULT_BLOCK_MINUTES,
@@ -40,7 +41,7 @@ const BEDTIME = 1380;
 
 /** Навык в сценарии: место на лестнице задаётся часами до приложения. */
 export interface DemoSkill {
-  title: string;
+  titleKey: StringKey;
   colorId: number;
   /** Часы, накопленные до приложения. */
   baseHours: number;
@@ -62,7 +63,7 @@ export type DrainSeed =
   /** «Не знаю». */
   | { unknown: true }
   /** Своими словами. */
-  | { text: string };
+  | { textKey: StringKey };
 
 export interface BatteryScript {
   /** Доля дней, в которые заряд вообще отмечали. */
@@ -131,7 +132,7 @@ export function buildStory(script: DemoScript, now: Date = new Date()): Snapshot
 
 function buildSettings(script: DemoScript): Settings {
   const preset = findPreset(script.presetId);
-  const source = [...(preset?.priorities ?? DEFAULT_PRIORITIES), ...(script.extra ?? [])];
+  const source = titlesOf([...(preset?.priorities ?? DEFAULT_PRIORITIES), ...(script.extra ?? [])]);
 
   const priorities: Priority[] = source.slice(0, MAX_PRIORITIES).map((item, index) => ({
     id: seriesId('p', index),
@@ -139,7 +140,7 @@ function buildSettings(script: DemoScript): Settings {
     colorId: item.colorId,
   }));
 
-  const archived: Priority[] = (script.archived ?? []).slice(0, MAX_ARCHIVED).map((item, index) => ({
+  const archived: Priority[] = titlesOf(script.archived ?? []).slice(0, MAX_ARCHIVED).map((item, index) => ({
     id: seriesId('z', index),
     title: item.title,
     colorId: item.colorId,
@@ -278,7 +279,7 @@ function pickLevel(weights: [number, number, number], random: Random): BatteryLe
 
 function drainValue(seed: DrainSeed, settings: Settings): string | undefined {
   if ('unknown' in seed) return DRAIN_UNKNOWN;
-  if ('text' in seed) return drainCustom(seed.text);
+  if ('textKey' in seed) return drainCustom(t(seed.textKey));
   return settings.priorities[seed.of]?.id;
 }
 
@@ -354,7 +355,7 @@ function buildSkills(
 
     return {
       id: seriesId('k', index),
-      title: item.title,
+      title: t(item.titleKey),
       colorId: item.colorId,
       baseMinutes: Math.round(item.baseHours * 60),
       carryBlocks: item.carryBlocks ?? 0,
@@ -368,7 +369,7 @@ function buildSkills(
     // Префикс свой: список идентификаторов у активных и архивных общий.
     .map((item, index) => ({
       id: seriesId('y', index),
-      title: item.title,
+      title: t(item.titleKey),
       colorId: item.colorId,
       baseMinutes: Math.round(item.baseHours * 60),
       carryBlocks: item.carryBlocks ?? 0,

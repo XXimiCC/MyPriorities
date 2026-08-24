@@ -7,11 +7,24 @@
  * экрану, а цену клика подтвердить нечем, кроме этой плитки, — и если не
  * читается, какая из трёх выбрана, человек не знает, чему равен его клик.
  */
-.sset__blocks {
+/*
+ * Языки — та же плитка, но своим классом, а не вторым .sset__blocks: сценарий
+ * съёмки целится в .sset__blocks и берёт первый попавшийся, и второй такой блок
+ * выше по экрану молча подменил бы кадр «Цена одного клика» (tools/shots).
+ */
+.sset__blocks,
+.sset__lang {
   --accent: var(--battery-charge);
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
+}
+
+.sset__blocks {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.sset__lang {
+  grid-template-columns: repeat(2, 1fr);
 }
 
 .sset__block {

@@ -19,6 +19,8 @@
  * где он стоит.
  */
 
+import { L } from './strings.js';
+
 /** Цена клика по умолчанию в приложении. Тот же DEFAULT_BLOCK_MINUTES. */
 const BLOCK_MINUTES = 30;
 
@@ -41,11 +43,11 @@ if (root) {
   const state = [...start];
   let touched = false;
 
-  /** «30 м», «1 ч», «2,5 ч» — как в приложении. */
+  /** «30 м», «1 ч», «2,5 ч» — как в приложении, и «30m», «2.5h» по-английски. */
   function formatMinutes(total) {
-    if (total < 60) return `${total} м`;
+    if (total < 60) return `${total}${L.gap}${L.minute}`;
     const hours = total / 60;
-    return `${(Math.round(hours * 10) / 10).toLocaleString('ru-RU')} ч`;
+    return `${(Math.round(hours * 10) / 10).toLocaleString(L.numberLocale)}${L.gap}${L.hour}`;
   }
 
   function build() {
@@ -70,7 +72,7 @@ if (root) {
       const plus = document.createElement('button');
       plus.className = 'mini__plus press';
       plus.type = 'button';
-      plus.setAttribute('aria-label', `Добавить полчаса: ${row.dataset.title}`);
+      plus.setAttribute('aria-label', L.addBlock(row.dataset.title));
       plus.innerHTML =
         '<svg viewBox="0 0 24 24" aria-hidden="true">' +
         '<path d="M12 5.5v13M5.5 12h13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" fill="none"/>' +
@@ -108,18 +110,18 @@ if (root) {
       const percent = total > 0 ? Math.round((leader / total) * 100) : 0;
       sumOut.textContent =
         total > 0
-          ? `${formatMinutes(total * BLOCK_MINUTES)} · лидер: ${rows[best].dataset.title}, ${percent}%`
-          : 'пока ничего';
+          ? `${formatMinutes(total * BLOCK_MINUTES)} · ${L.leader(rows[best].dataset.title, percent)}`
+          : L.nothingYet;
     }
 
     if (reset) reset.hidden = !touched;
-    if (hint && touched) hint.textContent = 'Полоса лидера всегда во всю ширину — остальные в его долях';
+    if (hint && touched) hint.textContent = L.hintAfter;
   }
 
   reset?.addEventListener('click', () => {
     state.splice(0, state.length, ...start);
     touched = false;
-    if (hint) hint.textContent = 'Нажми «+» — это полчаса твоей жизни';
+    if (hint) hint.textContent = L.hintBefore;
     draw();
   });
 

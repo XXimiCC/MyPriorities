@@ -25,6 +25,8 @@
  * вкладку: молча пустой прямоугольник в герое хуже честной ссылки.
  */
 
+import { L } from './strings.js';
+
 /** Та же граница, на которой в landing.css рамка сменяется примером. */
 const WIDE = '(min-width: 860px)';
 
@@ -58,7 +60,7 @@ if (slot) {
     link.href = slot.dataset.away;
     link.target = '_blank';
     link.rel = 'noopener';
-    link.textContent = 'Открыть демо';
+    link.textContent = L.openDemo;
 
     const hint = document.createElement('p');
     hint.className = 'phone__hint';
@@ -70,7 +72,7 @@ if (slot) {
   function mount() {
     frame = document.createElement('iframe');
     frame.className = 'phone__frame';
-    frame.title = 'Демо приложения «Мои Приоритеты»';
+    frame.title = L.frameTitle;
     frame.src = slot.dataset.src;
     /*
      * allow-same-origin выдан потому, что приложению нужен собственный origin:
@@ -88,7 +90,7 @@ if (slot) {
      * CSP frame-ancestors на приложении надо просто воздержаться —
      * см. docs/dev/release.md.
      */
-    timer = window.setTimeout(() => giveUp('Демо не открылось в рамке'), PATIENCE_MS);
+    timer = window.setTimeout(() => giveUp(L.frameFailed), PATIENCE_MS);
     frame.addEventListener(
       'load',
       () => {
@@ -115,7 +117,7 @@ if (slot) {
     try {
       await fetch(slot.dataset.src, { mode: 'no-cors', cache: 'no-store' });
     } catch {
-      giveUp('Приложение сейчас не отвечает');
+      giveUp(L.appDown);
       return;
     }
 

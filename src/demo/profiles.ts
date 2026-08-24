@@ -4,12 +4,16 @@
  * Профиль — это данные, а не код: сюжет описывается сценарием, разворачивает его
  * общий генератор. Добавить шестого человека значит дописать литерал.
  *
+ * Названия — ключи строк, как в наборах приоритетов: демо тоже бывает
+ * английским. Разворачивает их генератор, когда собирает историю.
+ *
  * Здесь нет ни одного обращения к `window`: файл должен собираться в node,
  * иначе тест профилей пришлось бы гонять в браузерной среде ради ничего.
  * Всё, что знает про адресную строку, живёт в `mode.ts`.
  */
 
 import type { SnapshotContents } from '../domain/snapshot';
+import type { StringKey } from '../i18n';
 import type { AchievementId } from '../achievements/types';
 import { buildStory, type DemoScript } from './generate';
 
@@ -17,10 +21,10 @@ export type DemoId = 'm' | 'f' | 'max' | 'burnout' | 'start';
 
 export interface DemoProfile {
   id: DemoId;
-  name: string;
-  tagline: string;
+  nameKey: StringKey;
+  taglineKey: StringKey;
   /** Ради чего этот профиль открывают — строка под подписью в витрине. */
-  shows: string;
+  showsKey: StringKey;
   /** Акцент карточки — индекс в NEON_PALETTE. */
   accentId: number;
   /** Штрихованные пути в системе координат 24×24, как у наборов. */
@@ -62,9 +66,9 @@ const MAX_AWARDS: Partial<Record<AchievementId, number>> = {
 export const DEMO_PROFILES: readonly DemoProfile[] = [
   {
     id: 'm',
-    name: 'Артём',
-    tagline: 'Работа съедает почти всё, и это наконец видно',
-    shows: 'Обычная жизнь под наблюдением: перекос, серия, три навыка на разных ступенях',
+    nameKey: 'demo.p.m',
+    taglineKey: 'demo.p.m.note',
+    showsKey: 'demo.p.m.shows',
     accentId: 1,
     icon: [
       'M13.5 14.5a4.5 4.5 0 10-9 0 4.5 4.5 0 009 0',
@@ -77,8 +81,8 @@ export const DEMO_PROFILES: readonly DemoProfile[] = [
       seed: 20260731,
       presetId: 'basic',
       archived: [
-        { title: 'Курсы', colorId: 2 },
-        { title: 'Ремонт', colorId: 5 },
+        { titleKey: 'word.courses', colorId: 2 },
+        { titleKey: 'word.renovation', colorId: 5 },
       ],
       spanDays: 45,
       gapChance: 0.12,
@@ -97,8 +101,8 @@ export const DEMO_PROFILES: readonly DemoProfile[] = [
           { of: 0 },
           { of: 4 },
           { unknown: true },
-          { text: 'Поздно лёг' },
-          { text: 'Дорога через весь город' },
+          { textKey: 'demo.d.lateNight' },
+          { textKey: 'demo.d.commute' },
         ],
       },
       /*
@@ -108,15 +112,15 @@ export const DEMO_PROFILES: readonly DemoProfile[] = [
        */
       skills: [
         {
-          title: 'Гитара',
+          titleKey: 'word.guitar',
           colorId: 3,
           baseHours: 1640,
           startedOn: '2014-06-01',
           pace: 0.55,
           perDay: [1, 3],
         },
-        { title: 'Программирование', colorId: 1, baseHours: 4800, linkTo: 0 },
-        { title: 'Английский', colorId: 8, baseHours: 12, pace: 0.3 },
+        { titleKey: 'word.coding', colorId: 1, baseHours: 4800, linkTo: 0 },
+        { titleKey: 'word.english', colorId: 8, baseHours: 12, pace: 0.3 },
       ],
       awards: { m1: 120, mb: 400, r1: 30 },
     },
@@ -124,15 +128,15 @@ export const DEMO_PROFILES: readonly DemoProfile[] = [
 
   {
     id: 'f',
-    name: 'Марина',
-    tagline: 'Дом, дети и своё — без перекоса в одну сторону',
-    shows: 'Ровный баланс, восемь месяцев истории, пять навыков',
+    nameKey: 'demo.p.f',
+    taglineKey: 'demo.p.f.note',
+    showsKey: 'demo.p.f.shows',
     accentId: 9,
     icon: ['M16.5 9a4.5 4.5 0 10-9 0 4.5 4.5 0 009 0', 'M12 13.5V21', 'M9 18h6'],
     script: {
       seed: 20260214,
       presetId: 'family',
-      archived: [{ title: 'Учёба', colorId: 2 }],
+      archived: [{ titleKey: 'word.studies', colorId: 2 }],
       spanDays: 240,
       gapChance: 0.1,
       weights: [0.8, 0.75, 0.5, 0.6, 0.45, 0.4, 0.5],
@@ -149,22 +153,22 @@ export const DEMO_PROFILES: readonly DemoProfile[] = [
           { of: 1 },
           { of: 3 },
           { unknown: true },
-          { text: 'Не выспалась' },
-          { text: 'Слишком много дел разом' },
+          { textKey: 'demo.d.noSleep' },
+          { textKey: 'demo.d.tooMuch' },
         ],
       },
       skills: [
-        { title: 'Йога', colorId: 8, baseHours: 900, startedOn: '2019-03-01', pace: 0.5 },
-        { title: 'Английский', colorId: 1, baseHours: 320, pace: 0.35 },
-        { title: 'Фотография', colorId: 4, baseHours: 1500, startedOn: '2016-05-20', pace: 0.25 },
+        { titleKey: 'word.yoga', colorId: 8, baseHours: 900, startedOn: '2019-03-01', pace: 0.5 },
+        { titleKey: 'word.english', colorId: 1, baseHours: 320, pace: 0.35 },
+        { titleKey: 'word.photography', colorId: 4, baseHours: 1500, startedOn: '2016-05-20', pace: 0.25 },
         {
-          title: 'Кулинария',
+          titleKey: 'word.culinary',
           colorId: 6,
           baseHours: 2600,
           startedOn: '2012-09-01',
           linkTo: 2,
         },
-        { title: 'Фортепиано', colorId: 3, baseHours: 260, pace: 0.2 },
+        { titleKey: 'word.piano', colorId: 3, baseHours: 260, pace: 0.2 },
       ],
       awards: { m3: 210, m4: 90, ma: 150, r1: 40 },
     },
@@ -172,9 +176,9 @@ export const DEMO_PROFILES: readonly DemoProfile[] = [
 
   {
     id: 'max',
-    name: 'Максимум',
-    tagline: 'Тринадцать месяцев, десять приоритетов, весь реестр достижений',
-    shows: 'Тестовый аккаунт: здесь заполнено всё, что приложение умеет показать',
+    nameKey: 'demo.p.max',
+    taglineKey: 'demo.p.max.note',
+    showsKey: 'demo.p.max.shows',
     accentId: 8,
     icon: ['M2.5 20.5h19', 'M5 20.5V14', 'M10 20.5V9.5', 'M15 20.5V5.5', 'M19.5 20.5v-8'],
     script: {
@@ -183,15 +187,15 @@ export const DEMO_PROFILES: readonly DemoProfile[] = [
       // Три сверх набора — чтобы список был предельным: десять приоритетов,
       // дальше добавить нельзя.
       extra: [
-        { title: 'Творчество', colorId: 5 },
-        { title: 'Путешествия', colorId: 2 },
-        { title: 'Сообщество', colorId: 8 },
+        { titleKey: 'word.creativity', colorId: 5 },
+        { titleKey: 'word.travel', colorId: 2 },
+        { titleKey: 'word.community', colorId: 8 },
       ],
       archived: [
-        { title: 'Курсы', colorId: 2 },
-        { title: 'Ремонт', colorId: 5 },
-        { title: 'Подработка', colorId: 8 },
-        { title: 'Клуб', colorId: 4 },
+        { titleKey: 'word.courses', colorId: 2 },
+        { titleKey: 'word.renovation', colorId: 5 },
+        { titleKey: 'word.sideJob', colorId: 8 },
+        { titleKey: 'word.club', colorId: 4 },
       ],
       // Тринадцать месяцев и ни одного пропуска: «Год без единого пропуска» и
       // «Год под наблюдением» иначе недостижимы ни при какой удаче генератора.
@@ -222,10 +226,10 @@ export const DEMO_PROFILES: readonly DemoProfile[] = [
           { of: 5 },
           { of: 7 },
           { unknown: true },
-          { text: 'Плохо спал' },
-          { text: 'Три созвона подряд' },
-          { text: 'Дорога через весь город' },
-          { text: 'Спор, который того не стоил' },
+          { textKey: 'demo.d.badSleep' },
+          { textKey: 'demo.d.calls' },
+          { textKey: 'demo.d.commute' },
+          { textKey: 'demo.d.argument' },
         ],
       },
       /*
@@ -235,27 +239,27 @@ export const DEMO_PROFILES: readonly DemoProfile[] = [
        */
       skills: [
         {
-          title: 'Программирование',
+          titleKey: 'word.coding',
           colorId: 1,
           baseHours: 15200,
           startedOn: '2006-09-01',
           linkTo: 0,
         },
-        { title: 'Английский', colorId: 2, baseHours: 5400, startedOn: '2009-01-15', pace: 0.3 },
-        { title: 'Гитара', colorId: 3, baseHours: 2600, startedOn: '2011-06-01', pace: 0.25 },
-        { title: 'Фотография', colorId: 4, baseHours: 1150, startedOn: '2015-04-10', pace: 0.2 },
-        { title: 'Бег', colorId: 0, baseHours: 720, startedOn: '2017-03-01', pace: 0.4 },
-        { title: 'Кулинария', colorId: 6, baseHours: 430, pace: 0.3 },
-        { title: 'Шахматы', colorId: 7, baseHours: 210, pace: 0.15 },
-        { title: 'Рисование', colorId: 5, baseHours: 105, pace: 0.15 },
-        { title: 'Испанский', colorId: 9, baseHours: 55, pace: 0.2 },
-        { title: 'Плавание', colorId: 8, baseHours: 22, pace: 0.1 },
-        { title: 'Медитация', colorId: 3, baseHours: 11, pace: 0.5, perDay: [1, 1] },
-        { title: 'Столярка', colorId: 6, baseHours: 0.5 },
+        { titleKey: 'word.english', colorId: 2, baseHours: 5400, startedOn: '2009-01-15', pace: 0.3 },
+        { titleKey: 'word.guitar', colorId: 3, baseHours: 2600, startedOn: '2011-06-01', pace: 0.25 },
+        { titleKey: 'word.photography', colorId: 4, baseHours: 1150, startedOn: '2015-04-10', pace: 0.2 },
+        { titleKey: 'word.running', colorId: 0, baseHours: 720, startedOn: '2017-03-01', pace: 0.4 },
+        { titleKey: 'word.culinary', colorId: 6, baseHours: 430, pace: 0.3 },
+        { titleKey: 'word.chess', colorId: 7, baseHours: 210, pace: 0.15 },
+        { titleKey: 'word.drawing', colorId: 5, baseHours: 105, pace: 0.15 },
+        { titleKey: 'word.spanish', colorId: 9, baseHours: 55, pace: 0.2 },
+        { titleKey: 'word.swimming', colorId: 8, baseHours: 22, pace: 0.1 },
+        { titleKey: 'word.meditation', colorId: 3, baseHours: 11, pace: 0.5, perDay: [1, 1] },
+        { titleKey: 'word.carpentry', colorId: 6, baseHours: 0.5 },
       ],
       skillsArchived: [
-        { title: 'Каллиграфия', colorId: 4, baseHours: 60 },
-        { title: 'Скалолазание', colorId: 0, baseHours: 180 },
+        { titleKey: 'word.calligraphy', colorId: 4, baseHours: 60 },
+        { titleKey: 'word.climbing', colorId: 0, baseHours: 180 },
       ],
       awards: MAX_AWARDS,
     },
@@ -263,9 +267,9 @@ export const DEMO_PROFILES: readonly DemoProfile[] = [
 
   {
     id: 'burnout',
-    name: 'Выгорание',
-    tagline: 'Заряд внизу, и причина каждый раз одна и та же',
-    shows: 'Сюжет, ради которого всё построено: «Что сажает батарею» во весь экран',
+    nameKey: 'demo.p.burnout',
+    taglineKey: 'demo.p.burnout.note',
+    showsKey: 'demo.p.burnout.shows',
     accentId: 5,
     icon: [
       'M3.5 8.5h11a2 2 0 012 2v3a2 2 0 01-2 2h-11a2 2 0 01-2-2v-3a2 2 0 012-2z',
@@ -293,14 +297,14 @@ export const DEMO_PROFILES: readonly DemoProfile[] = [
           { of: 6 },
           { of: 6 },
           { unknown: true },
-          { text: 'Созвоны без перерыва' },
-          { text: 'Опять до ночи' },
-          { text: 'Никак не выключиться' },
+          { textKey: 'demo.d.backToBack' },
+          { textKey: 'demo.d.lateAgain' },
+          { textKey: 'demo.d.cantSwitchOff' },
         ],
       },
       skills: [
-        { title: 'Бег', colorId: 0, baseHours: 120, pace: 0.15 },
-        { title: 'Чтение', colorId: 2, baseHours: 400, pace: 0.2 },
+        { titleKey: 'word.running', colorId: 0, baseHours: 120, pace: 0.15 },
+        { titleKey: 'word.reading', colorId: 2, baseHours: 400, pace: 0.2 },
       ],
       awards: { m9: 60, r1: 20 },
     },
@@ -308,9 +312,9 @@ export const DEMO_PROFILES: readonly DemoProfile[] = [
 
   {
     id: 'start',
-    name: 'Первая неделя',
-    tagline: 'Шесть дней истории и один навык',
-    shows: 'Как приложение выглядит в начале: пустые графики и первые достижения',
+    nameKey: 'demo.p.start',
+    taglineKey: 'demo.p.start.note',
+    showsKey: 'demo.p.start.shows',
     accentId: 0,
     icon: [
       'M12 21V11',
@@ -333,7 +337,7 @@ export const DEMO_PROFILES: readonly DemoProfile[] = [
         drain: 0.3,
         answers: [{ unknown: true }, { of: 0 }],
       },
-      skills: [{ title: 'Английский', colorId: 8, baseHours: 4, pace: 0.4 }],
+      skills: [{ titleKey: 'word.english', colorId: 8, baseHours: 4, pace: 0.4 }],
       // Ничего не выдаём руками: первые достижения на этом профиле должна
       // открыть обычная автоматика — в этом весь сюжет.
     },

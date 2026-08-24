@@ -12,7 +12,7 @@ import { Hours } from '../skills/Hours';
 import { SkillRow } from '../skills/SkillRow';
 import { SkillSheet, type LinkTarget } from '../skills/SkillSheet';
 import { SkillsEmpty } from '../skills/SkillsEmpty';
-import { ALL_SUGGESTIONS, SKILL_SUGGESTIONS } from '../skills/catalogue';
+import { allSuggestions, SKILL_SUGGESTIONS } from '../skills/catalogue';
 import { PACE_DAYS } from '../skills/pace';
 import {
   skillBlocksByDay,
@@ -386,7 +386,7 @@ function AddSkillForm({
    * подставляет название, а правка руками сама возвращает список к пустому.
    * Два состояния здесь неминуемо разъехались бы.
    */
-  const picked = ALL_SUGGESTIONS.includes(title.trim()) ? title.trim() : '';
+  const picked = allSuggestions().includes(title.trim()) ? title.trim() : '';
 
   return (
     <form
@@ -436,12 +436,15 @@ function AddSkillForm({
           >
             <option value="">{t('skills.pickPlaceholder')}</option>
             {SKILL_SUGGESTIONS.map((group) => (
-              <optgroup key={group.title} label={group.title}>
-                {group.titles.map((name) => (
-                  <option key={name} value={name} disabled={taken.has(name.toLowerCase())}>
-                    {name}
-                  </option>
-                ))}
+              <optgroup key={group.titleKey} label={t(group.titleKey)}>
+                {group.titles.map((key) => {
+                  const name = t(key);
+                  return (
+                    <option key={key} value={name} disabled={taken.has(name.toLowerCase())}>
+                      {name}
+                    </option>
+                  );
+                })}
               </optgroup>
             ))}
           </select>

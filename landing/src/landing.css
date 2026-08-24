@@ -313,6 +313,41 @@ a {
   color: var(--p1);
 }
 
+/*
+ * Переключатель языка. Две ссылки, а не выпадающий список: языков два, и
+ * список из двух пунктов, который надо сначала открыть, стоит дороже того,
+ * что экономит. Подписи не переводятся — «EN» узнают и те, кто по-английски
+ * не читает.
+ */
+.top__lang {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.top__lang a {
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  text-decoration: none;
+}
+
+.top__lang a:hover {
+  color: var(--text);
+}
+
+/* Текущий язык — не ссылка, а отметка: aria-current делает это явным и вслух. */
+.top__lang [aria-current='page'] {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.1);
+}
+
 .top__nav .btn {
   min-height: 40px;
   padding: 0 20px;
@@ -1679,6 +1714,11 @@ a {
  */
 @media (max-width: 560px) {
   .top__brand span {
+    display: none;
+  }
+
+  /* Имя бота уходит вслед за названием: батарея, язык и «Войти» — уже три. */
+  .top__tg span {
     display: none;
   }
 }

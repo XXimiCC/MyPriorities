@@ -6,7 +6,7 @@ import { Sheet } from '../components/Sheet';
 import { formatDayShort, formatHoursCompact, formatMinutes, parseDayKey, todayKey } from '../domain/date';
 import { colorOf } from '../domain/palette';
 import type { DayKey, Priority } from '../domain/types';
-import { count, plural, t } from '../i18n';
+import { count, formats, plural, t } from '../i18n';
 import { LEVELS, levelTitle, rankTitle } from './levels';
 import { formatEta, paceOf, PACE_DAYS } from './pace';
 import { SkillHistory } from './SkillHistory';
@@ -194,7 +194,7 @@ function SkillDetails({
             >
               <span className="sksheet__step-name">{levelTitle(level)}</span>
               <span className="sksheet__step-hours">
-                {level.hours === 0 ? '—' : `${formatNumber(level.hours)} ч`}
+                {level.hours === 0 ? '—' : `${formatNumber(level.hours)}${formats().gap}${formats().hour}`}
               </span>
             </li>
           );

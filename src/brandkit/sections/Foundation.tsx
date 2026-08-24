@@ -6,6 +6,7 @@ import { BatteryCaption, BatteryIcon } from '../../components/BatteryIcon';
 import { BATTERY_GEOMETRY } from '../../components/batteryGeometry';
 import { NEON_PALETTE, batteryTheme } from '../../domain/palette';
 import { BATTERY_LEVELS } from '../../domain/types';
+import { t } from '../../i18n';
 import { ColorCard, Fact, Facts, Grid, Item, Section } from '../parts';
 import { computedToken } from '../readTokens';
 import { FONT_SIZE_OUTLIERS, HEX_LITERALS } from '../scanStyles';
@@ -204,7 +205,7 @@ export function Accent(): JSX.Element {
             className={index === colorId ? 'picker__dot picker__dot--on' : 'picker__dot'}
             style={{ '--accent': item.hex } as React.CSSProperties}
             type="button"
-            aria-label={item.name}
+            aria-label={t(item.nameKey)}
             aria-pressed={index === colorId}
             onClick={() => setColorId(index)}
           />
@@ -236,7 +237,7 @@ export function Accent(): JSX.Element {
       </p>
 
       <Grid>
-        <Item code="--accent" note={color.name}>
+        <Item code="--accent" note={t(color.nameKey)}>
           <span className="bk__tint-chip" style={{ background: color.hex }} />
         </Item>
         <Item code="--accent-soft" note="светлый край градиента заливки">

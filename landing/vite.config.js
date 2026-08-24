@@ -1,3 +1,5 @@
+import { resolve } from 'node:path';
+
 import { defineConfig } from 'vite';
 
 import { SITE } from './site.config.js';
@@ -27,7 +29,24 @@ export default defineConfig({
   // относительный base приложения, который существует ради переносимости
   // мини-аппа между хостингами.
   base: '/',
-  build: { target: 'es2020' },
+  build: {
+    target: 'es2020',
+    /*
+     * Две страницы, а не одна: английская версия — это первое, что открывает
+     * человек, который по-русски не читает. Без явного списка входов Vite
+     * собрал бы только index.html, а en/index.html молча не доехал бы до
+     * прода — с рабочей ссылкой в шапке.
+     *
+     * cleanUrls в vercel.json отдаёт en/index.html по адресу /en, поэтому
+     * своих правил маршрутизации не нужно.
+     */
+    rollupOptions: {
+      input: {
+        ru: resolve(import.meta.dirname, 'index.html'),
+        en: resolve(import.meta.dirname, 'en/index.html'),
+      },
+    },
+  },
   server: { host: true, allowedHosts: true },
   preview: { host: true, allowedHosts: true },
 });

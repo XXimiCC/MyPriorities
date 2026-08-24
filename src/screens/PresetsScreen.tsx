@@ -21,7 +21,7 @@ export function PresetsScreen({ onApplied, intro = false }: Props): JSX.Element 
   const apply = (preset: Preset): void => {
     void (async () => {
       // При первом запуске заменять нечего — подтверждение только мешает.
-      const ok = intro || (await confirmDialog(t('presets.applyConfirm', { name: preset.name })));
+      const ok = intro || (await confirmDialog(t('presets.applyConfirm', { name: t(preset.nameKey) })));
       if (!ok) return;
       actions.applyPreset(preset.id);
       actions.award('r5');
@@ -50,8 +50,8 @@ export function PresetsScreen({ onApplied, intro = false }: Props): JSX.Element 
                 onClick={() => setPreview(preset)}
               >
                 <PresetIcon preset={preset} />
-                <span className="pcard__name">{preset.name}</span>
-                <span className="pcard__tagline">{preset.tagline}</span>
+                <span className="pcard__name">{t(preset.nameKey)}</span>
+                <span className="pcard__tagline">{t(preset.taglineKey)}</span>
                 {settings.presetId === preset.id && (
                   <span className="pcard__badge">{t('presets.current')}</span>
                 )}
@@ -61,18 +61,18 @@ export function PresetsScreen({ onApplied, intro = false }: Props): JSX.Element 
         </ul>
       </div>
 
-      <Sheet open={Boolean(preview)} title={preview?.name} onClose={() => setPreview(null)}>
+      <Sheet open={Boolean(preview)} title={preview ? t(preview.nameKey) : undefined} onClose={() => setPreview(null)}>
         {preview && (
           <div className="ppreview" style={{ '--accent': colorOf(preview.accentId).hex } as React.CSSProperties}>
             <PresetIcon preset={preview} size={56} />
-            <p className="ppreview__tagline">{preview.tagline}</p>
+            <p className="ppreview__tagline">{t(preview.taglineKey)}</p>
 
             <ol className="ppreview__list">
               {preview.priorities.map((item, index) => (
-                <li key={item.title} style={{ '--accent': colorOf(item.colorId).hex } as React.CSSProperties}>
+                <li key={item.titleKey} style={{ '--accent': colorOf(item.colorId).hex } as React.CSSProperties}>
                   <span className="ppreview__index">{index + 1}</span>
                   <span className="swatch" />
-                  {item.title}
+                  {t(item.titleKey)}
                 </li>
               ))}
             </ol>

@@ -144,6 +144,9 @@ npm run dev          # + ?mock=1 или ?demo=max — демо-профили, �
 npm run test         # логика приложения и связность документации
 npm run build        # tsc --noEmit + сборка в dist/
 
+npm run e2e:setup    # один раз: playwright + chromium для сквозных проверок
+npm run test:e2e     # сквозные проверки в браузере: собирает, поднимает и проходит приложение
+
 npm run docs:dev     # сайт документации
 npm run docs:build
 
@@ -184,13 +187,15 @@ docs/            сайт документации (VitePress, свой package.
 landing/         публичная страница приложения (Vite, свой package.json и деплой)
 tools/shots/     генератор скриншотов и иконок (Playwright)
 tools/tickets/   командная строка для тикетов панели отладки (только node)
+e2e/             сквозные проверки в браузере (Playwright, свой package.json)
 public/          манифест PWA, иконки, service worker — собираются `npm run brand`
 ```
 
-`tsconfig.json` включает только `src`, поэтому `docs/`, `landing/`, `worker/` и
-`tools/` в сборку приложения не попадают, а VitePress, Vite лендинга, wrangler и
-Playwright живут в собственных `package.json` — корневая установка зависимостей
-от них не растёт. Каждый из этих каталогов деплоится отдельным проектом.
+`tsconfig.json` включает только `src`, поэтому `docs/`, `landing/`, `worker/`,
+`tools/` и `e2e/` в сборку приложения не попадают, а VitePress, Vite лендинга,
+wrangler и Playwright живут в собственных `package.json` — корневая установка
+зависимостей от них не растёт. `docs/`, `landing/` и `worker/` деплоятся
+отдельными проектами.
 
 ## Приватность и безопасность
 

@@ -10,6 +10,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "e2e:setup": "npm --prefix e2e install && npm --prefix e2e exec -- playwright install chromium",
+    "test:e2e": "npm --prefix e2e run test",
     "docs:dev": "npm --prefix docs run dev",
     "docs:build": "npm --prefix docs run build",
     "docs:serve": "npm --prefix docs run preview",

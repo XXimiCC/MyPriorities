@@ -148,6 +148,9 @@ npm run dev          # + ?mock=1 or ?demo=max — demo profiles, writing disable
 npm run test         # app logic and documentation coherence
 npm run build        # tsc --noEmit + build into dist/
 
+npm run e2e:setup    # once: playwright + chromium for the end-to-end suite
+npm run test:e2e     # end-to-end in a real browser: builds, serves and walks the app
+
 npm run docs:dev     # documentation site
 npm run docs:build
 
@@ -188,14 +191,15 @@ docs/            documentation site (VitePress, own package.json and deploy)
 landing/         public page of the app (Vite, own package.json and deploy)
 tools/shots/     screenshot and icon generator (Playwright)
 tools/tickets/   command line for debug-panel tickets (node only)
+e2e/             end-to-end suite in a real browser (Playwright, own package.json)
 public/          PWA manifest, icons, service worker — built by `npm run brand`
 ```
 
-`tsconfig.json` only includes `src`, so `docs/`, `landing/`, `worker/` and
-`tools/` never reach the app build, while VitePress, the landing page's Vite,
+`tsconfig.json` only includes `src`, so `docs/`, `landing/`, `worker/`, `tools/`
+and `e2e/` never reach the app build, while VitePress, the landing page's Vite,
 wrangler and Playwright live in their own `package.json` files — the root
-install does not grow because of them. Each of those directories is deployed as
-a separate project.
+install does not grow because of them. `docs/`, `landing/` and `worker/` are
+each deployed as a separate project.
 
 ## Privacy and security
 

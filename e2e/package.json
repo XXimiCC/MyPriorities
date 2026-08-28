@@ -1,0 +1,12 @@
+{
+  "//": "Playwright живёт здесь, а не в корне — по той же причине, что и в tools/shots: его install-скрипт качает браузеры, и в корневом package.json это добавилось бы к каждой сборке приложения на Vercel. Сами браузеры при этом общие: Playwright держит их в кэше пользователя, а не в node_modules.",
+  "name": "my-priorities-e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1"
+  }
+}

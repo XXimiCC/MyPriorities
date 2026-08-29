@@ -428,6 +428,7 @@ export const ruStrings = {
   'settings.retention': 'Глубина хранения',
   'settings.retentionAll': 'вся история',
   'settings.client': 'Клиент',
+  'settings.clientFullscreen': 'открыл на весь экран',
   'settings.browser': 'браузер',
   'settings.build': 'Сборка',
   'settings.server': 'Сервер',

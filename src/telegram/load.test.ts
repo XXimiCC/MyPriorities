@@ -18,7 +18,8 @@ interface Launch {
   /** Что отдаёт sessionStorage: строка, null или бросок (приватный режим). */
   session?: string | null | 'throws';
   bridge?: boolean;
-  telegram?: boolean;
+  /** window.Telegram.WebApp: true — пустышка, объект — свой. */
+  telegram?: boolean | Record<string, unknown>;
 }
 
 interface FakeScript {
@@ -44,7 +45,7 @@ function pretend(launch: Launch = {}): FakeScript[] {
     clearTimeout: (id: number) => globalThis.clearTimeout(id),
   };
   if (launch.bridge) win.TelegramWebviewProxy = {};
-  if (launch.telegram) win.Telegram = { WebApp: {} };
+  if (launch.telegram) win.Telegram = { WebApp: launch.telegram === true ? {} : launch.telegram };
 
   vi.stubGlobal('window', win);
   vi.stubGlobal('document', {
@@ -57,6 +58,11 @@ function pretend(launch: Launch = {}): FakeScript[] {
   });
 
   return added;
+}
+
+/** Скрипт SDK объявляет window.Telegram, когда выполнится, — не раньше. */
+function defineTelegram(webApp: Record<string, unknown>): void {
+  (globalThis.window as unknown as Record<string, unknown>).Telegram = { WebApp: webApp };
 }
 
 afterEach(() => {
@@ -144,5 +150,71 @@ describe('загрузка SDK', () => {
 
     await expect(done).resolves.toBeUndefined();
     expect(warn).toHaveBeenCalled();
+  });
+});
+
+/**
+ * Выход из полноэкранного режима стоит здесь, а не в sdk.ts, ровно ради одного:
+ * между SDK и первой строчкой приложения лежит целый чанк, и всё это время окно
+ * на компьютере растянуто за краем экрана.
+ */
+describe('полноэкранный режим', () => {
+  /** Отметка живёт в модуле: без свежей копии соседний тест читал бы чужую. */
+  async function fresh(): Promise<typeof import('./load')> {
+    vi.resetModules();
+    return import('./load');
+  }
+
+  it('выход происходит сразу за скриптом SDK, до приложения', async () => {
+    const exitFullscreen = vi.fn();
+    const added = pretend({ hash: '#tgWebAppPlatform=tdesktop' });
+    const load = await fresh();
+
+    const done = load.loadTelegramSdk();
+    defineTelegram({ isFullscreen: true, exitFullscreen });
+    added[0]!.onload!();
+    await done;
+
+    expect(exitFullscreen).toHaveBeenCalledTimes(1);
+    expect(load.openedFullscreen).toBe(true);
+  });
+
+  it('обычное окно не трогаем и отметку не ставим', async () => {
+    const exitFullscreen = vi.fn();
+    const added = pretend({ hash: '#tgWebAppPlatform=tdesktop' });
+    const load = await fresh();
+
+    const done = load.loadTelegramSdk();
+    defineTelegram({ isFullscreen: false, exitFullscreen });
+    added[0]!.onload!();
+    await done;
+
+    expect(exitFullscreen).not.toHaveBeenCalled();
+    expect(load.openedFullscreen).toBe(false);
+  });
+
+  it('клиент без режима вовсе не роняет старт', async () => {
+    // Ни isFullscreen, ни exitFullscreen: всё, что старше Bot API 8.0.
+    const added = pretend({ hash: '#tgWebAppPlatform=tdesktop' });
+    const load = await fresh();
+
+    const done = load.loadTelegramSdk();
+    defineTelegram({});
+    added[0]!.onload!();
+
+    await expect(done).resolves.toBeUndefined();
+    expect(load.openedFullscreen).toBe(false);
+  });
+
+  it('готовый SDK разбирается тем же путём', async () => {
+    // Стаб съёмки приезжает до страницы: грузить нечего, а выходить — есть откуда.
+    const exitFullscreen = vi.fn();
+    pretend({ hash: '#tgWebAppPlatform=tdesktop', telegram: { isFullscreen: true, exitFullscreen } });
+    const load = await fresh();
+
+    await load.loadTelegramSdk();
+
+    expect(exitFullscreen).toHaveBeenCalledTimes(1);
+    expect(load.openedFullscreen).toBe(true);
   });
 });

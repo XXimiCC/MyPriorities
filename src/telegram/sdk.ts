@@ -7,7 +7,7 @@
  * пишется без единой проверки `if (webApp)`.
  */
 
-import { launchedFromTelegram } from './load';
+import { launchedFromTelegram, openedFullscreen } from './load';
 
 type HapticStyle = 'light' | 'medium' | 'heavy' | 'rigid' | 'soft';
 type NotificationType = 'error' | 'success' | 'warning';
@@ -137,12 +137,16 @@ export const clientInfo = {
   version: webApp?.version ?? '—',
   isTelegram,
   /*
-   * Клиент открыл приложение полноэкранно. Заполняется в initTelegram, до того
-   * как режим будет выключен: без этой отметки жалобы «окно не двигается» и
-   * «пропали кнопки навигации» неотличимы от любых других — сам режим
-   * приложение не заказывает и по своему коду о нём не знает.
+   * Клиент открыл приложение полноэкранно. Заполняется до того, как режим будет
+   * выключен: без этой отметки жалобы «окно прыгает в угол» и «пропали кнопки
+   * навигации» неотличимы от любых других — сам режим приложение не заказывает
+   * и по своему коду о нём не знает.
+   *
+   * Начальное значение приезжает от telegram/load.ts: выйти из режима нужно
+   * задолго до этого модуля, а спрашивать isFullscreen после него уже поздно —
+   * ответом будет «нет».
    */
-  openedFullscreen: false,
+  openedFullscreen,
 };
 
 /**
@@ -231,11 +235,20 @@ function resyncViewport(): void {
  *
  * Своя шапка у приложения есть, а клиентская рамка вокруг нужна: в неё вынесены
  * «назад» и закрытие.
+ *
+ * Первый выход делает telegram/load.ts, кадром после SDK: между ним и этим
+ * модулем лежит целый чанк приложения, и всё это время окно на компьютере стоит
+ * растянутым за краем экрана. Здесь выход остаётся для клиента, который включит
+ * режим позже, — по fullscreenChanged.
+ *
+ * Проверки версии нет по той же причине, что и там: клиенты занижают заявленную
+ * версию, и isVersionAtLeast('8.0') выключал бы выход ровно там, где он нужнее
+ * всего.
  */
 function leaveFullscreen(): void {
-  if (!atLeast('8.0') || !webApp?.isFullscreen) return;
+  if (!webApp?.isFullscreen || typeof webApp.exitFullscreen !== 'function') return;
   clientInfo.openedFullscreen = true;
-  webApp.exitFullscreen?.();
+  webApp.exitFullscreen();
 }
 
 /** Вызывается один раз до первого рендера. */
@@ -255,17 +268,19 @@ export function initTelegram(): void {
   if (atLeast('7.10')) webApp.setBottomBarColor?.('#000000');
 
   syncViewport();
-  if (atLeast('8.0')) {
-    webApp.onEvent('safeAreaChanged', syncViewport);
-    webApp.onEvent('contentSafeAreaChanged', syncViewport);
-    /* Единственное событие про возвращение из свёрнутого состояния:
-       viewportChanged после него приходит не всегда. */
-    webApp.onEvent('activated', resyncViewport);
-    webApp.onEvent('fullscreenChanged', () => {
-      leaveFullscreen();
-      resyncViewport();
-    });
-  }
+  /* Подписки версией не ограничены, и это не небрежность: onEvent просто кладёт
+     обработчик в список, а событие, которого клиент не умеет, не придёт и так.
+     Зато isVersionAtLeast у занизившего версию клиента отнял бы и те события,
+     которые он умеет, — ровно так однажды пропало облачное хранилище. */
+  webApp.onEvent('safeAreaChanged', syncViewport);
+  webApp.onEvent('contentSafeAreaChanged', syncViewport);
+  /* Единственное событие про возвращение из свёрнутого состояния:
+     viewportChanged после него приходит не всегда. */
+  webApp.onEvent('activated', resyncViewport);
+  webApp.onEvent('fullscreenChanged', () => {
+    leaveFullscreen();
+    resyncViewport();
+  });
   webApp.onEvent('viewportChanged', resyncViewport);
 
   /* Страховка от промолчавшего клиента: размер вебвью меняется в любом случае,

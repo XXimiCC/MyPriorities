@@ -433,6 +433,7 @@ export const enStrings = {
   'settings.retention': 'Kept for',
   'settings.retentionAll': 'all of it',
   'settings.client': 'Client',
+  'settings.clientFullscreen': 'opened fullscreen',
   'settings.browser': 'browser',
   'settings.build': 'Build',
   'settings.server': 'Server',

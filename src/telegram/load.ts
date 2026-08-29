@@ -62,6 +62,43 @@ export function launchedFromTelegram(): boolean {
 }
 
 /**
+ * Клиент открыл мини-апп полноэкранным.
+ *
+ * Отметку читает отсюда telegram/sdk.ts: к моменту, когда до него дойдёт
+ * очередь, спрашивать isFullscreen уже поздно — ответом будет «нет». А сам факт
+ * — половина ответа на жалобы «окно прыгает в угол» и «пропали кнопки
+ * навигации»: режим включает клиент, и по своему коду приложение о нём не знает.
+ */
+export let openedFullscreen = false;
+
+/**
+ * Выход из полноэкранного режима — здесь, а не в telegram/sdk.ts, и причина
+ * ровно одна: время.
+ *
+ * Режим приложение не заказывает никогда, его включает клиент — так настраивается
+ * ссылка мини-аппа. На компьютере мини-апп это отдельное окно фиксированного
+ * размера, и растянуть его может единственная вещь — этот самый режим: Telegram
+ * Desktop выдаёт окно размером с экран, но оставляет на месте, рассчитанном под
+ * обычное, — оно уезжает за правый нижний край. Выход возвращает окну обычный
+ * размер, а вот прежнего положения у окна нет, восстанавливать не из чего —
+ * отсюда прыжок в левый верхний угол. Смотрит человек на всё это ровно до
+ * выхода, поэтому выход стоит здесь, кадром после самого SDK, а не после того,
+ * как выполнится чанк приложения со всеми его модулями.
+ *
+ * Проверки версии тут намеренно нет. Клиенты занижают заявленную версию (та же
+ * причина расписана у cloudStorage в sdk.ts), и isVersionAtLeast('8.0')
+ * выключал бы выход ровно там, где он нужнее всего. Наличие самих isFullscreen
+ * и exitFullscreen и есть ответ на вопрос, умеет ли клиент режим: вне 8.0 их
+ * просто нет.
+ */
+function leaveFullscreen(): void {
+  const app = window.Telegram?.WebApp;
+  if (!app?.isFullscreen || typeof app.exitFullscreen !== 'function') return;
+  openedFullscreen = true;
+  app.exitFullscreen();
+}
+
+/**
  * Ставит SDK, если он нужен и его ещё нет. Промис не отвергается никогда:
  * отсутствие SDK — это деградация, а не остановка, и решать, что делать
  * дальше, будет telegram/sdk.ts по `isTelegram`.
@@ -69,7 +106,10 @@ export function launchedFromTelegram(): boolean {
 export function loadTelegramSdk(): Promise<void> {
   if (!launchedFromTelegram()) return Promise.resolve();
   // Стаб съёмки (tools/shots/telegram-stub.js) приезжает до страницы — грузить нечего.
-  if (window.Telegram?.WebApp) return Promise.resolve();
+  if (window.Telegram?.WebApp) {
+    leaveFullscreen();
+    return Promise.resolve();
+  }
 
   return new Promise<void>((resolve) => {
     let settled = false;
@@ -89,7 +129,11 @@ export function loadTelegramSdk(): Promise<void> {
 
     const script = document.createElement('script');
     script.src = SRC;
-    script.onload = () => finish();
+    script.onload = () => {
+      // Раньше finish(): окну незачем ждать даже разбора промиса.
+      leaveFullscreen();
+      finish();
+    };
     script.onerror = () => finish('ошибка сети');
     document.head.appendChild(script);
   });

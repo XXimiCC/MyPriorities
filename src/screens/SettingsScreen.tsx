@@ -410,10 +410,16 @@ export function SettingsScreen({ onPresets, onAchievements, onDemo, onBrand }: P
             <span>{t('settings.retention')}</span>
             <b>{t('settings.retentionAll')}</b>
           </li>
+          {/* Отметка о полноэкранном режиме — рядом с клиентом, а не отдельной
+              строкой: она про то же самое «чем нас открыли» и появляется редко.
+              Без неё «окно прыгнуло в угол» и «пропали кнопки навигации» не
+              отличить от любой другой жалобы — режим включает клиент, и по
+              своему коду приложение о нём не знает. */}
           <li>
             <span>{t('settings.client')}</span>
             <b>
               {clientInfo.platform} {clientInfo.version}
+              {clientInfo.openedFullscreen ? ` · ${t('settings.clientFullscreen')}` : ''}
             </b>
           </li>
           {/* Строка появляется, только когда сервер вообще настроен сборкой:

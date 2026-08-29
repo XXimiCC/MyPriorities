@@ -59,7 +59,11 @@ export interface Op {
    * нет ограничения на два символа.
    */
   targetId?: string;
-  /** Минута суток для переходов заряда. */
+  /**
+   * Минута локальных суток. У переходов заряда — время перехода и часть ключа
+   * ячейки; у `blk` — время нажатия, и оно необязательно: отметка за прошедший
+   * день сделана не в тот день, и времени у неё нет.
+   */
   minute?: number;
   /** Слагаемое для `blk`/`sblk` либо итог для `blkset`/`sblkset`. */
   amount?: number;
@@ -106,8 +110,21 @@ export function newOpId(): string {
 /** Часы отдают метку, идентификатор берётся сам: обе заботы не должны всплывать в сторе. */
 export type Stamper = () => string;
 
-export function blockOp(stamp: Stamper, day: DayKey, priorityId: string, amount: number): Op {
-  return { opId: newOpId(), kind: 'blk', hlc: stamp(), day, targetId: priorityId, amount };
+/**
+ * `minute` — время нажатия, и оно есть только у записи в сегодняшний день.
+ * Сервер такую операцию принимает как есть: колонка общая для всех видов и по
+ * видам обязательна только заряду (`worker/src/ops.ts`).
+ */
+export function blockOp(
+  stamp: Stamper,
+  day: DayKey,
+  priorityId: string,
+  amount: number,
+  minute?: number,
+): Op {
+  const op: Op = { opId: newOpId(), kind: 'blk', hlc: stamp(), day, targetId: priorityId, amount };
+  if (minute !== undefined) op.minute = minute;
+  return op;
 }
 
 export function skillBlockOp(stamp: Stamper, day: DayKey, skillId: string, amount: number): Op {

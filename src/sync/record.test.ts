@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { emptySettings } from '../domain/settings';
-import { emptyJournal } from '../domain/types';
+import { emptyJournal, timelessMarks, type MarkTime } from '../domain/types';
 import { emptySkills } from '../skills/types';
 import { reduce, type Action, type State } from '../store/reduce';
 import { createClock, emptyHlc } from './hlc';
@@ -45,12 +45,35 @@ function run(actions: Action[], from: State = emptyState()) {
   return { state, ops, projected: project(emptyBase(), ops) };
 }
 
+/**
+ * Счётчик равен длине стека — в каждой ячейке и с обеих сторон.
+ *
+ * Это тот самый инвариант, на котором держится снятие: «−» убирает последнюю
+ * отметку стека, и лишний блок в счётчике означал бы, что снимается не та.
+ */
+function expectStackMatchesCount(journal: State['journal'], where: string): void {
+  for (const [day, entry] of Object.entries(journal.clicks)) {
+    for (const [id, count] of Object.entries(entry)) {
+      expect(journal.marks[day]?.[id] ?? [], `${where}: ${day} ${id}`).toHaveLength(count);
+    }
+  }
+  for (const [day, entry] of Object.entries(journal.marks)) {
+    for (const [id, stack] of Object.entries(entry)) {
+      expect(journal.clicks[day]?.[id] ?? 0, `${where}: ${day} ${id}`).toBe(stack.length);
+    }
+  }
+}
+
 function expectAgreement(actions: Action[], from?: State): void {
   const { state, projected } = run(actions, from);
   expect(projected.journal.clicks).toEqual(state.journal.clicks);
+  expect(projected.journal.marks).toEqual(state.journal.marks);
   expect(projected.journal.battery).toEqual(state.journal.battery);
   expect(projected.skillClicks).toEqual(state.skillClicks);
   expect(projected.awards).toEqual(state.awards);
+
+  expectStackMatchesCount(state.journal, 'состояние');
+  expectStackMatchesCount(projected.journal, 'проекция');
 }
 
 describe('журнал сходится с состоянием', () => {
@@ -60,6 +83,43 @@ describe('журнал сходится с состоянием', () => {
       { type: 'blocks', day: DAY, priorityId: 'ab', delta: 1 },
       { type: 'blocks', day: DAY, priorityId: 'cd', delta: 1 },
       { type: 'blocks', day: DAY, priorityId: 'ab', delta: -1 },
+    ]);
+  });
+
+  it('на блоках со временем нажатия', () => {
+    // Живое нажатие и воспроизведение журнала обязаны дать один и тот же стек:
+    // иначе «−» снимало бы разные отметки до и после перезагрузки.
+    const { state } = run([
+      { type: 'blocks', day: DAY, priorityId: 'ab', delta: 1, minute: 725 },
+      { type: 'blocks', day: DAY, priorityId: 'ab', delta: 1, minute: 820 },
+      // Дописанный прошлый день времени не получает: отмечали его не в тот день.
+      { type: 'blocks', day: OTHER, priorityId: 'ab', delta: 1 },
+      { type: 'blocks', day: DAY, priorityId: 'ab', delta: 1, minute: 910 },
+      { type: 'blocks', day: DAY, priorityId: 'ab', delta: -1 },
+    ]);
+
+    expect(state.journal.marks[DAY]).toEqual({ ab: [725, 820] });
+    expect(state.journal.marks[OTHER]).toEqual({ ab: [null] });
+
+    expectAgreement([
+      { type: 'blocks', day: DAY, priorityId: 'ab', delta: 1, minute: 725 },
+      { type: 'blocks', day: DAY, priorityId: 'ab', delta: 1, minute: 820 },
+      { type: 'blocks', day: OTHER, priorityId: 'ab', delta: 1 },
+      { type: 'blocks', day: DAY, priorityId: 'ab', delta: 1, minute: 910 },
+      { type: 'blocks', day: DAY, priorityId: 'ab', delta: -1 },
+    ]);
+  });
+
+  it('снятие времени не несёт', () => {
+    // Снятие ничего не отмечает — оно убирает последнюю отметку, и своего
+    // времени у него нет. Минута в такой операции была бы враньём в журнале.
+    const { ops } = run([
+      { type: 'blocks', day: DAY, priorityId: 'ab', delta: 1, minute: 725 },
+      { type: 'blocks', day: DAY, priorityId: 'ab', delta: -1, minute: 800 },
+    ]);
+    expect(ops.map((op) => [op.amount, op.minute])).toEqual([
+      [1, 725],
+      [-1, undefined],
     ]);
   });
 
@@ -165,7 +225,11 @@ describe('журнал сходится с состоянием', () => {
     // Правки ложатся на историю, прочитанную из хранилища: журнал видит её как
     // снимок, а не как свои операции.
     const from = emptyState();
+    // Снимок приходит итогами, а не нажатиями: счётчик есть, времён нет. Стек
+    // при этом обязателен — счётчик считается его длиной, и без него снятие
+    // сняло бы не ту отметку, а сразу все.
     from.journal.clicks = { [DAY]: { ab: 5 } };
+    from.journal.marks = timelessMarks(from.journal.clicks);
 
     const clock = createClock('aaaa1111', emptyHlc());
     const stamp = (): string => clock.stamp();
@@ -199,6 +263,9 @@ describe('восстановление копии', () => {
     settings: emptySettings(),
     journal: {
       clicks: { [DAY]: { ab: 3 } },
+      // Копия возвращает итоги, а не отдельные нажатия: времена через файл не
+      // ездят, и восстановленные отметки честно не знают, когда их поставили.
+      marks: { [DAY]: { ab: [null, null, null] as MarkTime[] } },
       battery: { [DAY]: [[540, 2] as [number, 2], [900, 1, 'ab'] as [number, 1, string]] },
     },
     skills: emptySkills(),

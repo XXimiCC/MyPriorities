@@ -55,6 +55,9 @@ export const enStrings = {
   'home.plus': 'Add {minutes} minutes',
   'home.minus': 'Remove {minutes} minutes',
   'home.todayBlocks': '{count} {unit} today',
+  // «Marked», not «spent»: people often log in one batch in the evening, and the
+  // row must not read as a timetable of the day.
+  'home.markTimes': 'Marked today at',
   'home.dayPicker': 'The day being recorded',
   // Sits where a weekday abbreviation sits, in a 42px cell.
   'home.dayToday': 'today',

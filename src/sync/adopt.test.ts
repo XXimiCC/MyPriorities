@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { emptySettings } from '../domain/settings';
 import type { SnapshotContents } from '../domain/snapshot';
-import { emptyJournal } from '../domain/types';
+import { emptyJournal, timelessMarks, type ClicksMap, type Journal } from '../domain/types';
 import { emptySkills } from '../skills/types';
 import { opsLog, resetBackendForTests } from '../store/local/db';
 import {
@@ -104,14 +104,19 @@ function deps(server: ReturnType<typeof fakeServer>, signedIn = true): EngineDep
   };
 }
 
+/** Журнал из итогов: отметки без времени, по одной на блок. */
+function journalOf(clicks: ClicksMap, battery: Journal['battery'] = {}): Journal {
+  return { clicks, marks: timelessMarks(clicks), battery };
+}
+
 /** Устройство, которым пользовались годы: история по дням и заряд. */
 function longUsed(): SnapshotContents {
   return {
     settings: { ...emptySettings(), onboarded: true, priorities: [{ id: 'ia', title: 'Работа', colorId: 1 }] },
-    journal: {
-      clicks: { '2025-11-03': { ia: 4 }, '2026-08-09': { ia: 6 } },
-      battery: { '2026-08-09': [[540, 3]] },
-    },
+    journal: journalOf(
+      { '2025-11-03': { ia: 4 }, '2026-08-09': { ia: 6 } },
+      { '2026-08-09': [[540, 3]] },
+    ),
     skills: emptySkills(),
     skillClicks: { '2026-08-09': { sk: 2 } },
     awards: { n1: '2025-11-03' },
@@ -211,7 +216,7 @@ describe('переход на сервер', () => {
 
     const other: SnapshotContents = {
       ...longUsed(),
-      journal: { clicks: { '2026-01-15': { ia: 5 } }, battery: {} },
+      journal: journalOf({ '2026-01-15': { ia: 5 } }),
       skillClicks: {},
       awards: {},
     };
@@ -252,7 +257,7 @@ describe('переход на сервер', () => {
         onboarded: true,
         priorities: [{ id: 'rm', title: 'Здоровье', colorId: 0 }],
       },
-      journal: { clicks: { '2026-01-15': { rm: 5 } }, battery: {} },
+      journal: journalOf({ '2026-01-15': { rm: 5 } }),
       skills: emptySkills(),
       skillClicks: {},
       awards: {},
@@ -292,7 +297,7 @@ describe('переход на сервер', () => {
           { id: 'zz', title: 'Нетронутый', colorId: 5 },
         ],
       },
-      journal: { clicks: { '2026-01-15': { rm: 5 } }, battery: {} },
+      journal: journalOf({ '2026-01-15': { rm: 5 } }),
       skills: emptySkills(),
       skillClicks: {},
       awards: {},
@@ -337,7 +342,7 @@ describe('переход на сервер', () => {
     // И новое устройство, которому терять нечего, копию тоже не заводит.
     const blank: SnapshotContents = {
       settings: emptySettings(),
-      journal: { clicks: {}, battery: {} },
+      journal: { clicks: {}, marks: {}, battery: {} },
       skills: emptySkills(),
       skillClicks: {},
       awards: {},
@@ -360,7 +365,7 @@ describe('переход на сервер', () => {
 
     // Второй переход не должен подменить копию уже переехавшим состоянием:
     // иначе возвращаться будет некуда.
-    await adoptServerState({ ...longUsed(), journal: { clicks: {}, battery: {} } }, stamp, deps(server));
+    await adoptServerState({ ...longUsed(), journal: { clicks: {}, marks: {}, battery: {} } }, stamp, deps(server));
     expect(await backupBeforeSync()).toBe(saved);
   });
 });
@@ -393,7 +398,7 @@ describe('возврат к тому, что было до переезда', ()
     const server = fakeServer();
     const desktopHistory: SnapshotContents = {
       ...longUsed(),
-      journal: { clicks: { '2026-01-15': { ia: 5 } }, battery: {} },
+      journal: journalOf({ '2026-01-15': { ia: 5 } }),
       skillClicks: {},
       awards: {},
     };
@@ -440,7 +445,7 @@ describe('возврат к тому, что было до переезда', ()
     const local = longUsed();
     const empty: SnapshotContents = {
       settings: emptySettings(),
-      journal: { clicks: {}, battery: {} },
+      journal: { clicks: {}, marks: {}, battery: {} },
       skills: emptySkills(),
       skillClicks: {},
       awards: {},

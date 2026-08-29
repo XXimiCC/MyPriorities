@@ -26,7 +26,7 @@ const settings: Settings = {
 };
 
 function empty(): Journal {
-  return { clicks: {}, battery: {} };
+  return { clicks: {}, marks: {}, battery: {} };
 }
 
 /** Ключ дня, отстоящего от NOW на указанное число суток назад. */

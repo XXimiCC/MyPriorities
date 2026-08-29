@@ -209,7 +209,7 @@ export function App(): JSX.Element {
       <div className="app app--tabs">
         <DemoBar />
         {tab === 'home' && <HomeScreen onEdit={() => setOverlay('edit')} />}
-        {tab === 'stats' && <StatsScreen />}
+        {tab === 'stats' && <StatsScreen onDemo={() => setOverlay('demo')} />}
         {tab === 'charge' && <ChargeScreen />}
         {tab === 'skills' && <SkillsScreen />}
         {tab === 'settings' && (

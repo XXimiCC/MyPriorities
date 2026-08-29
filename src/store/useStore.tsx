@@ -34,6 +34,7 @@ import {
   type Modules,
   type Priority,
   type Settings,
+  type SettingsMark,
 } from '../domain/types';
 import { MAX_SKILLS, emptySkills, type Skill, type SkillsState } from '../skills/types';
 import { stripAuto } from '../achievements/evaluate';
@@ -93,6 +94,12 @@ export interface StoreActions {
 
   /** Включает или выключает модуль. Включение навыков ждёт догрузки их истории. */
   setModule(id: keyof Modules, on: boolean): Promise<void>;
+
+  /**
+   * Отмечает единожды случившееся: копия снята, предупреждение закрыто.
+   * Снять отметку нельзя — это и есть смысл слова «единожды».
+   */
+  markOnce(mark: SettingsMark): void;
 
   addSkill(input: {
     title: string;
@@ -697,8 +704,9 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           ...current.priorities.filter((p) => !keptIds.has(p.id)),
         ];
 
-        // blockMinutes и modules переносятся: цена блока и набор включённых
-        // модулей — личные настройки, а не часть сборника приоритетов.
+        // blockMinutes, modules и отметки переносятся: цена блока, набор
+        // включённых модулей и то, что человеку уже показали, — личные
+        // настройки, а не часть сборника приоритетов.
         commitSettings({
           version: 1,
           priorities,
@@ -707,6 +715,8 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           onboarded: true,
           blockMinutes: current.blockMinutes,
           modules: current.modules,
+          exported: current.exported,
+          localOnlySeen: current.localOnlySeen,
         });
       },
 
@@ -723,6 +733,13 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
          */
         const current = latest.current.settings;
         commitSettings({ ...current, modules: { ...modulesOf(current), [id]: on } });
+      },
+
+      markOnce(mark) {
+        const current = latest.current.settings;
+        // Повторная отметка — лишняя запись настроек и лишний обмен с сервером.
+        if (current[mark]) return;
+        commitSettings({ ...current, [mark]: true });
       },
 
       addSkill({ title, baseHours, colorId, startedOn }) {

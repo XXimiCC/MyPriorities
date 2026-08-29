@@ -22,7 +22,7 @@ import { buildLabel } from '../build';
 import { somethingToRestore } from '../sync/adopt';
 import { signIn, signOut, subscribeSync, syncState, type SyncState } from '../sync/auth';
 import { transport } from '../sync/transport';
-import { saveFile } from '../wallpaper/save';
+import { exportCopy } from './exportCopy';
 import './SettingsScreen.css';
 
 /**
@@ -130,23 +130,7 @@ export function SettingsScreen({ onPresets, onAchievements, onDemo, onBrand }: P
       haptics.warning();
     });
 
-  const exportData = (): void =>
-    run(async () => {
-      const json = actions.exportData();
-      const blob = new Blob([json], { type: 'application/json' });
-      const outcome = await saveFile(blob, 'my-priorities-backup.json', 'application/json');
-      actions.award('r2');
-      if (outcome !== 'manual') return;
-
-      // Долгое нажатие спасает картинку, но не JSON. Буфер обмена — единственный
-      // путь забрать копию из клиента, который не умеет сохранять файлы.
-      try {
-        await navigator.clipboard.writeText(json);
-        await alertDialog(t('settings.exportCopied'));
-      } catch {
-        await alertDialog(t('settings.exportFailed'));
-      }
-    });
+  const exportData = (): void => run(() => exportCopy(actions));
 
   const restoreBefore = (): void =>
     run(async () => {

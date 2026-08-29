@@ -136,5 +136,12 @@ export function sanitizeSettings(raw: unknown): Settings | undefined {
     // Настройки, записанные до появления этого поля, читаются как значение по умолчанию.
     blockMinutes: Number.isFinite(blockMinutes) && blockMinutes > 0 ? blockMinutes : DEFAULT_BLOCK_MINUTES,
     modules: sanitizeModules(value.modules),
+    /*
+     * Отметки о единожды случившемся: только явное `true` считается «было».
+     * Ложь не пишется вовсе — JSON.stringify выбрасывает undefined, и документ
+     * настроек не обрастает полями со значением «ничего не произошло».
+     */
+    exported: value.exported === true ? true : undefined,
+    localOnlySeen: value.localOnlySeen === true ? true : undefined,
   };
 }

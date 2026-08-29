@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { BatteryIcon } from '../components/BatteryIcon';
 import { DayBars } from '../components/DayBars';
@@ -17,11 +17,15 @@ import {
   type PriorityStat,
 } from '../domain/stats';
 import { MAX_INSIGHTS, insightText, insights, type Insight } from '../domain/insights';
+import { historyAge, historyDays, localOnlyDue } from '../domain/localOnly';
 import { PERIODS, type PeriodId } from '../domain/periods';
 import { BATTERY_LEVELS, blockMinutesOf, drainTextOf, modulesOf } from '../domain/types';
 import { derive } from '../achievements/derive';
+import { DEMO_MODE, GUEST_MODE } from '../demo/mode';
 import { plural, t } from '../i18n';
 import { useStore } from '../store/useStore';
+import { signIn, subscribeSync, syncState, type SyncState } from '../sync/auth';
+import { exportCopy } from './exportCopy';
 import './StatsScreen.css';
 
 const STATS_PERIODS = PERIODS.filter((p) => p.id !== 'today');
@@ -64,9 +68,19 @@ function withNamedPriority(note: Insight): ReactNode {
   );
 }
 
-export function StatsScreen(): JSX.Element {
-  const { settings, journal } = useStore();
+interface Props {
+  /** Витрина демо-профилей: единственная ссылка отсюда наружу. */
+  onDemo(): void;
+}
+
+export function StatsScreen({ onDemo }: Props): JSX.Element {
+  const { settings, journal, actions } = useStore();
   const [periodId, setPeriodId] = useState<PeriodId>('week');
+  const [busy, setBusy] = useState(false);
+  const [sync, setSync] = useState<SyncState>(syncState);
+
+  // Вход идёт фоном и может закончиться уже после того, как экран открыли.
+  useEffect(() => subscribeSync(setSync), []);
 
   const period = STATS_PERIODS.find((p) => p.id === periodId) ?? STATS_PERIODS[0]!;
   const days = useMemo(() => periodDays(period, journal), [period, journal]);
@@ -115,6 +129,26 @@ export function StatsScreen(): JSX.Element {
     [modules.insights, settings, journal],
   );
 
+  /*
+   * «Эта история есть только здесь» — одна строка, один раз в жизни кабинета.
+   *
+   * В демо не показывается вовсе: история там синтетическая, а хранилище —
+   * память, поэтому и закрыть её насовсем было бы нечем. Пока вход ещё идёт
+   * (`working`), тоже молчим: внутри Telegram он молчаливый и заканчивается уже
+   * после того, как экран открыли, — иначе строка мигала бы у вошедшего.
+   */
+  const historyLength = useMemo(() => historyDays(journal), [journal]);
+  const showLocalOnly =
+    !DEMO_MODE &&
+    sync.kind !== 'working' &&
+    localOnlyDue(settings, historyLength, sync.kind === 'signed-in');
+
+  const takeCopy = (): void => {
+    if (busy) return;
+    setBusy(true);
+    void exportCopy(actions).finally(() => setBusy(false));
+  };
+
   return (
     <>
       <header className="header">
@@ -134,18 +168,78 @@ export function StatsScreen(): JSX.Element {
           <Tile value={String(streak)} label={t('stats.streak', { unit: plural('day', streak) })} />
         </div>
 
-        {notes.length > 0 && (
+        {/*
+          Стоит сразу под плитками, а не в конце экрана: строка про единственный
+          экземпляр истории должна попасться на глаза тому, кто открыл
+          статистику посмотреть, а не тому, кто домотал её до низа. На главный
+          экран это не ставится намеренно — там не должно быть ничего, кроме
+          «отметить».
+        */}
+        {showLocalOnly && (
+          <div className="lonly">
+            <p className="lonly__text">
+              {t('stats.localOnly', { age: historyAge(historyLength) })}
+            </p>
+            <div className="lonly__acts">
+              <button
+                className="lonly__act press"
+                type="button"
+                disabled={busy}
+                onClick={takeCopy}
+              >
+                {t('stats.localOnlyExport')}
+              </button>
+              {/* Ровно там же, где кнопка входа в настройках: внутри Telegram
+                  вход молчаливый, и предлагать его нажатием нечего. */}
+              {sync.kind === 'can-log-in' && (
+                <button className="lonly__act press" type="button" onClick={() => void signIn()}>
+                  {t('stats.localOnlySignIn')}
+                </button>
+              )}
+              <button
+                className="lonly__act lonly__act--quiet press"
+                type="button"
+                onClick={() => actions.markOnce('localOnlySeen')}
+              >
+                {t('common.close')}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/*
+          Заголовок стоит и до первого наблюдения — иначе включённый тумблер
+          «Наблюдения» первую неделю не делает ничего, и проверить, что он
+          вообще работает, человеку нечем. Выключенный модуль по-прежнему
+          убирает блок целиком.
+        */}
+        {modules.insights && (
           <>
             <div className="divider-label">
               <span>{t('ins.title')}</span>
             </div>
-            <ul className="ins">
-              {notes.slice(0, MAX_INSIGHTS).map((note) => (
-                <li className="ins__item" key={note.id}>
-                  {withNamedPriority(note)}
-                </li>
-              ))}
-            </ul>
+            {notes.length > 0 ? (
+              <ul className="ins">
+                {notes.slice(0, MAX_INSIGHTS).map((note) => (
+                  <li className="ins__item" key={note.id}>
+                    {withNamedPriority(note)}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="ins">
+                {/* Одна строка факта, без совета и без обещания конкретной
+                    карточки: какая наберётся первой, заранее не знает никто. */}
+                <p className="ins__item">{t('ins.soon')}</p>
+                {/* Готовая история уже написана, но лежит в настройках, куда
+                    новичок не идёт. Гостю ссылка не нужна: он уже внутри демо. */}
+                {!GUEST_MODE && (
+                  <button className="ins__demo press" type="button" onClick={onDemo}>
+                    {t('ins.soonDemo')}
+                  </button>
+                )}
+              </div>
+            )}
           </>
         )}
 

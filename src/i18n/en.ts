@@ -175,6 +175,11 @@ export const enStrings = {
   'stats.energyUnknown': 'Not marked',
   'stats.energyOnlyCharge': 'Recharging only',
   'stats.energyLevel': 'Average charge',
+  // A fact, not advice: no «you should», no «we recommend». What to do about it
+  // is yours to decide — both doors are right there.
+  'stats.localOnly': '{age} of history exists only on this device.',
+  'stats.localOnlyExport': 'Download a backup',
+  'stats.localOnlySignIn': 'Sign in',
 
   // --- Observations ---
   // Every line is a fact taken from your own marks. Not one of them says what
@@ -189,6 +194,10 @@ export const enStrings = {
   'ins.concentration': '80% of the month came out of {n} {nUnit}. Days with any marks at all — {active} {activeUnit}.',
   'ins.weekend': 'On weekdays you put {weekday} a day into your priorities, on weekends — {weekend}.',
   'ins.lowOnset': 'Your charge usually runs out around {time}.',
+  // Before the first observation. The wait is named loosely on purpose: there
+  // are six thresholds, they differ, and naming a day would be a lie.
+  'ins.soon': 'Observations will show up once you have about a week of marks.',
+  'ins.soonDemo': 'See them on a ready-made history',
 
   // --- Skills: ranks and the ladder ---
   'rank.none': 'Not started',

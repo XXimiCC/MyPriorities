@@ -245,10 +245,12 @@ function SkillDetails({
 
       <label className="sksheet__field">
         <span>{t('skills.startedLabel')}</span>
+        {/* Предел — локальная дата, а не UTC: ночью по Москве toISOString отдаёт
+            вчерашнюю, и нативный пикер гасит сегодняшний день. */}
         <input
           type="date"
           value={skill.startedOn ?? ''}
-          max={new Date().toISOString().slice(0, 10)}
+          max={todayKey()}
           onChange={(event) => onStarted(event.target.value)}
         />
       </label>

@@ -39,6 +39,13 @@ export function useLongPress(onLongPress: () => void, holdMs = HOLD_MS): LongPre
     handlers: {
       onPointerDown(event) {
         if (event.pointerType === 'mouse' && event.button !== 0) return;
+        /*
+         * Захват указателя — ради мыши и трекпада. У касания он неявный, а вот
+         * нажатую кнопку мыши можно увести за пределы строки: тогда pointerup
+         * уходит другому элементу, cancel() не вызывается, и удержание
+         * срабатывает у того, кто уже передумал. Тот же приём в useReorder.
+         */
+        event.currentTarget.setPointerCapture(event.pointerId);
         fired.current = false;
         origin.current = { x: event.clientX, y: event.clientY };
         timer.current = window.setTimeout(() => {

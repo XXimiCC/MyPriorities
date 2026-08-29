@@ -1,6 +1,6 @@
 /// <reference types="vitest" />
 import { execSync } from 'node:child_process';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 
 /**
@@ -29,6 +29,53 @@ function buildStamp(): { id: string; time: string } {
 
 const build = buildStamp();
 
+/** Имя чанка, за которым живёт всё приложение, — см. динамический import() в src/main.tsx. */
+const BOOT = 'boot';
+
+/**
+ * Ранняя загрузка стартового чанка.
+ *
+ * Приложение висит за динамическим import(): выполнить его можно только после
+ * того, как решится судьба SDK Telegram (src/main.tsx). Но такие куски Vite в
+ * разметку не выносит — браузер узнаёт о них лишь выполнив входной модуль, то
+ * есть кругом позже. Вместе с чанком опаздывает и весь CSS приложения, который
+ * лежит в нём же.
+ *
+ * Ссылки ставим в <head> сами: чанк и его лист начинают грузиться одновременно
+ * со входным модулем, ровно как до разделения. Порядок каскада это не трогает —
+ * лист у чанка один, и внутри он собран в порядке импортов boot.tsx.
+ */
+function preloadBoot(): Plugin {
+  return {
+    name: 'mypri:preload-boot',
+    transformIndexHtml: {
+      order: 'post',
+      handler(html, ctx) {
+        const chunk = Object.values(ctx.bundle ?? {}).find(
+          (item) => item.type === 'chunk' && item.name === BOOT,
+        );
+        if (chunk?.type !== 'chunk') return html;
+
+        return {
+          html,
+          tags: [
+            {
+              tag: 'link',
+              attrs: { rel: 'modulepreload', crossorigin: true, href: `./${chunk.fileName}` },
+              injectTo: 'head' as const,
+            },
+            ...[...(chunk.viteMetadata?.importedCss ?? [])].map((file) => ({
+              tag: 'link',
+              attrs: { rel: 'stylesheet', crossorigin: true, href: `./${file}` },
+              injectTo: 'head' as const,
+            })),
+          ],
+        };
+      },
+    },
+  };
+}
+
 export default defineConfig({
   // Тесты покрывают только чистую логику агрегации и сериализации, DOM им не нужен.
   //
@@ -47,7 +94,7 @@ export default defineConfig({
     __BUILD_ID__: JSON.stringify(build.id),
     __BUILD_TIME__: JSON.stringify(build.time),
   },
-  plugins: [react()],
+  plugins: [react(), preloadBoot()],
   base: './',
   server: {
     host: true,

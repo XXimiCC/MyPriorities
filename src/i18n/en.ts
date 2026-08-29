@@ -12,6 +12,13 @@
 export const enStrings = {
   'app.title': 'My Priorities',
   'app.loading': 'Loading',
+  'app.chunkFailed': 'This section failed to load — a new version has probably shipped.',
+  'app.chunkReload': 'Reload',
+
+  // --- Install metadata ---
+  'meta.short': 'Priorities',
+  'meta.description': 'Where your time and your own energy actually go. One tap is half an hour of life.',
+
   'common.done': 'Done',
   'common.back': 'Back',
   'common.close': 'Close',

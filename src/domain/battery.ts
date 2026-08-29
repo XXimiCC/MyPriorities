@@ -90,7 +90,9 @@ export function sanitizeShifts(raw: unknown): BatteryShift[] {
         [1, 2, 3, 4].includes(s[1] as number),
     )
     .map((s): BatteryShift => {
-      const minute = Math.max(0, Math.min(1440, Math.floor(s[0])));
+      // Предел тот же, что у clampMinute: два числа на одно понятие рано или
+      // поздно разъедутся, и в дне окажется отметка на минуту после его конца.
+      const minute = Math.max(0, Math.min(LAST_MINUTE, Math.floor(s[0])));
       const level = s[1] as BatteryLevel;
       const drainedBy = s[2];
       // Длина режется: ответ своими словами приходит из поля ввода, и чужой или

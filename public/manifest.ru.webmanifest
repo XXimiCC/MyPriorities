@@ -1,9 +1,9 @@
 {
   "id": "/",
-  "name": "My Priorities",
-  "short_name": "Priorities",
-  "description": "Where your time and your own energy actually go. One tap is half an hour of life.",
-  "lang": "en",
+  "name": "Мои Приоритеты",
+  "short_name": "Приоритеты",
+  "description": "Куда на самом деле уходит время и личная энергия. Один клик — полчаса жизни.",
+  "lang": "ru-RU",
   "dir": "ltr",
   "start_url": "./",
   "scope": "./",

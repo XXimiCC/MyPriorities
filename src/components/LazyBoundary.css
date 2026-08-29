@@ -1,0 +1,24 @@
+/*
+ * Сообщение о сорвавшемся ленивом куске.
+ *
+ * Стоит на месте самого куска, а не поверх экрана: подменяется ровно та ветка,
+ * которая упала, и всё вокруг — шапка, таб-бар, кнопка выхода — остаётся живым
+ * и нажимаемым. Кнопка одна и во всю ширину: перезагрузка здесь единственное,
+ * что вообще помогает.
+ */
+
+.lazyfail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 32px var(--pad-x);
+  text-align: center;
+}
+
+.lazyfail__text {
+  max-width: 34ch;
+  font-size: var(--fs-body);
+  line-height: 1.5;
+  color: var(--text-dim);
+}

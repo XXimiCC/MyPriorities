@@ -202,7 +202,8 @@ a separate project.
 **Nothing leaves the device until you sign in.** No email, no name, no
 identifier — there is simply nothing to leak. No analytics, no trackers and no
 third-party scripts, apart from Telegram's own `telegram-web-app.js`, which the
-platform requires.
+platform requires — and that one is fetched only inside the Telegram client. In
+an ordinary browser the app makes no third-party request at all.
 
 **If you do sign in, the server holds your log and nothing more.** The operation
 log, your settings and your skills catalogue, tied to a Telegram id — the same

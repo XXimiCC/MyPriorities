@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { LAST_MINUTE, formatTime, parseTime, removeShift, setShift } from './battery';
+import { LAST_MINUTE, formatTime, parseTime, removeShift, sanitizeShifts, setShift } from './battery';
 import type { BatteryShift } from './types';
 
 const day = (): BatteryShift[] => [
@@ -87,5 +87,28 @@ describe('время', () => {
     for (const bad of ['', 'вечером', '25:00', '12:60', '1230']) {
       expect(parseTime(bad)).toBeUndefined();
     }
+  });
+});
+
+describe('приведение отметок к валидному виду', () => {
+  it('минута за концом суток прижимается к последней', () => {
+    /*
+     * 1440 — минута следующих суток, и приехать она может из файла копии или
+     * из облака. Предел здесь обязан совпадать с clampMinute: пока их было два,
+     * setShift такую отметку не создавал, а sanitizeShifts пропускал.
+     */
+    expect(sanitizeShifts([[1440, 2]])).toEqual([[LAST_MINUTE, 2]]);
+    expect(sanitizeShifts([[99999, 3]])).toEqual([[LAST_MINUTE, 3]]);
+    expect(sanitizeShifts([[-5, 4]])).toEqual([[0, 4]]);
+  });
+
+  it('сортирует по времени и отбрасывает непохожее на отметку', () => {
+    expect(
+      sanitizeShifts([[720, 2], ['утро', 3], [480, 9], [60, 4], null, [1080, 1, 'ab']]),
+    ).toEqual([
+      [60, 4],
+      [720, 2],
+      [1080, 1, 'ab'],
+    ]);
   });
 });

@@ -132,7 +132,7 @@
   border: 0;
   border-radius: var(--r-sm);
   text-align: right;
-  font-size: 14px;
+  font-size: var(--fs-input); /* меньше 16px — и iOS зумит страницу при фокусе, а обратно не отдаляет */
   font-variant-numeric: tabular-nums;
   color: var(--text);
   background: rgba(255, 255, 255, 0.05);

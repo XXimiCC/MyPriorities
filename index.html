@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ru">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta
@@ -11,10 +11,17 @@
     <meta name="color-scheme" content="dark" />
     <meta
       name="description"
-      content="Куда на самом деле уходит время и личная энергия. Один клик — полчаса жизни."
+      content="Where your time and your own energy actually go. One tap is half an hour of life."
     />
 
     <!--
+      Разметка написана на языке приложения по умолчанию — английском
+      (см. pickLocale в src/i18n/index.ts). Заголовок, описание, подпись под
+      иконкой и ссылка на манифест переписываются под активный язык на старте и
+      при нажатии кнопки в настройках: applyLang() там же. Манифестов поэтому
+      два, по одному на локаль, — имя приложения под иконкой берётся из него, и
+      иначе перевести его нечем.
+
       Установка на домашний экран вне Telegram. Пути внутри самого манифеста
       относительные: его содержимое Vite не переписывает, это просто копия из
       public/, — и абсолютные пути сломали бы обещание base: './' о том, что
@@ -30,11 +37,16 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Приоритеты" />
+    <meta name="apple-mobile-web-app-title" content="Priorities" />
 
-    <title>Мои Приоритеты</title>
-    <!-- Классический скрипт, обязательно до модуля: без него window.Telegram не появится. -->
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <title>My Priorities</title>
+
+    <!--
+      telegram-web-app.js здесь больше нет. Обычным тегом он блокировал парсер, и
+      первый кадр ждал ответа telegram.org — пять секунд задержки чужого CDN один
+      в один становились пятью секундами чёрного экрана. Теперь его ставит
+      src/telegram/load.ts, и только внутри клиента Telegram, где он нужен.
+    -->
   </head>
   <body>
     <div id="root"></div>

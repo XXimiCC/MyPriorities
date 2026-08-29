@@ -5,6 +5,7 @@ import { Watcher } from './achievements/Watcher';
 import { BRAND_ASKED } from './brandkit/entry';
 import { BatteryPromptProvider } from './components/BatteryPrompt';
 import { DemoBar } from './components/DemoBar';
+import { LazyBoundary } from './components/LazyBoundary';
 import { AchievementsScreen } from './screens/AchievementsScreen';
 import { ChargeScreen } from './screens/ChargeScreen';
 import { DemoScreen } from './screens/DemoScreen';
@@ -171,9 +172,13 @@ export function App(): JSX.Element {
         {overlay === 'achievements' && <AchievementsScreen />}
         {overlay === 'demo' && <DemoScreen />}
         {overlay === 'brand' && (
-          <Suspense fallback={<span className="wp__spinner" aria-label={t('app.loading')} />}>
-            <BrandKit />
-          </Suspense>
+          /* Граница снаружи Suspense: она ловит именно отказ загрузки, а не
+             ожидание. Без неё сорвавшийся чанк уносит всё дерево. */
+          <LazyBoundary>
+            <Suspense fallback={<span className="wp__spinner" aria-label={t('app.loading')} />}>
+              <BrandKit />
+            </Suspense>
+          </LazyBoundary>
         )}
         <div className="app__footer">
           <button type="button" onClick={() => setOverlay(null)}>

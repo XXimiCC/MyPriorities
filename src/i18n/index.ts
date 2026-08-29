@@ -116,14 +116,45 @@ export function subscribeLocale(listener: () => void): () => void {
   };
 }
 
+/**
+ * Манифест на каждый язык: имя приложения под иконкой берётся из него, а не из
+ * разметки, и переводу не поддаётся иначе как вторым файлом. Оба лежат в
+ * `public/` — Vite их не обрабатывает, поэтому имена здесь буквальные.
+ */
+const MANIFESTS: Record<string, string> = {
+  ru: 'manifest.ru.webmanifest',
+  en: 'manifest.webmanifest',
+};
+
+function setMeta(name: string, content: string): void {
+  document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`)?.setAttribute('content', content);
+}
+
 /*
  * `<html lang>` — не украшение: от него зависят перенос слов, экранный диктор и
  * подстановка шрифта. Живёт здесь, а не в main.tsx, потому что мест смены языка
  * два — запуск и кнопка, — а забыть одно из них вопрос времени.
+ *
+ * Рядом — всё, что читает не человек, а система: заголовок вкладки, описание и
+ * две подписи под иконкой на домашнем экране (apple-mobile-web-app-title у iOS,
+ * short_name манифеста у всех остальных). В разметке они зашиты по-русски и
+ * сами не обновятся, а язык по умолчанию теперь английский — без этого человек,
+ * читающий по-английски, добавлял на «Домой» иконку с подписью «Приоритеты».
  */
 function applyLang(): void {
   if (typeof document === 'undefined') return;
   document.documentElement.lang = active.code;
+
+  document.title = t('app.title');
+  setMeta('description', t('meta.description'));
+  setMeta('apple-mobile-web-app-title', t('meta.short'));
+
+  const manifest = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
+  // Адрес считается от baseURI, а не пишется абсолютным: то же обещание base: './',
+  // что и у регистрации воркера в main.tsx.
+  if (manifest) {
+    manifest.href = new URL(MANIFESTS[active.code] ?? MANIFESTS.en!, document.baseURI).href;
+  }
 }
 
 applyLang();

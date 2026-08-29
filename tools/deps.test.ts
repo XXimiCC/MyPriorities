@@ -96,7 +96,7 @@ describe('переносимость панели отладки', () => {
   it('весь клей с приложением собран в двух известных файлах', () => {
     /*
      * Панель зовут из двух мест, и оба — про панель, а не про приложение:
-     * main.tsx ставит её, devkitHost.ts отдаёт наружу снимок состояния и
+     * boot.tsx ставит её, devkitHost.ts отдаёт наружу снимок состояния и
      * вызов «показать значок». Экраны обращаются к devkitHost, а не к панели
      * напрямую: выключить её должно быть правкой в известных местах, а не
      * поиском по всему src/.
@@ -107,6 +107,6 @@ describe('переносимость панели отладки', () => {
       .filter((name) => !name.startsWith('devkit' + path.sep))
       .filter((name) => /from '\.{1,2}\/devkit'/.test(read(path.join('src', name))));
 
-    expect(users.sort()).toEqual(['devkitHost.ts', 'main.tsx']);
+    expect(users.sort()).toEqual(['boot.tsx', 'devkitHost.ts']);
   });
 });

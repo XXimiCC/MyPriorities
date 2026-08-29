@@ -7,6 +7,8 @@
  * пишется без единой проверки `if (webApp)`.
  */
 
+import { launchedFromTelegram } from './load';
+
 type HapticStyle = 'light' | 'medium' | 'heavy' | 'rigid' | 'soft';
 type NotificationType = 'error' | 'success' | 'warning';
 
@@ -96,8 +98,22 @@ function atLeast(version: string): boolean {
   }
 }
 
-/** Внутри клиента Telegram? Определяет и выбор хранилища, и доступность нативных диалогов. */
-export const isTelegram = Boolean(webApp && webApp.initData !== undefined && webApp.platform !== 'unknown');
+/**
+ * Внутри клиента Telegram? Определяет и выбор хранилища, и доступность нативных диалогов.
+ *
+ * Признак берётся не только из SDK. Скрипт приезжает по сети (telegram/load.ts),
+ * и когда он не доехал, `window.Telegram` нет вовсе — проверка по одному только
+ * объекту объявила бы мини-апп обычной вкладкой браузера со всеми последствиями:
+ * service worker поверх вебвью, локальное хранилище вместо облака, онбординг
+ * вместо данных. Запуск же виден в параметрах и в мосте клиента и от сети
+ * не зависит.
+ */
+export const isTelegram =
+  launchedFromTelegram() ||
+  Boolean(webApp && webApp.initData !== undefined && webApp.platform !== 'unknown');
+
+/** Мы внутри клиента, но SDK не доехал: облака в этой сессии не будет. Видно в отчётах девкита. */
+export const sdkMissing = isTelegram && !webApp;
 
 /**
  * Признак реального клиента, а не версия.

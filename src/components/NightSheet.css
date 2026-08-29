@@ -1,0 +1,77 @@
+/* Утренний вопрос про ночь: время отхода ко сну и четыре состояния. */
+
+.night {
+  display: flex;
+  flex-direction: column;
+}
+
+.night__note {
+  margin: 0 2px 14px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-dim);
+}
+
+/*
+ * Поле времени выглядит ровно так же, как в шторке правки отметки: действие то
+ * же самое — поставить отметку на прошедшую минуту, — и выглядеть оно должно
+ * одинаково, из какого бы места ни пришли.
+ */
+.night__time {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: var(--r-md);
+  font-size: 14px;
+  color: var(--text-dim);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+}
+
+.night__time input {
+  flex: none;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--r-sm);
+  font-size: 20px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  background: rgba(255, 255, 255, 0.05);
+  outline: none;
+  /* Поле тёмное — говорим об этом явно, чтобы движок нарисовал светлую иконку часов. */
+  color-scheme: dark;
+}
+
+.night__time input::-webkit-calendar-picker-indicator {
+  opacity: 0.55;
+  cursor: pointer;
+}
+
+.night__hint {
+  margin: 8px 2px 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-faint);
+}
+
+/* Введено время, которое ничего не чинит: подпись объясняет, почему плитки заперты. */
+.night__hint--stop {
+  color: var(--battery-low);
+}
+
+/*
+ * Плитки состояний здесь плотнее, чем в своей шторке: над ними стоит ещё и
+ * поле времени, и на 320×568 нижний ряд уезжал под кромку — «одно касание»
+ * превращалось в прокрутку.
+ */
+.night .bsheet {
+  margin-top: 2px;
+}
+
+.night .bsheet__item {
+  padding: 10px 8px 8px;
+  gap: 4px;
+}

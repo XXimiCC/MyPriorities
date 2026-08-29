@@ -26,6 +26,14 @@ import './StatsScreen.css';
 
 const STATS_PERIODS = PERIODS.filter((p) => p.id !== 'today');
 
+/** Строка блока «что сажает батарею»: приоритет, свой ответ или «не знаю». */
+interface DrainRow {
+  id: string;
+  count: number;
+  title: string;
+  hex: string;
+}
+
 /**
  * Наблюдение с выделенным именем приоритета.
  *
@@ -76,7 +84,7 @@ export function StatsScreen(): JSX.Element {
     [stats],
   );
 
-  const drains = useMemo(() => {
+  const drains = useMemo<DrainRow[]>(() => {
     const known = new Map(
       [...settings.priorities, ...settings.archived].map((p) => [p.id, p]),
     );
@@ -167,8 +175,24 @@ export function StatsScreen(): JSX.Element {
           <span>{t('stats.chargeTitle')}</span>
         </div>
 
-        {battery.totalMinutes === 0 ? (
+        {/*
+          Условие — «отмечали ли вообще», а не «набежало ли время».
+
+          Текущие сутки считаются только до «сейчас» (см. computeBatteryStats),
+          поэтому только что поставленная отметка длится ноль минут — и по
+          длительности целый период неотличим от нетронутого. Разделены оба
+          случая: «ещё не отмечали» и «отметка есть, времени пока нет». Второе
+          проходит само в течение минуты, но сказать в эту минуту «вы ещё не
+          отмечали» — это соврать человеку про то, что он только что сделал.
+          Экран «Заряд» отвечает на тот же ноль словами «часы идут».
+        */}
+        {!battery.marked ? (
           <p className="empty">{t('stats.chargeEmpty')}</p>
+        ) : battery.totalMinutes === 0 ? (
+          <>
+            <p className="empty">{t('stats.chargeFresh')}</p>
+            <Drains drains={drains} />
+          </>
         ) : (
           <>
             <div className="bstack">
@@ -209,29 +233,43 @@ export function StatsScreen(): JSX.Element {
             <p className="charge__note">{t('stats.energyNote')}</p>
             <EnergyChart days={days} battery={battery} />
 
-            <div className="divider-label">
-              <span>{t('drain.statsTitle')}</span>
-            </div>
-            <p className="charge__note">{t('drain.statsNote')}</p>
-            {drains.length === 0 ? (
-              <p className="empty">{t('drain.statsEmpty')}</p>
-            ) : (
-              <ul className="blist">
-                {drains.map((row) => (
-                  <li key={row.id} style={{ '--accent': row.hex } as React.CSSProperties}>
-                    <span className="swatch" />
-                    <span className="blist__title">{row.title}</span>
-                    <span className="blist__share">
-                      {/* Считаются переходы, а не дни: «3 раза», а не «3 дня». */}
-                      {t('drain.statsCount', { count: row.count, unit: plural('times', row.count) })}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <Drains drains={drains} />
           </>
         )}
       </div>
+    </>
+  );
+}
+
+/**
+ * «Что сажает батарею» — отдельным блоком, потому что показывается в двух
+ * ветках: и когда время по уровням набежало, и в ту минуту, когда отметка
+ * только поставлена. Ответ на вопрос про причину не зависит от длительности,
+ * и прятать его вместе со шкалой было бы потерей единственного, что уже есть.
+ */
+function Drains({ drains }: { drains: DrainRow[] }): JSX.Element {
+  return (
+    <>
+      <div className="divider-label">
+        <span>{t('drain.statsTitle')}</span>
+      </div>
+      <p className="charge__note">{t('drain.statsNote')}</p>
+      {drains.length === 0 ? (
+        <p className="empty">{t('drain.statsEmpty')}</p>
+      ) : (
+        <ul className="blist">
+          {drains.map((row) => (
+            <li key={row.id} style={{ '--accent': row.hex } as React.CSSProperties}>
+              <span className="swatch" />
+              <span className="blist__title">{row.title}</span>
+              <span className="blist__share">
+                {/* Считаются переходы, а не дни: «3 раза», а не «3 дня». */}
+                {t('drain.statsCount', { count: row.count, unit: plural('times', row.count) })}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </>
   );
 }

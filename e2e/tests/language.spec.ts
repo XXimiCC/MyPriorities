@@ -13,7 +13,7 @@
 
 import { enStrings } from '../../src/i18n/en';
 import { ruStrings } from '../../src/i18n/ru';
-import { expect, openApp, tab, test } from '../fixtures';
+import { expect, onboard, openApp, tab, test } from '../fixtures';
 
 const KEYS = new Set([...Object.keys(ruStrings), ...Object.keys(enStrings)]);
 
@@ -64,7 +64,13 @@ for (const [code, tabs] of Object.entries(TABS)) {
 }
 
 test('кнопка языка меняет интерфейс и запоминает выбор', async ({ page }) => {
-  await openApp(page, { demo: 'max' });
+  /*
+   * Свои данные, а не демо: в демо выбор языка НЕ запоминается намеренно (см.
+   * следующий тест), и проверка «переживает перезагрузку» там доказывала бы
+   * обратное тому, что приложение обещает.
+   */
+  await openApp(page);
+  await onboard(page);
   await tab(page, 'Settings').click();
 
   const tabbar = page.locator('.tabbar');
@@ -100,4 +106,29 @@ test('кнопка языка меняет интерфейс и запомин�
   await tab(page, 'Настройки').click();
   await page.locator('.sset__lang').getByRole('button', { name: 'English' }).click();
   await expect(page.locator('.tabbar')).toContainText('Priorities');
+});
+
+test('язык, выбранный гостем в демо, не остаётся у владельца', async ({ page }) => {
+  /*
+   * Демо не оставляет следов на устройстве. Язык — единственное, что проходит
+   * мимо подменённого хранилища (он нужен до первой отрисовки), поэтому у него
+   * свой заслон: src/platform/language.ts, ставится из main.tsx.
+   *
+   * `lang: ''` снимает параметр с адреса: с прибитым языком тест не увидел бы
+   * ничего, потому что параметр стоит выше сохранённого выбора.
+   */
+  await openApp(page, { lang: '' });
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await expect(page.getByRole('button', { name: 'Skip' })).toBeVisible();
+
+  await openApp(page, { demo: 'max' });
+  await tab(page, 'Settings').click();
+  await page.locator('.sset__lang').getByRole('button', { name: 'Русский' }).click();
+  // Внутри сеанса переключение работает как обычно: гостю показывают приложение
+  // на его языке — гасится только запись на устройство.
+  await expect(page.locator('.tabbar')).toContainText('Приоритеты');
+
+  await openApp(page, { lang: '' });
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await expect(page.getByRole('button', { name: 'Skip' })).toBeVisible();
 });

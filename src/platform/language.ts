@@ -20,6 +20,31 @@
 
 const KEY = 'mypri:lang';
 
+/**
+ * Запись запрещена до конца сеанса. Ставится один раз в main.tsx, в демо.
+ *
+ * Флаг, а не импорт demo/mode: этот модуль лежит под i18n, а i18n собирают
+ * нодой загрузчики документации и все тесты. Тянуть сюда demo/mode значило бы
+ * тянуть за ним telegram/sdk — ради одного булева значения, которое ровно один
+ * раз выставляет точка сборки.
+ */
+let sealed = false;
+
+/**
+ * Демо не оставляет следов на устройстве.
+ *
+ * Язык — единственное, что проходит мимо подменённого хранилища
+ * (store/local/db.ts): он нужен ДО первой отрисовки, а стор поднимается
+ * асинхронно. Значит границу приходится ставить отдельно и здесь, иначе гость,
+ * переключивший язык, оставляет владельцу телефон на своём.
+ *
+ * Гасится только запись: смена языка внутри сеанса демо работает как обычно —
+ * человеку показывают приложение, и показывать его надо на понятном ему языке.
+ */
+export function sealLanguage(): void {
+  sealed = true;
+}
+
 export function readLanguage(): string | undefined {
   try {
     return localStorage.getItem(KEY) ?? undefined;
@@ -30,6 +55,7 @@ export function readLanguage(): string | undefined {
 }
 
 export function saveLanguage(code: string): void {
+  if (sealed) return;
   try {
     localStorage.setItem(KEY, code);
   } catch {

@@ -158,6 +158,8 @@ export const enStrings = {
   'stats.dayEmpty': 'Nothing marked on this day',
   'stats.chargeTitle': 'Charge',
   'stats.chargeEmpty': 'You have not marked your battery yet.',
+  /* Первая отметка длится ноль минут, пока не прошла минута: см. StatsScreen. */
+  'stats.chargeFresh': 'The clock is running: the first mark has not added up to any time yet.',
   'stats.archived': 'archived',
   'stats.noData': 'no data',
   'stats.energyTitle': 'How your energy moved',
@@ -734,4 +736,6 @@ export const enFormats = {
   numberLocale: 'en-US',
   /** The month leads: «Aug 21» against «21 августа». */
   dayMonth: (day: number, month: string): string => `${month} ${day}`,
+  /** The same date once the year has to be named: «Aug 21, 2025». */
+  dayMonthYear: (day: number, month: string, year: number): string => `${month} ${day}, ${year}`,
 } as const;

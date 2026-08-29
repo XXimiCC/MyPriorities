@@ -86,8 +86,34 @@ export { expect };
  */
 export async function openApp(page: Page, params: Record<string, string> = {}): Promise<void> {
   const query = new URLSearchParams({ devkit: '0', lang: 'en', ...params });
+  /*
+   * Пустое значение снимает параметр вовсе. Нужно ровно одному тесту — тому,
+   * что проверяет, каким язык окажется САМ: с прибитым `?lang=` сохранённый
+   * выбор не виден, потому что параметр стоит выше него (src/i18n/index.ts).
+   */
+  for (const [key, value] of [...query]) if (value === '') query.delete(key);
   await page.goto(`/?${query.toString()}`, { waitUntil: 'domcontentloaded' });
   await page.locator(READY).waitFor();
+}
+
+/**
+ * Отвечать «да» на системные вопросы и закрывать сообщения.
+ *
+ * Вне Telegram confirmDialog и alertDialog — это window.confirm и window.alert
+ * (src/telegram/sdk.ts), а Playwright по умолчанию их ОТКЛОНЯЕТ. Без этого
+ * обработчика «Импортировать?» молча получает «нет», и тест проверяет
+ * несостоявшееся действие, ничего при этом не замечая.
+ *
+ * Возвращается список заданных вопросов: сообщение об итоге импорта — это
+ * единственное место, где приложение отчитывается о том, что именно приехало.
+ */
+export function acceptDialogs(page: Page): string[] {
+  const asked: string[] = [];
+  page.on('dialog', (dialog) => {
+    asked.push(dialog.message());
+    void dialog.accept();
+  });
+  return asked;
 }
 
 /**

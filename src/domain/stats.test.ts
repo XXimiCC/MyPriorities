@@ -438,6 +438,46 @@ describe('длительности состояний батареи', () => {
     const stats = computeBatteryStats(journal, ['2026-08-01'], NOW);
     expect(stats.perDayMinutes['2026-08-01']).toEqual({ 1: 0, 2: 0, 3: 0, 4: 0 });
   });
+
+  /*
+   * «Отмечали ли» и «набежало ли время» — разные вопросы, и путать их дороже
+   * всего в первую минуту: экран статистики иначе отвечает «вы ещё не отмечали»
+   * тому, кто отметил секунду назад.
+   */
+  describe('признак «заряд отмечали»', () => {
+    it('пустой журнал — не отмечали', () => {
+      const stats = computeBatteryStats(journalOf({}), ['2026-07-30', '2026-07-31'], NOW);
+      expect(stats.marked).toBe(false);
+    });
+
+    it('отметка, поставленная только что, — уже отмечали, хотя минут ноль', () => {
+      // Сейчас 12:00, отметка минутой в 720: длительность честно нулевая.
+      const journal = journalOf({}, { '2026-07-31': [[720, 3]] });
+      const stats = computeBatteryStats(journal, ['2026-07-31'], NOW);
+
+      expect(stats.totalMinutes).toBe(0);
+      expect(stats.marked).toBe(true);
+    });
+
+    it('состояние, унаследованное с прошлых суток, тоже считается известным', () => {
+      const journal = journalOf({}, { '2026-07-29': [[600, 2]] });
+      const stats = computeBatteryStats(journal, ['2026-07-31'], NOW);
+      expect(stats.marked).toBe(true);
+    });
+
+    it('отметки за пределами периода в него не протекают', () => {
+      // Отметка сделана 1 августа, период — только 30 июля: до неё заряд
+      // не был известен, и «отмечали» для этого периода неправда.
+      const journal = journalOf({}, { '2026-08-01': [[600, 2]] });
+      const stats = computeBatteryStats(journal, ['2026-07-30'], NOW);
+      expect(stats.marked).toBe(false);
+    });
+
+    it('будущий день периода «всё время» сам по себе ничего не отмечает', () => {
+      const stats = computeBatteryStats(journalOf({}), ['2026-08-01'], NOW);
+      expect(stats.marked).toBe(false);
+    });
+  });
 });
 
 describe('текущий уровень заряда', () => {

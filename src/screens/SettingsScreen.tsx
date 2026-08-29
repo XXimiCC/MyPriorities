@@ -6,7 +6,7 @@ import { HeaderBattery } from '../components/HeaderBattery';
 import { Toggle } from '../components/Toggle';
 import { SECRET_HOLD_MS, useLongPress } from '../components/useLongPress';
 import { revealDevkit } from '../devkitHost';
-import { formatDayShort, formatMinutes } from '../domain/date';
+import { formatDayFull, formatMinutes } from '../domain/date';
 import { findPreset } from '../domain/presets';
 import { computeStats, earliestDay, periodDays } from '../domain/stats';
 import { PERIODS } from '../domain/periods';
@@ -401,7 +401,7 @@ export function SettingsScreen({ onPresets, onAchievements, onDemo, onBrand }: P
           </li>
           <li>
             <span>{t('settings.since')}</span>
-            <b>{since ? formatDayShort(since) : t('common.nothing')}</b>
+            <b>{since ? formatDayFull(since) : t('common.nothing')}</b>
           </li>
           {/* Горизонт хранения был свойством прежней схемы: тринадцать месяцев
               брались из числа ключей в CloudStorage. У журнала такого предела

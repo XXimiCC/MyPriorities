@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 
-import { formatDayShort } from '../domain/date';
+import { formatDayFull } from '../domain/date';
 import { modulesOf } from '../domain/types';
 import { t } from '../i18n';
 import { AchievementSheet } from '../achievements/AchievementSheet';
@@ -106,7 +106,7 @@ export function AchievementsScreen(): JSX.Element {
                         ))}
                       </svg>
                       <b>{titleOf(item)}</b>
-                      <small>{day ? formatDayShort(day) : t('ach.locked')}</small>
+                      <small>{day ? formatDayFull(day) : t('ach.locked')}</small>
                     </button>
                   </li>
                 );

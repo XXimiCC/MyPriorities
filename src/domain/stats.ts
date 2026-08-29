@@ -252,6 +252,15 @@ export interface BatteryStats {
   /** Минуты по каждому уровню за период. */
   minutes: Record<BatteryLevel, number>;
   totalMinutes: number;
+  /**
+   * Был ли заряд известен хоть в какой-то момент периода.
+   *
+   * Не то же самое, что `totalMinutes > 0`, и различие видно ровно в ту минуту,
+   * когда отметку поставили: текущие сутки считаются только до «сейчас», и
+   * свежая отметка честно длится ноль минут. По длительности такой период
+   * неотличим от «никогда не отмечали», а для человека это разные вещи.
+   */
+  marked: boolean;
   /** Доминирующий уровень каждого дня периода — для полоски по дням. */
   perDay: Record<DayKey, BatteryLevel | null>;
   /** Минуты по уровням внутри каждого дня — из них строится график энергии. */
@@ -314,6 +323,7 @@ export function computeBatteryStats(
   const perDay: Record<DayKey, BatteryLevel | null> = {};
   const perDayMinutes: Record<DayKey, Record<BatteryLevel, number>> = {};
   const today = todayKey(now);
+  let marked = false;
 
   for (const day of days) {
     if (day > today) {
@@ -336,6 +346,10 @@ export function computeBatteryStats(
         timeline.push([at, shift[1]]);
       }
     }
+
+    // Непустая шкала — это «заряд в этот день был известен», независимо от того,
+    // сколько минут успело набежать. Считается до обрезки по «сейчас» намеренно.
+    if (timeline.length > 0) marked = true;
 
     // Текущие сутки считаются только до «сейчас», иначе вечер записался бы авансом.
     const dayEnd = day === today ? minuteOfDay(now) : MINUTES_IN_DAY;
@@ -362,7 +376,7 @@ export function computeBatteryStats(
   }
 
   const totalMinutes = (Object.values(minutes) as number[]).reduce((sum, n) => sum + n, 0);
-  return { minutes, totalMinutes, perDay, perDayMinutes };
+  return { minutes, totalMinutes, marked, perDay, perDayMinutes };
 }
 
 /**

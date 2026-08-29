@@ -106,3 +106,42 @@ test('переход «на нуле» спрашивает, что съело �
   await expect(page.locator('.app__body')).toContainText('What drains your battery');
   await expect(page.locator('.blist').last().locator('.blist__title')).toHaveText('Work');
 });
+
+test('только что поставленная отметка не читается на статистике как «не отмечали»', async ({ page }) => {
+  /*
+   * Текущие сутки считаются только до «сейчас» (src/domain/stats.ts), поэтому
+   * свежая отметка честно длится ноль минут — и по длительности целый период
+   * неотличим от нетронутого. Разница между «ещё не отмечали» и «отметка есть,
+   * времени пока нет» видна ровно одну минуту, но в эту минуту экран говорил
+   * человеку, что он не сделал того, что только что сделал.
+   *
+   * Часы прогона стоят, поэтому «эта же минута» здесь длится весь тест.
+   */
+  await openApp(page);
+  await onboard(page);
+  await tab(page, 'Charge').click();
+  await page.locator('.charge__option').filter({ hasText: 'Full charge' }).click();
+
+  await tab(page, 'Stats').click();
+  const body = page.locator('.app__body');
+  // Заголовок раздела в разметке лежит как есть; в капс его поднимает CSS.
+  await expect(body).toContainText('Charge');
+  await expect(body).not.toContainText('You have not marked your battery yet');
+  await expect(body).toContainText('The clock is running');
+});
+
+test('ответ «что съело энергию» виден на статистике сразу, а не через минуту', async ({ page }) => {
+  await openApp(page);
+  await onboard(page);
+  await tab(page, 'Charge').click();
+
+  await page.locator('.charge__option').filter({ hasText: 'Running on empty' }).click();
+  const drain = page.getByRole('dialog');
+  await drain.getByRole('button', { name: 'Work' }).click();
+  await expect(drain).toBeHidden();
+
+  // Без перевода часов: разбор причин не зависит от длительности отметки.
+  await tab(page, 'Stats').click();
+  await expect(page.locator('.app__body')).toContainText('What drains your battery');
+  await expect(page.locator('.blist').last().locator('.blist__title')).toHaveText('Work');
+});

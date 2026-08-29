@@ -10,8 +10,9 @@
  *   guest — ?demo=max: гостевой режим, в который входят из настроек. Плашка
  *           сверху и урезанные настройки; `?mock=` их не урезает намеренно.
  *
- * Подписи берутся из ru.ts через labels.mjs: переименовали строку в приложении —
- * скрипт падает на отсутствующем ключе, а не снимает молча не тот экран.
+ * Подписи берутся из ru.ts через labels.mjs, а в английском прогоне — из en.ts:
+ * переименовали строку в приложении — скрипт падает на отсутствующем ключе, а не
+ * снимает молча не тот экран.
  *
  * Поля снимка:
  *   name     имя PNG в docs/public/shots (оно же ссылка в markdown)
@@ -22,15 +23,22 @@
  *   tall     распустить раскладку и снять длинный экран целиком
  */
 
-import { s, fmt } from './labels.mjs';
+import { s, fmt, ru, en } from './labels.mjs';
 
 // --- Общие локаторы -------------------------------------------------------
 
-const tabbar = (page) => page.getByRole('tablist', { name: s('app.title') });
-const periods = (page) => page.getByRole('tablist', { name: s('period.label') });
+/*
+ * Язык — последний аргумент, потому что нужен он одному прогону из семи.
+ * Английские кадры README ищут подписи в en.ts; все остальные вызовы остались
+ * русскими и выглядят ровно как раньше.
+ */
+const tabbar = (page, l = ru) => page.getByRole('tablist', { name: l.s('app.title') });
+const periods = (page, l = ru) => page.getByRole('tablist', { name: l.s('period.label') });
 
-const goTab = (page, key) => tabbar(page).getByRole('tab', { name: s(key) }).click();
-const setPeriod = (page, key) => periods(page).getByRole('tab', { name: s(key) }).click();
+const goTab = (page, key, l = ru) =>
+  tabbar(page, l).getByRole('tab', { name: l.s(key) }).click();
+const setPeriod = (page, key, l = ru) =>
+  periods(page, l).getByRole('tab', { name: l.s(key) }).click();
 
 const sheet = (page, title) => page.getByRole('dialog', { name: title });
 const chargeOption = (page, key) =>
@@ -614,14 +622,55 @@ const framed = [
  * Тот же постер по-английски — под фреймом страницы /en.
  *
  * Отдельный прогон, а не флаг у первого: язык задаётся адресом, а адрес у
- * прогона один. Локаторов здесь нет вовсе, поэтому английский экран снимается
- * тем же кодом, и labels.mjs остаётся русским, как и был.
+ * прогона один. Локаторов здесь нет вовсе, поэтому кадр снимается тем же кодом.
  */
 const framedEn = [
   {
     name: 'home-frame-en',
     note: 'То же самое под фреймом английской версии лендинга',
     setup: () => Promise.resolve(),
+  },
+];
+
+// --- Прогон G: английские кадры для README --------------------------------
+
+/*
+ * Те же четыре экрана, что стоят шапкой английского README, но по-английски.
+ *
+ * Раньше там висели русские кадры с припиской «скриншоты сделаны с русской
+ * сборки»: первое, что видел англоязычный читатель, — интерфейс на языке,
+ * которого он не знает. Профиль тот же, что у прогона «demo», иначе картинка
+ * в шапке разошлась бы с той, что описана в документации.
+ *
+ * Отдельный прогон, а не флаг у «demo»: язык задаётся адресом, а адрес у
+ * прогона один. Локаторы берут подписи из en.ts — русские в английском
+ * приложении не нашлись бы.
+ */
+const demoEn = [
+  {
+    name: 'home-today-en',
+    note: 'Шапка README.md: «Приоритеты» по-английски',
+  },
+  {
+    name: 'charge-list-en',
+    note: 'Шапка README.md: «Заряд» по-английски',
+    setup: (page) => goTab(page, 'tab.charge', en),
+    tall: true,
+  },
+  {
+    name: 'skills-list-en',
+    note: 'Шапка README.md: «Навыки» по-английски',
+    setup: (page) => goTab(page, 'tab.skills', en),
+    tall: true,
+  },
+  {
+    name: 'stats-month-en',
+    note: 'Шапка README.md: «Статистика» за 30 дней по-английски',
+    setup: async (page) => {
+      await goTab(page, 'tab.stats', en);
+      await setPeriod(page, 'period.month', en);
+    },
+    tall: true,
   },
 ];
 
@@ -633,4 +682,5 @@ export const RUNS = [
   { id: 'maxed', url: '/?mock=max', shots: maxed },
   { id: 'framed', url: '/?mock=max', shots: framed, viewport: FRAME },
   { id: 'framed-en', url: '/?mock=max&lang=en', shots: framedEn, viewport: FRAME },
+  { id: 'demo-en', url: '/?mock=1&lang=en', shots: demoEn },
 ];

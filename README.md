@@ -22,12 +22,12 @@ thirteen months of history and every screen filled with real numbers. Writing is
 disabled there; nothing is saved and nothing is sent anywhere.</sub>
 
 <p align="center">
-  <img src="docs/public/shots/home-today.png" width="205" alt="Priorities">
-  <img src="docs/public/shots/charge-list.png" width="205" alt="Charge">
-  <img src="docs/public/shots/skills-list.png" width="205" alt="Skills">
-  <img src="docs/public/shots/stats-month.png" width="205" alt="Statistics">
+  <img src="docs/public/shots/home-today-en.png" width="205" alt="Priorities">
+  <img src="docs/public/shots/charge-list-en.png" width="205" alt="Charge">
+  <img src="docs/public/shots/skills-list-en.png" width="205" alt="Skills">
+  <img src="docs/public/shots/stats-month-en.png" width="205" alt="Statistics">
 </p>
-<p align="center"><sub>Priorities · Charge · Skills · Statistics — the screenshots are the Russian build; the app also speaks English</sub></p>
+<p align="center"><sub>Priorities · Charge · Skills · Statistics</sub></p>
 
 **How it works.** You keep a list of directions: work, family, health, whatever
 matters to you. Gave one a focused block of time — tap “+”. One tap is half an

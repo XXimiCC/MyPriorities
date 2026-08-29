@@ -98,10 +98,25 @@ function anchorsOf(markdown: string): Set<string> {
   );
 }
 
+/**
+ * Где на кадры ссылаются: страницы документации и оба корневых README.
+ *
+ * README тоже часть поставки и тоже показывает кадры — английский свои,
+ * русский свои. Без него английская четвёрка из шапки не имела бы ни одной
+ * ссылки внутри docs/ и падала бы как «мёртвый кадр».
+ */
+function shotReferrers(): Array<{ file: string; text: string }> {
+  const readmes = ['README.md', 'README.ru.md'].map((file) => ({
+    file,
+    text: readFileSync(path.join(ROOT, file), 'utf8'),
+  }));
+  return [...markdownFiles(), ...readmes];
+}
+
 /** Имена кадров, на которые ссылается markdown. */
 function referencedShots(): Map<string, string[]> {
   const used = new Map<string, string[]>();
-  for (const { file, text } of markdownFiles()) {
+  for (const { file, text } of shotReferrers()) {
     for (const match of text.matchAll(/\/shots\/([\w-]+)\.png/g)) {
       const name = match[1]!;
       used.set(name, [...(used.get(name) ?? []), file]);

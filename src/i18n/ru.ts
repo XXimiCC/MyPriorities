@@ -153,6 +153,8 @@ export const ruStrings = {
   'stats.dayEmpty': 'В этот день ничего не отмечено',
   'stats.chargeTitle': 'Заряд',
   'stats.chargeEmpty': 'Состояние батареи ещё не отмечалось.',
+  /* Первая отметка длится ноль минут, пока не прошла минута: см. StatsScreen. */
+  'stats.chargeFresh': 'Часы идут: первая отметка ещё не набрала времени.',
   'stats.archived': 'архив',
   'stats.noData': 'нет данных',
   'stats.energyTitle': 'Как менялась энергия',
@@ -751,4 +753,7 @@ export const ruFormats = {
   numberLocale: 'ru-RU',
   /** Порядок частей у языков разный: «21 августа» против «August 21». */
   dayMonth: (day: number, month: string): string => `${day} ${month}`,
+  /** Та же дата, когда год приходится назвать: «21 августа 2025». Без «г.»:
+      в подписи под достижением сокращение только шумит. */
+  dayMonthYear: (day: number, month: string, year: number): string => `${day} ${month} ${year}`,
 } as const;

@@ -29,6 +29,7 @@ import { DEMO_MODE, GUEST_MODE } from './demo/mode';
 import { mountDevkit } from './devkit';
 import { readDiagnosticSnapshot } from './devkitHost';
 import { useLocale } from './i18n/useLocale';
+import { sealLanguage } from './platform/language';
 import { StoreProvider } from './store/useStore';
 import { ensureSession } from './sync/auth';
 import {
@@ -83,6 +84,16 @@ function Root(): JSX.Element {
 export function start(): void {
   // До первого рендера: клиент должен успеть перекрасить шапку и отдать безопасные зоны.
   initTelegram();
+
+  /*
+   * Граница демо для языка. Всё остальное подменяется хранилищем целиком
+   * (store/local/db.ts), но выбранный язык ходит мимо: он нужен до первой
+   * отрисовки, а стор поднимается асинхронно. Отсюда и второй заслон.
+   *
+   * Стоит здесь, а не внутри platform/language.ts: под i18n тянуть demo/mode
+   * нельзя — этот модуль собирают нодой загрузчики документации.
+   */
+  if (DEMO_MODE) sealLanguage();
 
   /**
    * Кэш приложения — только в обычном браузере и только на верхнем уровне.

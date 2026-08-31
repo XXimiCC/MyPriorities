@@ -27,6 +27,8 @@ export interface LocaleFormats {
   decimal: string;
   numberLocale: string;
   dayMonth(day: number, month: string): string;
+  /** Та же дата с годом: нужна там, где прошлое не ограничено этим годом. */
+  dayMonthYear(day: number, month: string, year: number): string;
 }
 
 export interface Locale {

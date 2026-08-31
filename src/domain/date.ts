@@ -106,6 +106,28 @@ export function formatDayShort(key: DayKey): string {
   return dayMonth(d.getDate(), months[d.getMonth()] ?? '');
 }
 
+/**
+ * То же число, но с годом, когда год не текущий: «21 августа» и «21 августа 2025».
+ *
+ * Нужна там, где прошлое ничем не ограничено: дата открытия достижения и начало
+ * истории уходят на годы назад, и без года «31 августа» у человека со стажем
+ * читается как дата этого года — иногда как ещё не наступившая. В лентах на
+ * четырнадцать и тридцать дней год не нужен и только съедал бы место: там
+ * остаётся formatDayShort.
+ *
+ * Год берётся у «сейчас», а не у сегодняшнего дня в сторе: подпись обновляется
+ * при отрисовке, как и всё в этом файле, а расхождение на новогоднюю ночь
+ * стоит ровно одного лишнего года в строке.
+ */
+export function formatDayFull(key: DayKey, now: Date = new Date()): string {
+  const d = parseDayKey(key);
+  const { months, dayMonth, dayMonthYear } = formats();
+  const month = months[d.getMonth()] ?? '';
+  return d.getFullYear() === now.getFullYear()
+    ? dayMonth(d.getDate(), month)
+    : dayMonthYear(d.getDate(), month, d.getFullYear());
+}
+
 export function weekdayShort(key: DayKey): string {
   return formats().weekdays[parseDayKey(key).getDay()] ?? '';
 }

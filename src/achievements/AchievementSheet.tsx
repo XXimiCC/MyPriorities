@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import { Sheet } from '../components/Sheet';
-import { formatDayShort } from '../domain/date';
+import { formatDayFull } from '../domain/date';
 import { t } from '../i18n';
 import { alertDialog, confirmDialog, haptics } from '../telegram/sdk';
 import { canvasToBlob, saveFile, waitForFonts } from '../wallpaper/save';
@@ -38,7 +38,7 @@ export function AchievementSheet({ item, gotOn, note, onClose, onMark, onUnmark 
           height: CARD_HEIGHT,
           title: titleOf(item),
           note,
-          footer: gotOn ? t('ach.gotOn', { day: formatDayShort(gotOn) }) : t('ach.locked'),
+          footer: gotOn ? t('ach.gotOn', { day: formatDayFull(gotOn) }) : t('ach.locked'),
           eyebrow: t(`ach.g.${item.group}`),
           accent: color.hex,
           accentSoft: color.soft,
@@ -71,7 +71,7 @@ export function AchievementSheet({ item, gotOn, note, onClose, onMark, onUnmark 
           <b className="achs__title">{titleOf(item)}</b>
           <p className="achs__note">{note}</p>
           <p className="achs__meta">
-            {gotOn ? t('ach.gotOn', { day: formatDayShort(gotOn) }) : t('ach.locked')}
+            {gotOn ? t('ach.gotOn', { day: formatDayFull(gotOn) }) : t('ach.locked')}
           </p>
           <p className="achs__kind">
             {item.kind === 'auto' && t('ach.autoNote')}

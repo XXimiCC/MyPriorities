@@ -180,3 +180,65 @@
   line-height: 1.5;
   color: var(--text-dim);
 }
+
+/* Ссылка в демо под заглушкой наблюдений. Подчёркнута и набрана строчными:
+   это единственное место на экране, откуда уходят, и выглядеть кнопкой ей
+   нельзя — рядом стоит текст, который никуда не ведёт. */
+
+.ins__demo {
+  align-self: flex-start;
+  padding: 2px;
+  font-size: 12px;
+  color: var(--text-dim);
+  text-decoration: underline;
+  text-decoration-color: var(--hairline-strong);
+  text-underline-offset: 3px;
+}
+
+/* --- «Только это устройство» ---
+
+   Жёлтый контур, а не красный: это не ошибка и не опасная кнопка, а факт,
+   которого человек мог не знать. Тем же цветом покрашена строка «Где хранятся»
+   в настройках — там он и говорится впервые. */
+
+.lonly {
+  margin-top: var(--s-5);
+  padding: 13px 14px;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--battery-mid) 30%, transparent);
+}
+
+.lonly__text {
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+.lonly__acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  margin-top: 11px;
+}
+
+.lonly__act {
+  padding: 8px 13px;
+  border-radius: var(--r-sm);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-medium);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+}
+
+.lonly__act:disabled {
+  color: var(--text-faint);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+/* «Закрыть» стоит в одном ряду с действиями, но не спорит с ними: отказ — тоже
+   ответ, и прятать его в углу значило бы делать строку неотвязной. */
+.lonly__act--quiet {
+  color: var(--text-faint);
+  box-shadow: none;
+}

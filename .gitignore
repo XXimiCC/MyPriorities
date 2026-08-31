@@ -32,6 +32,12 @@ worker/.wrangler/
 # Личные настройки Claude Code: у каждого свои, общими им быть незачем.
 .claude/settings.local.json
 
+# Оснастка разовой съёмки сдаваемой фичи (.claude/skills/feature-handoff):
+# кадры и скрипт под одну задачу, а не исходники. Постоянные кадры
+# документации лежат в docs/public/shots и снимаются tools/shots/scenarios.mjs.
+.shots/
+tools/shots/*.local.mjs
+
 .vercel/
 *.log
 npm-debug.log*

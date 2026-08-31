@@ -213,7 +213,7 @@ export const enStrings = {
   'skills.hint': 'The color shows how much you added over 30 days. Tap a skill to see the whole ladder and set it up.',
   'skills.total': 'Total —',
   'skills.add': 'Add a skill',
-  'skills.limit': 'Up to {max} skills',
+  'skills.limit': 'Up to {max} {maxUnit}',
   'skills.addBlock': 'Add {minutes} minutes: {title}',
   'skills.blocksToday': '{count} {unit} today',
   'skills.formTitle': 'Skill',

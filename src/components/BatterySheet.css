@@ -52,3 +52,8 @@
   color: var(--text-faint);
   text-align: center;
 }
+
+/* Плитки заперты, пока в утренней шторке стоит время, которое ничего не чинит. */
+.bsheet__item:disabled {
+  opacity: 0.4;
+}

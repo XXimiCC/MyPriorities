@@ -6,6 +6,7 @@ import { BRAND_ASKED } from './brandkit/entry';
 import { BatteryPromptProvider } from './components/BatteryPrompt';
 import { DemoBar } from './components/DemoBar';
 import { LazyBoundary } from './components/LazyBoundary';
+import { NightSheet } from './components/NightSheet';
 import { AchievementsScreen } from './screens/AchievementsScreen';
 import { ChargeScreen } from './screens/ChargeScreen';
 import { DemoScreen } from './screens/DemoScreen';
@@ -247,6 +248,10 @@ export function App(): JSX.Element {
             </button>
           ))}
         </nav>
+
+        {/* Утренний вопрос про ночь. Здесь, а не на экране «Заряд»: ночь не
+            отмечена независимо от того, на какой вкладке открыли приложение. */}
+        <NightSheet />
 
         {modules.achievements && (
           <>

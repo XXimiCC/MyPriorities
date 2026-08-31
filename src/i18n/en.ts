@@ -109,6 +109,12 @@ export const enStrings = {
   'charge.shiftNote': 'Put in the time the state really changed — the durations recalculate themselves.',
   'charge.shiftFuture': 'That time has not come yet. You can only mark what has already happened.',
   'charge.shiftDelete': 'Delete mark',
+  'charge.nightTitle': 'The night is not marked',
+  'charge.nightNote': 'Your last mark was over five hours ago — all of that time counts as that state, sleep included.',
+  'charge.nightBedtime': 'Asleep from',
+  'charge.nightHint': 'Tapping a state writes both marks.',
+  'charge.nightEarly': 'That is not later than your last mark — it would change nothing.',
+  'charge.nightPick': 'And right now',
   'charge.sheetTitle': 'How much charge',
   'charge.sheetHint': 'Change the state when it really changed — the stats count the time between switches.',
 

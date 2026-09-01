@@ -10,6 +10,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { ACHIEVEMENTS } from '../achievements/registry';
+import { findPreset } from '../domain/presets';
 import { exportSnapshot, parseSnapshot } from '../domain/snapshot';
 import { blockMinutesOf, MAX_PRIORITIES, type BatteryShift } from '../domain/types';
 import { MAX_ARCHIVED } from '../domain/settings';
@@ -244,5 +245,21 @@ describe('профиль «Первая неделя»', () => {
 
   it('ничего не выдано руками — достижения открывает автоматика', () => {
     expect(contentsOf('start').awards).toEqual({});
+  });
+});
+
+describe('мост в свои приоритеты', () => {
+  /*
+   * Вышедшему из демо онбординг предлагает тот набор, на котором это демо и
+   * построено (`screens/PresetsScreen.tsx`). Связь держится на строке: тип у
+   * `presetId` обычный `string`, и переименованный сборник оборвал бы мост
+   * молча — список просто вернулся бы к обычному порядку без подсказки.
+   */
+  it('набор каждого профиля назван и существует', () => {
+    for (const profile of DEMO_PROFILES) {
+      const id = profile.script.presetId;
+      expect(id, `${profile.id}: набор не назван`).toBeDefined();
+      expect(findPreset(id), `${profile.id}: набора «${id}» нет среди сборников`).toBeDefined();
+    }
   });
 });

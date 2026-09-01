@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import { BatteryIcon } from '../components/BatteryIcon';
+import { FROM_DEMO } from '../demo/mode';
 import { NEON_PALETTE, colorOf } from '../domain/palette';
 import { DEFAULT_BLOCK_MINUTES } from '../domain/types';
 import { t, type StringKey } from '../i18n';
@@ -96,6 +97,13 @@ export function OnboardingScreen(): JSX.Element {
       </header>
 
       <div className="app__body onb__body">
+        {/*
+          Шов между чужой историей и собственным пустым экраном. Только на
+          первом шаге и только для вышедшего из демо: сказать «дальше твоя
+          история» нужно там, где чужая только что закрылась, а не на каждом
+          слайде.
+        */}
+        {FROM_DEMO && step === 0 && <p className="onb__bridge">{t('onb.fromDemo')}</p>}
         <div className="onb__art">{slide.art}</div>
         <p className="eyebrow onb__eyebrow">{t(slide.eyebrow)}</p>
         <h2 className="onb__title">{t(slide.title)}</h2>

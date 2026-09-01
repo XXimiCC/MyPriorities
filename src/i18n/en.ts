@@ -82,8 +82,10 @@ export const enStrings = {
   // --- Presets ---
   'presets.title': 'Presets',
   'presets.intro': 'Where do we start? Take a ready-made set that fits your kind of life — you can reorder, rename and recolor all of it later.',
+  'presets.introFromDemo': 'The set the demo was built on is already marked — an easy place to start. Any other one is the same single tap away, and all of it can be reordered, renamed and recolored later.',
   'presets.hint': 'Ready-made priority sets for different kinds of life. Take one whole, then tune it to yourself.',
   'presets.current': 'In use',
+  'presets.fromDemo': 'From the demo',
   'presets.apply': 'Use this set',
   'presets.applyConfirm': 'Replace your current priorities with “{name}”? Collected time stays — priorities whose names match keep their history.',
 
@@ -509,12 +511,14 @@ export const enStrings = {
   'demo.bar': 'Demo',
   'demo.exit': 'Exit',
   'demo.exitConfirm': 'Leave the demo and go back to your own priorities?',
+  'demo.exitConfirmFresh': 'Leave the demo and start your own?',
   'demo.whereDemo': 'Nowhere: this is a demo',
 
   // --- Onboarding ---
   'onb.skip': 'Skip',
   'onb.next': 'Next',
   'onb.start': 'Pick your priorities',
+  'onb.fromDemo': 'The demo is closed. What comes next is your own story: it is built out of your marks, not somebody else’s.',
   'onb.1.eyebrow': 'Why this exists',
   'onb.1.title': 'Where your life actually goes',
   'onb.1.text': 'Plans lie, marks do not. The app will not tell you how to live: it shows how you live already, and lets you see the tilt with your own eyes.',

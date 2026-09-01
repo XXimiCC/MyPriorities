@@ -12,6 +12,7 @@ import {
   dailyBreakdown,
   drainCounts,
   fillFraction,
+  initialPeriod,
   nearestChargeLevel,
   periodDays,
 } from './stats';
@@ -71,6 +72,33 @@ describe('periodDays', () => {
     expect(days[0]).toBe('2026-07-26');
     expect(days[days.length - 1]).toBe('2026-07-31');
     expect(days).toHaveLength(6);
+  });
+});
+
+describe('период, на котором открывается статистика', () => {
+  it('на пустом журнале это «7 дней»: показывать нечего ни в каком окне', () => {
+    expect(initialPeriod(journalOf({}), NOW)).toBe('week');
+  });
+
+  it('с отметками в последних семи днях это «7 дней»', () => {
+    // 28 июля — внутри окна 25–31 июля.
+    expect(initialPeriod(journalOf({ '2026-07-28': { a: 3 } }), NOW)).toBe('week');
+  });
+
+  it('вернувшемуся на восьмой день открывается «всё время»', () => {
+    // 24 июля — ровно за краем окна: единственный день истории.
+    expect(initialPeriod(journalOf({ '2026-07-24': { a: 6 } }), NOW)).toBe('all');
+  });
+
+  it('отметка батареи в окне — тоже отметка', () => {
+    const journal = journalOf({ '2026-07-24': { a: 6 } }, { '2026-07-29': [[600, 3]] });
+    expect(initialPeriod(journal, NOW)).toBe('week');
+  });
+
+  it('день с нулём блоков за отметку не считается', () => {
+    // Такие дни остаются в журнале после того, как счётчик увели обратно в ноль.
+    const journal = journalOf({ '2026-07-24': { a: 6 }, '2026-07-29': { a: 0 } });
+    expect(initialPeriod(journal, NOW)).toBe('all');
   });
 });
 

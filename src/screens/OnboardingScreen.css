@@ -24,6 +24,19 @@
   margin-bottom: auto;
 }
 
+/*
+ * Шов после демо. Полоса слева, а не рамка вокруг: карточка на первом же
+ * экране спорила бы за внимание с иллюстрацией, ради которой этот шаг и есть.
+ */
+.onb__bridge {
+  margin-bottom: 26px;
+  padding-left: 12px;
+  border-left: 2px solid var(--hairline-strong);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
 .onb__art {
   display: grid;
   place-items: center;

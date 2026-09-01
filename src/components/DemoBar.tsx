@@ -2,6 +2,7 @@ import { colorOf } from '../domain/palette';
 import { DEMO_ID, GUEST_MODE, leaveDemo } from '../demo/mode';
 import { findProfile } from '../demo/profiles';
 import { t } from '../i18n';
+import { usedBefore } from '../store/local/db';
 import { confirmDialog, haptics } from '../telegram/sdk';
 import './DemoBar.css';
 
@@ -22,7 +23,13 @@ export function DemoBar(): JSX.Element | null {
 
   const exit = (): void => {
     void (async () => {
-      if (!(await confirmDialog(t('demo.exitConfirm')))) return;
+      /*
+       * «Вернуться к своим приоритетам» верно только для того, у кого они есть.
+       * Человек, впервые открывший приложение по демо-ссылке, возвращаться
+       * никуда не может: за плашкой у него пустой кабинет и онбординг.
+       */
+      const key = usedBefore() ? 'demo.exitConfirm' : 'demo.exitConfirmFresh';
+      if (!(await confirmDialog(t(key)))) return;
       haptics.tap();
       leaveDemo();
     })();

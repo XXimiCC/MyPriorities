@@ -34,6 +34,19 @@ const MIN_BUCKET_DAYS = 3;
 const MIN_SPLIT_BLOCKS = 6;
 const MIN_PREV_WEEK_BLOCKS = 10;
 const MIN_QUIET_BLOCKS = 8;
+/**
+ * Дней истории, без которых сравнение недель молчит.
+ *
+ * Порог по блокам смотрит внутрь окна, а не на то, существовало ли окно целиком:
+ * prev7 — календарные дни с 13-го по 7-й назад, и у человека, поставившего
+ * приложение неделю назад, половина этого окна приходится на дни, когда
+ * приложения у него не было. `spanDays` считает оба конца, поэтому четырнадцать —
+ * ровно тот день, когда первая запись дотягивается до начала окна. При
+ * тринадцати «на прошлой неделе было столько-то» уже утверждение о днях,
+ * которых в журнале нет. Домножать неполную неделю до целой нельзя по той же
+ * причине: это та же неправда, только тише.
+ */
+const MIN_WEEK_SPAN_DAYS = 14;
 const MIN_WEEKEND_BLOCKS = 20;
 const MIN_WEEKDAY_DAYS = 5;
 const MIN_WEEKEND_DAYS = 2;
@@ -144,8 +157,13 @@ function rates(split: ChargeSplit, id: string): [number, number] | undefined {
   return [low / split.lowDays, high / split.highDays];
 }
 
-/** Неделя против предыдущей. Окна стыкуются встык, поэтому сравнение честное. */
+/**
+ * Неделя против предыдущей. Окна стыкуются встык, поэтому сравнение честное —
+ * но только там, где предыдущая неделя прожита с приложением от первого дня
+ * до последнего.
+ */
 function weekOverWeekInsight(settings: Settings, derived: Derived): Insight | undefined {
+  if (derived.spanDays < MIN_WEEK_SPAN_DAYS) return undefined;
   if (derived.prev7.totalBlocks < MIN_PREV_WEEK_BLOCKS) return undefined;
 
   const blockMinutes = blockMinutesOf(settings);

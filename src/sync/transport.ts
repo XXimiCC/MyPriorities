@@ -29,6 +29,12 @@ export interface MiniAppLogin {
   initData: string;
   deviceId: string;
   platform?: string;
+  /**
+   * Откуда пришёл человек — `sync/source.ts`. Метка едет вместе со входом,
+   * потому что записывать её всё равно некуда, кроме как в профиль, а профиль
+   * заводится ровно здесь.
+   */
+  source?: string;
 }
 
 /** Вход из браузера: код меняет на сессию сервер, у него есть клиентский секрет. */
@@ -39,6 +45,7 @@ export interface OidcLogin {
   redirectUri: string;
   deviceId: string;
   platform?: string;
+  source?: string;
 }
 
 export type LoginInput = MiniAppLogin | OidcLogin;

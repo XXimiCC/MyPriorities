@@ -37,15 +37,18 @@ const OFF = 'off';
 /** Префикс ссылки-приглашения: `t.me/<бот>/app?startapp=demo_f`. */
 const START_PREFIX = 'demo_';
 
-interface Entry {
+export interface Entry {
   id: DemoId;
   guest: boolean;
 }
 
-function resolve(): Entry | undefined {
-  if (typeof window === 'undefined') return undefined;
-
-  const query = new URLSearchParams(window.location.search);
+/**
+ * Сам разбор — без обращения к `window`: адрес и хвост ссылки приходят
+ * аргументами, и потому проверяются обычным тестом в node. Спрашивает окно один
+ * вызов ниже, и это единственное место в каталоге, которое про окно знает.
+ */
+export function resolveEntry(search: string, start: string | undefined): Entry | undefined {
+  const query = new URLSearchParams(search);
   const asked = query.get(PARAM);
   if (asked === OFF) return undefined;
 
@@ -59,15 +62,16 @@ function resolve(): Entry | undefined {
     return { id: named?.id ?? 'm', guest: false };
   }
 
-  if (startParam?.startsWith(START_PREFIX)) {
-    const invited = findProfile(startParam.slice(START_PREFIX.length));
+  if (start?.startsWith(START_PREFIX)) {
+    const invited = findProfile(start.slice(START_PREFIX.length));
     if (invited) return { id: invited.id, guest: true };
   }
 
   return undefined;
 }
 
-const entry = resolve();
+const entry =
+  typeof window === 'undefined' ? undefined : resolveEntry(window.location.search, startParam);
 
 /** Какой набор загружен. null — обычная работа с настоящими данными. */
 export const DEMO_ID: DemoId | null = entry?.id ?? null;

@@ -29,7 +29,26 @@ export interface Usage {
   estimatedBytes: number;
   /** Сколько тикетов из панели отладки ждёт разбора. */
   openTickets: number;
+  /**
+   * Откуда пришли люди: метка канала и сколько профилей она привела за всё
+   * время. Без метки в списке нет — их число видно вычитанием из общего.
+   */
+  sources: Channel[];
 }
+
+export interface Channel {
+  name: string;
+  count: number;
+}
+
+/**
+ * Сколько каналов печатать.
+ *
+ * Отчёт читают одной строкой в переписке, и хвост из двадцати меток с
+ * единицами читать перестают целиком. Крупные каналы — то, ради чего метка
+ * заводилась.
+ */
+const TOP_CHANNELS = 8;
 
 /** Средний вес строки журнала с индексами. Проверяется по факту, а не гадается вечно. */
 const BYTES_PER_OP = 250;
@@ -41,12 +60,27 @@ export async function collectUsage(env: Env): Promise<Usage> {
     return Number(row?.n ?? 0);
   };
 
-  const [users, devices, ops, snapshots, openTickets] = await Promise.all([
+  const channels = async (): Promise<Channel[]> => {
+    /* Сортировка по имени вторым ключом — не педантизм: без неё каналы с равным
+       числом каждую ночь встают в новом порядке, и отчёт выглядит изменившимся
+       там, где ничего не менялось. */
+    const rows = await env.DB.prepare(
+      `select source as name, count(*) as n from profiles
+       where source is not null
+       group by source order by n desc, source limit ?`,
+    )
+      .bind(TOP_CHANNELS)
+      .all<{ name: string; n: number }>();
+    return (rows.results ?? []).map((row) => ({ name: row.name, count: Number(row.n) }));
+  };
+
+  const [users, devices, ops, snapshots, openTickets, sources] = await Promise.all([
     one('select count(*) as n from profiles'),
     one('select count(*) as n from devices'),
     one('select count(*) as n from ops'),
     one('select count(*) as n from month_snapshots'),
     countOpenTickets(env),
+    channels(),
   ]);
 
   return {
@@ -56,6 +90,7 @@ export async function collectUsage(env: Env): Promise<Usage> {
     snapshots,
     estimatedBytes: ops * BYTES_PER_OP + snapshots * BYTES_PER_SNAPSHOT,
     openTickets,
+    sources,
   };
 }
 
@@ -71,6 +106,12 @@ export function formatReport(usage: Usage): string {
     share >= WARN_AT ? '<b>⚠️ База подходит к потолку</b>' : '<b>MyPriorities — ночной отчёт</b>',
     '',
     `Людей: ${usage.users}, устройств: ${usage.devices}`,
+    /* Строка появляется только когда есть о чём говорить. До первой размеченной
+       ссылки метка не приводила никого, и «Откуда пришли: —» каждую ночь учит
+       не читать отчёт целиком. */
+    ...(usage.sources.length > 0
+      ? [`Откуда пришли: ${usage.sources.map((one) => `${one.name} — ${one.count}`).join(', ')}`]
+      : []),
     `Операций: ${usage.ops}, свёрток: ${usage.snapshots}`,
     `Занято примерно ${mb(usage.estimatedBytes)} из 5 ГБ (${(share * 100).toFixed(1)} %)`,
   ];

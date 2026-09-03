@@ -30,6 +30,26 @@ function requireDeviceId(raw: unknown): string {
   return raw;
 }
 
+/** Та же форма метки источника, что и на клиенте (src/sync/source.ts). */
+const SOURCE_PATTERN = /^[a-z0-9][a-z0-9_-]{0,31}$/;
+
+/**
+ * Метка источника из запроса входа.
+ *
+ * Мусор молча отбрасывается, а не роняет вход: метка — справка о том, откуда
+ * человек пришёл, и отказать ему во входе из-за кривой ссылки было бы обменом
+ * работающего продукта на строчку в отчёте.
+ *
+ * Проверка повторяет клиентскую, а не доверяет ей: тело запроса приходит из
+ * сети. Алфавит узкий не для красоты — значение печатается в ночном отчёте,
+ * который уходит в Telegram разметкой HTML.
+ */
+export function sanitizeSource(raw: unknown): string | undefined {
+  if (typeof raw !== 'string') return undefined;
+  const value = raw.trim().toLowerCase();
+  return SOURCE_PATTERN.test(value) ? value : undefined;
+}
+
 function iso(seconds: number): string {
   return new Date(seconds * 1000).toISOString();
 }
@@ -58,11 +78,19 @@ async function issue(
   return { access, refresh, userId, expiresIn: 15 * 60 };
 }
 
-/** Заводит профиль под Telegram-аккаунт или находит существующий. */
+/**
+ * Заводит профиль под Telegram-аккаунт или находит существующий.
+ *
+ * Метка источника пишется только на создании. Это и есть её смысл: она отвечает
+ * на «пришёл ли кто-нибудь новый по этой ссылке», а не на «кто по ней сегодня
+ * ходил». Обновление метки у существующего профиля превратило бы старого
+ * пользователя, открывшего ссылку из каталога, в приход из каталога.
+ */
 async function profileFor(
   env: Env,
   telegramId: number,
   username: string | undefined,
+  source: string | undefined,
 ): Promise<string> {
   const existing = await env.DB.prepare('select user_id from profiles where telegram_id = ?')
     .bind(telegramId)
@@ -79,9 +107,9 @@ async function profileFor(
 
   const userId = randomUuid();
   await env.DB.prepare(
-    'insert into profiles (user_id, telegram_id, username) values (?, ?, ?)',
+    'insert into profiles (user_id, telegram_id, username, source) values (?, ?, ?, ?)',
   )
-    .bind(userId, telegramId, username ?? null)
+    .bind(userId, telegramId, username ?? null, source ?? null)
     .run();
   return userId;
 }
@@ -173,7 +201,7 @@ export async function handleTelegramLogin(
    * вошёл. В этом и смысл: мини-апп, сайт и будущее мобильное приложение — это
    * один и тот же человек с одной и той же историей.
    */
-  const userId = await profileFor(env, user.id, user.username);
+  const userId = await profileFor(env, user.id, user.username, sanitizeSource(input.source));
   await touchDevice(env, userId, deviceId, platform);
   return issue(env, userId, deviceId, now);
 }

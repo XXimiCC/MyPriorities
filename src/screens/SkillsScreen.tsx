@@ -278,7 +278,9 @@ export function SkillsScreen(): JSX.Element {
             disabled={atLimit}
             onClick={() => setAdding(true)}
           >
-            {atLimit ? t('skills.limit', { max: MAX_SKILLS }) : t('skills.add')}
+            {atLimit
+              ? t('skills.limit', { max: MAX_SKILLS, maxUnit: plural('skill', MAX_SKILLS) })
+              : t('skills.add')}
           </button>
         )}
 

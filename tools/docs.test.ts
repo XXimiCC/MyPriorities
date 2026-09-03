@@ -11,6 +11,10 @@
  *
  * Чего этот тест НЕ проверяет: соответствие текста поведению кода. Проверить это
  * нельзя, а имитация проверки опаснее её отсутствия.
+ *
+ * Единственное исключение — числа в «Пределах»: страница объявила себя их
+ * единственным владельцем, а у части из них есть константа в коде. Это уже не
+ * текст, а значение, и сверить его можно буквально. См. LIMIT_ROWS.
  */
 
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
@@ -19,6 +23,10 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { GROUPS } from '../src/achievements/types';
+import { MAX_INSIGHTS } from '../src/domain/insights';
+import { MAX_ARCHIVED } from '../src/domain/settings';
+import { BLOCK_OPTIONS, DEFAULT_PRIORITY_COUNT, MAX_PRIORITIES, MIN_PRIORITIES } from '../src/domain/types';
+import { MAX_ARCHIVED_SKILLS, MAX_SKILLS } from '../src/skills/types';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DOCS = path.join(ROOT, 'docs');
@@ -42,6 +50,28 @@ const SCREEN_PAGES: Record<string, string> = {
   'SkillsScreen.tsx': 'screens/skills.md',
   'StatsScreen.tsx': 'screens/stats.md',
 };
+
+/**
+ * Строка таблицы «Что видит пользователь» в limits.md → числа, которые в ней
+ * обязаны стоять.
+ *
+ * Карта заведена руками — по той же причине, что и SCREEN_PAGES: разбирать все
+ * числа страницы регуляркой значит сверять и «4096» из объяснения, и «24 знака»
+ * из соседней строки, у которых константы нет вовсе. Здесь адресно: имя строки
+ * и имена констант.
+ *
+ * Сверяется только колонка «Предел». Соседняя колонка — проза, и проговорённое
+ * в ней словами прежнее число («двенадцать направлений») тест не поймает:
+ * поправив цифру, обоснование надо перечитать глазами.
+ */
+const LIMIT_ROWS: Array<{ row: string; numbers: number[] }> = [
+  { row: 'Приоритетов', numbers: [MIN_PRIORITIES, MAX_PRIORITIES, DEFAULT_PRIORITY_COUNT] },
+  { row: 'Приоритетов в архиве', numbers: [MAX_ARCHIVED] },
+  { row: 'Навыков', numbers: [MAX_SKILLS] },
+  { row: 'Навыков в архиве', numbers: [MAX_ARCHIVED_SKILLS] },
+  { row: 'Цена одного клика', numbers: [...BLOCK_OPTIONS] },
+  { row: 'Наблюдений на экране', numbers: [MAX_INSIGHTS] },
+];
 
 /** Все .md документации с их содержимым. */
 function markdownFiles(): Array<{ file: string; text: string }> {
@@ -204,6 +234,30 @@ describe('документация', () => {
         if (!anchorsOf(page).has(anchor)) {
           problems.push(`${file}: нет заголовка ${match[1]}#${anchor}`);
         }
+      }
+    }
+
+    expect(problems).toEqual([]);
+  });
+
+  it('числа в «Пределах» совпадают с константами', () => {
+    const page = readFileSync(path.join(DOCS, 'topics', 'limits.md'), 'utf8');
+    const problems: string[] = [];
+
+    for (const { row, numbers } of LIMIT_ROWS) {
+      // Ячейки строки таблицы: «| Что | Предел | Откуда он взялся |».
+      const line = page.split(/\r?\n/).find((text) => text.split('|')[1]?.trim() === row);
+
+      if (!line) {
+        problems.push(`нет строки «${row}» — переименовали?`);
+        continue;
+      }
+
+      const found = [...(line.split('|')[2] ?? '').matchAll(/\d+/g)].map((m) => Number(m[0]));
+      const sorted = (list: number[]): string => [...list].sort((a, b) => a - b).join(', ');
+
+      if (sorted(found) !== sorted(numbers)) {
+        problems.push(`«${row}»: в коде ${sorted(numbers)}, на странице ${sorted(found) || '—'}`);
       }
     }
 

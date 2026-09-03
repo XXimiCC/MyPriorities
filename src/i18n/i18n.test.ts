@@ -16,7 +16,9 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { MAX_SKILLS } from '../skills/types';
 import { enFormats, enPluralIndex, enPlurals, enStrings } from './en';
+import { plural, setLocale, t } from './index';
 import { ruFormats, ruPluralIndex, ruPlurals, ruStrings } from './ru';
 
 const LOCALES = [
@@ -52,6 +54,39 @@ describe('словари', () => {
 
   it('набор склоняемых слов совпадает', () => {
     expect(Object.keys(enPlurals).sort()).toEqual(Object.keys(ruPlurals).sort());
+  });
+});
+
+/*
+ * Подпись на кнопке добавления, когда навыки кончились.
+ *
+ * Шаблон уже один раз отстал от кода: «Максимум {max} навыков» писался под
+ * предел в 12, где форма совпадала, и пережил рост предела до 24 — на экране
+ * стояло «Максимум 24 навыков». Отсюда и проверка: форму даёт plural(), а не
+ * автор строки, и вписать слово в шаблон обратно значит уронить этот тест.
+ */
+describe('предел навыков', () => {
+  /** Ровно то, что подставляет SkillsScreen. */
+  const limit = (n: number): string => t('skills.limit', { max: n, maxUnit: plural('skill', n) });
+
+  it('по-русски форма выбирается по числу', () => {
+    setLocale('ru');
+
+    // Сегодняшний предел и две другие формы: если MAX_SKILLS переедет на 21
+    // или 12, подпись обязана перестроиться сама.
+    expect(limit(MAX_SKILLS), 'сегодняшний MAX_SKILLS').toBe('Максимум 24 навыка');
+    expect(limit(21)).toBe('Максимум 21 навык');
+    expect(limit(12)).toBe('Максимум 12 навыков');
+  });
+
+  it('по-английски строка осталась верной', () => {
+    setLocale('en');
+
+    expect(limit(MAX_SKILLS)).toBe('Up to 24 skills');
+    expect(limit(1)).toBe('Up to 1 skill');
+
+    // Дальше идут локальные проверки, а эталон в тестах — русский.
+    setLocale('ru');
   });
 });
 

@@ -51,6 +51,9 @@ export const ruStrings = {
   'home.plus': 'Добавить {minutes} минут',
   'home.minus': 'Убрать {minutes} минут',
   'home.todayBlocks': '{count} {unit} сегодня',
+  // Именно «отметил», а не «занимался»: отмечают часто пачкой вечером, и строка
+  // времён не должна читаться как расписание дня.
+  'home.markTimes': 'Отметил сегодня в',
   'home.dayPicker': 'День, в который идёт запись',
   'home.dayToday': 'сег',
   'home.fillGaps': 'Дописать прошлый день',

@@ -22,6 +22,7 @@ import {
   MAX_PRIORITIES,
   drainCustom,
   emptyJournal,
+  timelessMarks,
   type AwardMap,
   type BatteryLevel,
   type BatteryShift,
@@ -262,6 +263,9 @@ function buildJournal(
   }
 
   journal.battery = buildBattery(script, settings, random, now);
+  // Демо рисует итоги дня, а не нажатия: времени у его блоков нет и быть не
+  // может. Стек нужен всё равно — счётчик считается его длиной.
+  journal.marks = timelessMarks(journal.clicks);
   return journal;
 }
 

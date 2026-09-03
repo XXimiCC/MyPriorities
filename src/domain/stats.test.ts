@@ -22,6 +22,7 @@ import {
   DRAIN_UNKNOWN,
   drainCustom,
   drainTextOf,
+  timelessMarks,
   type Journal,
   type Priority,
   type Settings,
@@ -43,7 +44,7 @@ function settingsOf(active: Priority[], archived: Priority[] = [], blockMinutes 
 }
 
 function journalOf(clicks: Journal['clicks'], battery: Journal['battery'] = {}): Journal {
-  return { clicks, battery };
+  return { clicks, marks: timelessMarks(clicks), battery };
 }
 
 describe('periodDays', () => {

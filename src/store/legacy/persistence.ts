@@ -21,7 +21,7 @@ import { composeDayKey } from '../../domain/date';
 import { sanitizeShifts } from '../../domain/battery';
 import { sanitizeSettings } from '../../domain/settings';
 import type { BatteryShift, ClicksMap, DayClicks, Journal, Settings } from '../../domain/types';
-import { emptyJournal } from '../../domain/types';
+import { emptyJournal, timelessMarks } from '../../domain/types';
 import type { SkillsState } from '../../skills/types';
 import { emptySkills, sanitizeSkills } from '../../skills/types';
 import { sanitizeAwards, type AwardMap } from '../../achievements/types';
@@ -198,6 +198,10 @@ export async function loadJournal(months: string[]): Promise<Journal> {
       console.warn(`[persistence] испорчен блок батареи ${month}`);
     }
   }
+
+  // Прежнее хранилище держало итог, а не нажатия: времени у этих блоков нет и
+  // взяться ему неоткуда. Стек всё равно нужен — на нём держится счётчик.
+  journal.marks = timelessMarks(journal.clicks);
   return journal;
 }
 

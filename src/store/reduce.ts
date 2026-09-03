@@ -15,6 +15,7 @@ import type {
   ClicksMap,
   DayKey,
   Journal,
+  MarkTime,
   Settings,
 } from '../domain/types';
 import type { SkillsState } from '../skills/types';
@@ -39,7 +40,8 @@ export type Hydration = Omit<State, 'ready' | 'fresh'>;
 
 export type Action =
   | ({ type: 'hydrate' } & Hydration)
-  | { type: 'blocks'; day: DayKey; priorityId: string; delta: number }
+  /** `minute` — время нажатия; его нет у записи в прошедший день. */
+  | { type: 'blocks'; day: DayKey; priorityId: string; delta: number; minute?: number }
   | { type: 'battery-set'; day: DayKey; minute: number; level: BatteryLevel; replace?: number }
   | { type: 'battery-remove'; day: DayKey; minute: number }
   | { type: 'drain'; day: DayKey; drainedBy: string }
@@ -51,18 +53,44 @@ export type Action =
   | { type: 'awards'; awards: AwardMap; fresh: string[] }
   | { type: 'dismiss-fresh' };
 
-/** Прибавляет блок в карту кликов. Форма общая у приоритетов и навыков. */
-function bump(clicks: ClicksMap, day: DayKey, id: string, delta: number): ClicksMap {
-  const entry = clicks[day] ?? {};
-  const next = Math.max(0, (entry[id] ?? 0) + delta);
-  const updatedDay = { ...entry };
-  if (next > 0) updatedDay[id] = next;
-  else delete updatedDay[id];
+/**
+ * Кладёт значение в ячейку карты «день → id». Пустая ячейка выкидывается вместе
+ * с опустевшим днём: иначе день остаётся в журнале пустым ключом и попадает в
+ * расчёты как день «с отметками».
+ */
+function put<T>(
+  map: Record<DayKey, Record<string, T>>,
+  day: DayKey,
+  id: string,
+  value: T | undefined,
+): Record<DayKey, Record<string, T>> {
+  const entry = { ...(map[day] ?? {}) };
+  if (value === undefined) delete entry[id];
+  else entry[id] = value;
 
-  const out = { ...clicks };
-  if (Object.keys(updatedDay).length > 0) out[day] = updatedDay;
+  const out = { ...map };
+  if (Object.keys(entry).length > 0) out[day] = entry;
   else delete out[day];
   return out;
+}
+
+/** Прибавляет блок в карту кликов. Форма общая у приоритетов и навыков. */
+function bump(clicks: ClicksMap, day: DayKey, id: string, delta: number): ClicksMap {
+  const next = Math.max(0, (clicks[day]?.[id] ?? 0) + delta);
+  return put(clicks, day, id, next > 0 ? next : undefined);
+}
+
+/**
+ * Стек отметок после правки: `+n` кладёт n в конец, `−n` снимает n с конца.
+ *
+ * Те же правила, что у `applyDelta` в проекции, и это не совпадение: живое
+ * нажатие и воспроизведение журнала обязаны давать один и тот же стек, иначе
+ * «−» снимало бы разные отметки до и после перезагрузки.
+ */
+function nextStack(stack: readonly MarkTime[], delta: number, minute?: number): MarkTime[] {
+  if (delta < 0) return stack.slice(0, Math.max(0, stack.length + delta));
+  const at: MarkTime = minute === undefined ? null : minute;
+  return [...stack, ...new Array<MarkTime>(Math.max(0, delta)).fill(at)];
 }
 
 export function reduce(state: State, action: Action): State {
@@ -80,8 +108,31 @@ export function reduce(state: State, action: Action): State {
       };
 
     case 'blocks': {
-      const clicks = bump(state.journal.clicks, action.day, action.priorityId, action.delta);
-      return { ...state, journal: { ...state.journal, clicks } };
+      /*
+       * Счётчик берётся длиной стека, а не своим слагаемым.
+       *
+       * Так они не могут разойтись даже теоретически, а расхождение здесь стоит
+       * дорого: «−» снимает последнюю отметку стека, и лишний блок в счётчике
+       * означал бы, что снимается не та.
+       */
+      const stack = nextStack(
+        state.journal.marks[action.day]?.[action.priorityId] ?? [],
+        action.delta,
+        action.minute,
+      );
+      const marks = put(
+        state.journal.marks,
+        action.day,
+        action.priorityId,
+        stack.length > 0 ? stack : undefined,
+      );
+      const clicks = put(
+        state.journal.clicks,
+        action.day,
+        action.priorityId,
+        stack.length > 0 ? stack.length : undefined,
+      );
+      return { ...state, journal: { ...state.journal, clicks, marks } };
     }
 
     case 'skill-blocks':

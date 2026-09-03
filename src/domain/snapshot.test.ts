@@ -13,6 +13,7 @@ const settings = {
 };
 const journal: Journal = {
   clicks: { '2026-07-31': { ab: 3 } },
+  marks: { '2026-07-31': { ab: [null, null, null] } },
   battery: { '2026-07-31': [[540, 2]] },
 };
 const skills = {
@@ -55,6 +56,7 @@ describe('копия данных', () => {
     // со статистикой причин.
     const withDrain: Journal = {
       clicks: {},
+      marks: {},
       battery: { '2026-07-31': [[540, 2], [600, 1, DRAIN_UNKNOWN]] },
     };
     const restored = parseSnapshot(exportSnapshot({ ...contents, journal: withDrain }));
@@ -67,6 +69,7 @@ describe('копия данных', () => {
   it('названный причиной приоритет тоже переживает круговой прогон', () => {
     const withDrain: Journal = {
       clicks: {},
+      marks: {},
       battery: { '2026-07-31': [[600, 1, 'ab']] },
     };
     const restored = parseSnapshot(exportSnapshot({ ...contents, journal: withDrain }));
@@ -76,6 +79,7 @@ describe('копия данных', () => {
   it('ответ своими словами переживает круговой прогон', () => {
     const withDrain: Journal = {
       clicks: {},
+      marks: {},
       battery: { '2026-07-31': [[600, 1, '!дорога домой']] },
     };
     const restored = parseSnapshot(exportSnapshot({ ...contents, journal: withDrain }));

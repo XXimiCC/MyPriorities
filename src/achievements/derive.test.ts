@@ -18,7 +18,7 @@ const settings: Settings = {
 function batteryAt(minute: number, days: string[]): Journal {
   const battery: Journal['battery'] = {};
   for (const day of days) battery[day] = [[minute, 1]];
-  return { clicks: {}, battery };
+  return { clicks: {}, marks: {}, battery };
 }
 
 const FIVE_DAYS = ['2026-07-20', '2026-07-21', '2026-07-22', '2026-07-23', '2026-07-24'];

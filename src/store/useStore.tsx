@@ -566,7 +566,17 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
 
     return {
       addBlock(priorityId, day = todayKey()) {
-        commit({ type: 'blocks', day, priorityId, delta: 1 });
+        /*
+         * Время нажатия — только у записи в сегодняшний день.
+         *
+         * Время означает «когда отметили», а отметка за вчера сделана не вчера:
+         * приписать ей час значило бы соврать в данных. Поэтому у записи в
+         * прошедший день времени нет вовсе, и в шторке она просто не даёт
+         * элемента — вместо выдуманного «неизвестно».
+         */
+        const now = new Date();
+        const minute = day === todayKey(now) ? minuteOfDay(now) : undefined;
+        commit({ type: 'blocks', day, priorityId, delta: 1, minute });
       },
 
       removeBlock(priorityId, day = todayKey()) {

@@ -41,7 +41,7 @@ export interface HistorySlice {
  * компиляции.
  */
 export type Recordable =
-  | { type: 'blocks'; day: DayKey; priorityId: string; delta: number }
+  | { type: 'blocks'; day: DayKey; priorityId: string; delta: number; minute?: number }
   | { type: 'skill-blocks'; day: DayKey; skillId: string; delta: number }
   | { type: 'battery-set'; day: DayKey; minute: number; level: BatteryLevel; replace?: number }
   | { type: 'battery-remove'; day: DayKey; minute: number }
@@ -88,7 +88,10 @@ export function recordOps(before: HistorySlice, action: Recordable, stamp: Stamp
         action.priorityId,
         action.delta,
       );
-      return delta === 0 ? [] : [blockOp(stamp, action.day, action.priorityId, delta)];
+      // Время едет только с добавлением: снятие ничего не отмечает — оно
+      // убирает последнюю отметку, и своего времени у него нет.
+      const minute = delta > 0 ? action.minute : undefined;
+      return delta === 0 ? [] : [blockOp(stamp, action.day, action.priorityId, delta, minute)];
     }
 
     case 'skill-blocks': {

@@ -9,6 +9,7 @@
 import { IDBFactory } from 'fake-indexeddb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { timelessMarks } from '../domain/types';
 import { opsLog, resetBackendForTests } from '../store/local/db';
 import { backupBeforeSync } from './adopt';
 import { formatStamp } from './hlc';
@@ -49,8 +50,11 @@ function withHistory(): void {
   });
   vi.mocked(legacy.loadSkills).mockResolvedValue({ skills: [], archived: [] });
   vi.mocked(legacy.loadAwards).mockResolvedValue({ n1: '2024-03-04' });
+  const clicks = { '2024-03-04': { ia: 4 }, '2026-08-09': { ia: 6 } };
   vi.mocked(legacy.loadJournal).mockResolvedValue({
-    clicks: { '2024-03-04': { ia: 4 }, '2026-08-09': { ia: 6 } },
+    clicks,
+    // Прежнее хранилище держало итог, а не нажатия: времён у него нет.
+    marks: timelessMarks(clicks),
     battery: { '2026-08-09': [[540, 3]] },
   });
   vi.mocked(legacy.loadSkillClicks).mockResolvedValue({ '2026-08-09': { sk: 2 } });
@@ -61,7 +65,7 @@ function empty(): void {
   vi.mocked(legacy.loadSettings).mockResolvedValue(undefined);
   vi.mocked(legacy.loadSkills).mockResolvedValue({ skills: [], archived: [] });
   vi.mocked(legacy.loadAwards).mockResolvedValue({});
-  vi.mocked(legacy.loadJournal).mockResolvedValue({ clicks: {}, battery: {} });
+  vi.mocked(legacy.loadJournal).mockResolvedValue({ clicks: {}, marks: {}, battery: {} });
   vi.mocked(legacy.loadSkillClicks).mockResolvedValue({});
 }
 
@@ -150,6 +154,7 @@ describe('перенос прежнего хранилища', () => {
     vi.mocked(legacy.loadJournal).mockResolvedValue({
       // Отрицательное число проекция срежет нулём — перенос не сойдётся.
       clicks: { '2026-08-09': { ia: -5 } },
+      marks: {},
       battery: {},
     });
 

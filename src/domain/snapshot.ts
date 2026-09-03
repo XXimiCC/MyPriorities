@@ -18,7 +18,7 @@ import type { StringKey } from '../i18n';
 import { sanitizeShifts } from './battery';
 import { sanitizeSettings } from './settings';
 import type { ClicksMap, DayClicks, Journal, Settings } from './types';
-import { emptyJournal } from './types';
+import { emptyJournal, timelessMarks } from './types';
 
 export interface SnapshotContents {
   settings: Settings;
@@ -103,6 +103,13 @@ export function parseSnapshot(json: string): SnapshotContents {
   const journal = emptyJournal();
   const source = (snapshot.journal ?? {}) as Partial<Journal>;
   journal.clicks = readClicks(source.clicks);
+  /*
+   * Копия хранит итоги, а не отдельные нажатия, — и восстановление возвращает
+   * их установкой счётчика (`blkset`). Времена через файл не ездят: копия могла
+   * быть сделана и до того, как они появились. Стек всё равно нужен — счётчик
+   * считается его длиной.
+   */
+  journal.marks = timelessMarks(journal.clicks);
 
   for (const [day, shifts] of Object.entries(source.battery ?? {})) {
     if (!DAY_PATTERN.test(day)) continue;

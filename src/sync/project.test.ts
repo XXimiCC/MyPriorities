@@ -136,6 +136,143 @@ describe('установка итога', () => {
   });
 });
 
+describe('стек отметок', () => {
+  const marks = (ops: Op[], base: Base = emptyBase()): Record<string, (number | null)[]> =>
+    project(base, ops).journal.marks[DAY] ?? {};
+
+  it('нажатие несёт время, дописанный прошлый день — нет', () => {
+    // Время означает «когда отметили». У записи в прошедший день его нет, и
+    // выдумывать его нечем — в стеке остаётся пустое место.
+    expect(
+      marks([
+        op('blk', 1, { day: DAY, targetId: 'ab', amount: 1, minute: 725 }),
+        op('blk', 2, { day: DAY, targetId: 'ab', amount: 1 }),
+        op('blk', 3, { day: DAY, targetId: 'ab', amount: 1, minute: 850 }),
+      ]),
+    ).toEqual({ ab: [725, null, 850] });
+  });
+
+  it('«+ + −» оставляет две ранние отметки, а не любые две', () => {
+    /*
+     * То, ради чего стек и заводился. Пока блоки одинаковы, разницы не видно;
+     * как только у них появилось время, снятие обязано убирать именно ту
+     * отметку, которую только что поставили.
+     */
+    expect(
+      marks([
+        op('blk', 1, { day: DAY, targetId: 'ab', amount: 1, minute: 725 }),
+        op('blk', 2, { day: DAY, targetId: 'ab', amount: 1, minute: 820 }),
+        op('blk', 3, { day: DAY, targetId: 'ab', amount: 1, minute: 910 }),
+        op('blk', 4, { day: DAY, targetId: 'ab', amount: -1 }),
+      ]),
+    ).toEqual({ ab: [725, 820] });
+  });
+
+  it('слагаемое больше единицы кладёт столько же отметок с одним временем', () => {
+    expect(
+      marks([op('blk', 1, { day: DAY, targetId: 'ab', amount: 3, minute: 600 })]),
+    ).toEqual({ ab: [600, 600, 600] });
+  });
+
+  it('порядок доставки не меняет стек', () => {
+    const ops = [
+      op('blk', 1, { day: DAY, targetId: 'ab', amount: 1, minute: 725 }),
+      op('blk', 2, { day: DAY, targetId: 'ab', amount: 1, minute: 820 }),
+      op('blk', 3, { day: DAY, targetId: 'ab', amount: -1 }),
+      op('blk', 4, { day: DAY, targetId: 'ab', amount: 1, minute: 910 }),
+    ];
+    const straight = marks(ops);
+
+    expect(straight).toEqual({ ab: [725, 910] });
+    expect(marks([...ops].reverse())).toEqual(straight);
+    expect(marks([ops[2]!, ops[0]!, ops[3]!, ops[1]!])).toEqual(straight);
+  });
+
+  it('повторная доставка ничего не меняет', () => {
+    const once = op('blk', 1, { day: DAY, targetId: 'ab', amount: 1, minute: 725 });
+    expect(marks([once, { ...once }, { ...once }])).toEqual({ ab: [725] });
+  });
+
+  it('установка итога сбрасывает стек в отметки без времени', () => {
+    // Восстановление копии и импорт возвращают итог, а не отдельные нажатия:
+    // времён у этих блоков нет и взяться им неоткуда.
+    expect(
+      marks([
+        op('blk', 1, { day: DAY, targetId: 'ab', amount: 1, minute: 725 }),
+        op('blkset', 2, { day: DAY, targetId: 'ab', amount: 2 }),
+      ]),
+    ).toEqual({ ab: [null, null] });
+  });
+
+  it('снимок месяца даёт отметки без времени', () => {
+    // Свёртка на сервере складывает старые операции в месячные итоги, и времена
+    // там исчезают. Счётчик обязан пережить это без потерь.
+    const base = emptyBase();
+    base.clicks = { [DAY]: { ab: 2 } };
+    expect(marks([op('blk', 1, { day: DAY, targetId: 'ab', amount: 1, minute: 725 })], base)).toEqual(
+      { ab: [null, null, 725] },
+    );
+  });
+
+  it('барьер стирания обнуляет и стек', () => {
+    expect(
+      marks([
+        op('blk', 1, { day: DAY, targetId: 'ab', amount: 2, minute: 725 }),
+        op('clear', 2),
+        op('blk', 3, { day: DAY, targetId: 'ab', amount: 1, minute: 910 }),
+      ]),
+    ).toEqual({ ab: [910] });
+  });
+
+  it('счётчик — это длина стека, всегда', () => {
+    /*
+     * Инвариант, на котором держится снятие: разойдись счётчик со стеком, «−»
+     * убирало бы не ту отметку. Считать их порознь нечем — счётчик и есть длина.
+     */
+    const projected = project(
+      emptyBase(),
+      [
+        op('blk', 1, { day: DAY, targetId: 'ab', amount: 4, minute: 600 }),
+        op('blk', 2, { day: DAY, targetId: 'cd', amount: 2 }),
+        op('blk', 3, { day: DAY, targetId: 'ab', amount: -3 }),
+        op('blkset', 4, { day: DAY, targetId: 'ef', amount: 5 }),
+        op('blk', 5, { day: DAY, targetId: 'ef', amount: 1, minute: 900 }),
+      ],
+    );
+
+    for (const [day, entry] of Object.entries(projected.journal.clicks)) {
+      for (const [id, count] of Object.entries(entry)) {
+        expect(projected.journal.marks[day]?.[id]).toHaveLength(count);
+      }
+    }
+    expect(projected.journal.clicks[DAY]).toEqual({ ab: 1, cd: 2, ef: 6 });
+  });
+
+  it('снятий больше, чем добавлений: пустой стек, а не яма', () => {
+    /*
+     * Два устройства видели три блока и оба сняли все три. Прежний счётчик
+     * уходил при этом в −3, и следующее «+» на экране не появлялось — оно
+     * уходило в яму. Стеку ямы взять негде.
+     */
+    expect(
+      marks([
+        op('blk', 1, { day: DAY, targetId: 'ab', amount: 3, minute: 600 }),
+        op('blk', 2, { day: DAY, targetId: 'ab', amount: -3 }),
+        op('blk', 3, { day: DAY, targetId: 'ab', amount: -3 }),
+        op('blk', 4, { day: DAY, targetId: 'ab', amount: 1, minute: 910 }),
+      ]),
+    ).toEqual({ ab: [910] });
+  });
+
+  it('навыкам стек не считается отдельно — у них его и не спрашивают', () => {
+    const projected = project(emptyBase(), [
+      op('sblk', 1, { day: DAY, targetId: 'kx', amount: 3 }),
+    ]);
+    expect(projected.skillClicks[DAY]).toEqual({ kx: 3 });
+    expect(projected.journal.marks[DAY]).toBeUndefined();
+  });
+});
+
 describe('переходы заряда', () => {
   const battery = (ops: Op[], base: Base = emptyBase()) =>
     project(base, ops).journal.battery[DAY] ?? [];

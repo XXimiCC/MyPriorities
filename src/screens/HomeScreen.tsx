@@ -223,9 +223,12 @@ function TuneSheet({
     <Sheet open={Boolean(priority)} title={priority?.title} onClose={onClose}>
       {priority && color && (
         <div style={{ '--accent': color.hex } as React.CSSProperties}>
+          {/* Времена — только за сегодня: у записи в прошедший день времени нет
+              и быть не должно, отмечали её не в тот день. */}
           <BlockTuner
             blocks={blocks}
             blockMinutes={blockMinutes}
+            marks={day === today ? journal.marks[day]?.[priority.id] : undefined}
             caption={
               day === today
                 ? t('home.todayBlocks', { count: blocks, unit: plural('block', blocks) })

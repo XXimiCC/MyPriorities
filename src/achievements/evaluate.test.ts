@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { DEFAULT_MODULES, type Journal, type Settings } from '../domain/types';
+import { DEFAULT_MODULES, timelessMarks, type Journal, type Settings } from '../domain/types';
 import { progressOf } from '../skills/levels';
 import type { SkillTotal } from '../skills/total';
 import { derive } from './derive';
@@ -44,12 +44,13 @@ const options = { skillsEnabled: true, today: TODAY };
 
 /** Журнал с заданным числом блоков в один день. */
 function blocksOn(day: string, counts: Record<string, number>): Journal {
-  return { clicks: { [day]: counts }, battery: {} };
+  const clicks = { [day]: counts };
+  return { clicks, marks: timelessMarks(clicks), battery: {} };
 }
 
 describe('выдача', () => {
   it('на пустых данных ничего не выдаётся', () => {
-    const result = evaluate({}, contextOf({ clicks: {}, battery: {} }), options);
+    const result = evaluate({}, contextOf({ clicks: {}, marks: {}, battery: {} }), options);
     expect(result.fresh).toEqual([]);
     expect(result.awards).toEqual({});
   });
@@ -91,7 +92,7 @@ describe('выдача', () => {
   it('выданное не отбирается, когда условие снова стало ложным', () => {
     // Иначе «доля лидера за 30 дней» мигала бы вместе со скользящим окном.
     const earned = evaluate({}, contextOf(blocksOn(TODAY, { ab: 1 })), options);
-    const empty = evaluate(earned.awards, contextOf({ clicks: {}, battery: {} }), options);
+    const empty = evaluate(earned.awards, contextOf({ clicks: {}, marks: {}, battery: {} }), options);
     expect(empty.awards.s1).toBe(TODAY);
   });
 
@@ -106,15 +107,15 @@ describe('выдача', () => {
   });
 
   it('часы навыка считаются по накопленному, а не по кликам', () => {
-    const ctx = contextOf({ clicks: {}, battery: {} }, [skillTotal(1000 * 60)]);
+    const ctx = contextOf({ clicks: {}, marks: {}, battery: {} }, [skillTotal(1000 * 60)]);
     const result = evaluate({}, ctx, options);
     expect(result.awards.n6).toBe(TODAY);
     expect(result.awards.n7).toBeUndefined();
   });
 
   it('возраст навыка считается от переданного «сейчас»', () => {
-    const old = contextOf({ clicks: {}, battery: {} }, [skillTotal(60, '2010-01-01')]);
-    const fresh = contextOf({ clicks: {}, battery: {} }, [skillTotal(60, '2024-01-01')]);
+    const old = contextOf({ clicks: {}, marks: {}, battery: {} }, [skillTotal(60, '2010-01-01')]);
+    const fresh = contextOf({ clicks: {}, marks: {}, battery: {} }, [skillTotal(60, '2024-01-01')]);
     expect(evaluate({}, old, options).awards.nd).toBe(TODAY);
     expect(evaluate({}, fresh, options).awards.nd).toBeUndefined();
   });
@@ -161,5 +162,5 @@ function spread(n: number): Journal {
     left -= take;
     day += 1;
   }
-  return { clicks, battery: {} };
+  return { clicks, marks: timelessMarks(clicks), battery: {} };
 }

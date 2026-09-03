@@ -77,12 +77,41 @@ TELEGRAM_BOT_TOKEN=<настоящий> npm run chat-id
 
 Секреты в файлах не живут. `.dev.vars` нужен только локально и в `.gitignore`.
 
+## Сколько дней до первой записи
+
+`profiles.first_op_at` — момент первой операции человека, рядом с `created_at`,
+моментом появления профиля. Разница между ними и есть ответ на вопрос «сколько
+дней от входа до первой ценности». Почему признак записан отдельной колонкой и
+что вообще про людей знает сервер — в [«Аналитике»](../docs/dev/analytics.md).
+
+Читается запросом, разово — в ночной отчёт он не попадает намеренно:
+
+```sh
+npx wrangler d1 execute mypri --remote --command \
+  "select cast(julianday(first_op_at) - julianday(created_at) as integer) as days,
+          count(*) as people
+     from profiles
+    where first_op_at is not null
+    group by days order by days"
+```
+
+`first_op_at is null` — либо человек ещё ни разу ничего не записал, либо его
+журнал свернулся до того, как появилась эта колонка. Сколько таких:
+
+```sh
+npx wrangler d1 execute mypri --remote --command \
+  "select count(*) as people from profiles where first_op_at is null"
+```
+
 ## Что внутри
 
 | Файл | О чём |
 |---|---|
 | `migrations/0001_init.sql` | Схема: профили, устройства, сессии, документы, журнал операций, свёртки |
 | `migrations/0002_tickets.sql` | Тикеты из встроенной панели отладки |
+| `migrations/0003_ticket_queue.sql` | Состояние «взято в работу» у тикетов |
+| `migrations/0005_profile_source.sql` | Метка канала, из которого пришёл человек |
+| `migrations/0006_first_op.sql` | Момент первой записи в профиле |
 | `src/telegram.ts` | Проверка подписи `initData`, сообщения и картинки от бота |
 | `src/jwt.ts` | Свои токены на HS256 |
 | `src/auth.ts` | Вход, продление, выход |

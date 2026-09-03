@@ -107,6 +107,30 @@ export async function handlePush(
     );
   }
 
+  /*
+   * Отметка о первой записи — единственное, что свёртка стирает безвозвратно
+   * (см. `migrations/0004_first_op.sql`). Идёт той же пачкой, что и вставка:
+   * либо операции записались вместе с отметкой, либо ни того, ни другого.
+   *
+   * `first_op_at is null` — весь замок. Второй push по этому условию просто не
+   * находит строки, так что «поставить один раз» здесь не проверка, а форма
+   * запроса: обогнать саму себя он не может даже при гонке.
+   *
+   * Значение берётся из журнала, а не из `datetime('now')`, — тем же запросом,
+   * что и разовый догон в миграции. Между применением миграции и выкатом кода
+   * проходит время, и профиль, приславший операции в этом промежутке, получил
+   * бы отметку на дни позже своей настоящей первой записи.
+   */
+  if (ops.length > 0) {
+    statements.push(
+      env.DB.prepare(
+        `update profiles
+            set first_op_at = (select min(created_at) from ops where ops.user_id = profiles.user_id)
+          where profiles.user_id = ? and profiles.first_op_at is null`,
+      ).bind(caller.userId),
+    );
+  }
+
   for (const raw of rawDocs) {
     const doc = sanitizeDoc(raw);
     if (!doc) continue;

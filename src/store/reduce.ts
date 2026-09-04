@@ -39,6 +39,23 @@ export type Hydration = Omit<State, 'ready' | 'fresh'>;
 
 export type Action =
   | ({ type: 'hydrate' } & Hydration)
+  /**
+   * Пришедшее с сервера поверх того, что уже на экране.
+   *
+   * Отдельно от `hydrate` по двум причинам. Первая: гидратация объявляет
+   * приложение готовым и гасит всплывашку о новых достижениях — а обмен
+   * случается в любой момент, в том числе пока она на экране. Вторая:
+   * настройки и каталог приходят документами и могут не прийти вовсе, и
+   * тогда на экране должно остаться своё, а не пустое.
+   */
+  | {
+      type: 'synced';
+      journal: Journal;
+      skillClicks: ClicksMap;
+      awards: AwardMap;
+      settings?: Settings;
+      skills?: SkillsState;
+    }
   | { type: 'blocks'; day: DayKey; priorityId: string; delta: number }
   | { type: 'battery-set'; day: DayKey; minute: number; level: BatteryLevel; replace?: number }
   | { type: 'battery-remove'; day: DayKey; minute: number }
@@ -77,6 +94,16 @@ export function reduce(state: State, action: Action): State {
         skillClicks: action.skillClicks,
         awards: action.awards,
         skillsLoaded: action.skillsLoaded,
+      };
+
+    case 'synced':
+      return {
+        ...state,
+        journal: action.journal,
+        skillClicks: action.skillClicks,
+        awards: action.awards,
+        settings: action.settings ?? state.settings,
+        skills: action.skills ?? state.skills,
       };
 
     case 'blocks': {

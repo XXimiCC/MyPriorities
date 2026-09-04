@@ -36,6 +36,22 @@ function stamper(device: string): Stamper {
   };
 }
 
+/**
+ * Общие часы на несколько устройств.
+ *
+ * Отдельный `stamper` на каждое устройство годится, пока их истории не спорят.
+ * Там, где спорят, метки обязаны идти в том же порядке, в каком человек нажимал:
+ * снятие на телефоне случилось ПОСЛЕ отметки на компьютере, иначе проверяется
+ * не то, что произошло.
+ */
+function sharedClock(): (device: string) => Stamper {
+  let wall = 1_770_000_000_000;
+  return (device) => () => {
+    wall += 1;
+    return formatStamp({ wall, counter: 0 }, device);
+  };
+}
+
 function fakeServer() {
   const stored: Op[] = [];
   let docs: SyncDoc[] = [];
@@ -115,6 +131,19 @@ function longUsed(): SnapshotContents {
     skills: emptySkills(),
     skillClicks: { '2026-08-09': { sk: 2 } },
     awards: { n1: '2025-11-03' },
+  };
+}
+
+let opSeq = 0;
+
+/** Операция с предсказуемым идентификатором: в проверках их становится много. */
+function op(kind: Op['kind'], stamp: Stamper, rest: Partial<Op> = {}): Op {
+  opSeq += 1;
+  return {
+    opId: `3f2504e0-4f89-41d3-9a0c-${String(opSeq).padStart(12, '0')}`,
+    kind,
+    hlc: stamp(),
+    ...rest,
   };
 }
 
@@ -300,6 +329,140 @@ describe('переход на сервер', () => {
     const joined = await adoptServerState(second, stamper('desktop'), deps(server));
 
     expect(joined!.settings!.priorities.map((item) => item.id)).toEqual(['ia', 'rm']);
+  });
+
+  it('снятое на другом устройстве не воскресает на следующем открытии', async () => {
+    /*
+     * MYPR-32, ровно по жалобе: на компьютере пять получасов работы, на
+     * телефоне один, и перезагрузка компьютера не помогает.
+     *
+     * Причина в порядке шагов. Обмен идёт первым и приносит снятия с телефона,
+     * но доливка сравнивает сервер не с журналом, а со снимком, с которым
+     * приложение открылось, — а он про снятия ещё не знает. Разница получается
+     * «на сервере не хватает четырёх блоков», и доливка ставит их обратно
+     * установкой с более свежей меткой, то есть навсегда. Каждое открытие
+     * воскрешало снятое заново и увозило воскресшее на сервер.
+     */
+    const server = fakeServer();
+    const clock = sharedClock();
+    const desktop = clock('desktop');
+    const phone = clock('phone');
+    const day = '2026-09-04';
+
+    // Компьютер: пять блоков и переход заряда, всё уехало на сервер.
+    const mine = [
+      ...Array.from({ length: 5 }, () =>
+        op('blk', desktop, { day, targetId: 'ia', amount: 1 }),
+      ),
+      op('bat', desktop, { day, minute: 540, level: 3 }),
+      op('award', desktop, { day, targetId: 'n1' }),
+    ];
+    await opsLog.append(mine);
+    await server.transport.push('токен', mine, []);
+    await opsLog.markSynced(mine);
+
+    // Телефон снимает четыре блока, убирает переход и отметку — компьютер об
+    // этом ещё не знает: он открыт и ничего не перечитывал.
+    await server.transport.push(
+      'токен',
+      [
+        ...Array.from({ length: 4 }, () => op('blk', phone, { day, targetId: 'ia', amount: -1 })),
+        op('batdel', phone, { day, minute: 540 }),
+        op('unaward', phone, { targetId: 'n1' }),
+      ],
+      [],
+    );
+
+    // Открытие компьютера: снимок в памяти всё ещё помнит пятёрку.
+    const stale: SnapshotContents = {
+      settings: {
+        ...emptySettings(),
+        onboarded: true,
+        priorities: [{ id: 'ia', title: 'Работа', colorId: 1 }],
+      },
+      journal: { clicks: { [day]: { ia: 5 } }, battery: { [day]: [[540, 3]] } },
+      skills: emptySkills(),
+      skillClicks: {},
+      awards: { n1: day },
+    };
+
+    const adopted = await adoptServerState(stale, desktop, deps(server));
+    expect(adopted).toBeDefined();
+
+    expect(adopted!.journal.clicks[day]).toEqual({ ia: 1 });
+    expect(adopted!.journal.battery[day]).toBeUndefined();
+    expect(adopted!.awards).toEqual({});
+
+    // И, что важнее, ничего лишнего не уехало обратно на сервер: иначе телефон
+    // при следующем чтении получил бы свои же снятия отменёнными.
+    expect(adopted!.filled).toBe(0);
+    expect(server.stored.some((item) => item.kind === 'blkset')).toBe(false);
+  });
+
+  it('чужая прибавка, пришедшая обменом, остаётся чужой', async () => {
+    // Обратная сторона той же проверки: сверка не должна ничего терять.
+    // Компьютер знает про свой блок, телефон добавил свои — на экране сумма.
+    const server = fakeServer();
+    const clock = sharedClock();
+    const desktop = clock('desktop');
+    const phone = clock('phone');
+    const day = '2026-09-04';
+
+    const mine = [op('blk', desktop, { day, targetId: 'ia', amount: 1 })];
+    await opsLog.append(mine);
+    await server.transport.push('токен', mine, []);
+    await opsLog.markSynced(mine);
+
+    await server.transport.push(
+      'токен',
+      [op('blk', phone, { day, targetId: 'ia', amount: 2 })],
+      [],
+    );
+
+    const stale: SnapshotContents = {
+      ...longUsed(),
+      journal: { clicks: { [day]: { ia: 1 } }, battery: {} },
+      skillClicks: {},
+      awards: {},
+    };
+
+    const adopted = await adoptServerState(stale, desktop, deps(server));
+    expect(adopted!.journal.clicks[day]).toEqual({ ia: 3 });
+  });
+
+  it('своё, чего на сервере нет, доливается и после сверки', async () => {
+    /*
+     * Сверка правит снимок только там, где журнал за время обмена изменился.
+     * Перенесённое из прежнего хранилища обмен не трогает — значит оно обязано
+     * доехать, даже если рядом что-то снимали на другом устройстве.
+     */
+    const server = fakeServer();
+    const clock = sharedClock();
+    const desktop = clock('desktop');
+    const phone = clock('phone');
+    const day = '2026-09-04';
+
+    const mine = [op('blk', desktop, { day, targetId: 'ia', amount: 3 })];
+    await opsLog.append(mine);
+    await server.transport.push('токен', mine, []);
+    await opsLog.markSynced(mine);
+    await server.transport.push(
+      'токен',
+      [op('blk', phone, { day, targetId: 'ia', amount: -2 })],
+      [],
+    );
+
+    // Плюс годы из прежнего хранилища, которых на сервере нет вовсе.
+    const stale: SnapshotContents = {
+      ...longUsed(),
+      journal: { clicks: { '2025-11-03': { ia: 4 }, [day]: { ia: 3 } }, battery: {} },
+      skillClicks: {},
+      awards: {},
+    };
+
+    const adopted = await adoptServerState(stale, desktop, deps(server));
+    expect(adopted!.journal.clicks['2025-11-03']).toEqual({ ia: 4 });
+    expect(adopted!.journal.clicks[day]).toEqual({ ia: 1 });
   });
 
   it('повторный переход не удваивает счётчики', async () => {

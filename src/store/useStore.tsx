@@ -67,6 +67,19 @@ import { buildProfile } from '../demo/profiles';
 const SYNC_DELAY_MS = 2500;
 
 /**
+ * Как часто открытое приложение само спрашивает сервер, не появилось ли чужого.
+ *
+ * Без этого обмен случался только на запуске, на своей же правке и при уходе в
+ * фон: отметка, поставленная на телефоне, не появлялась на открытом рядом
+ * компьютере вовсе — приходилось перезагружать страницу.
+ *
+ * Полминуты — компромисс. Реже, и «отметил на телефоне, посмотрел на
+ * компьютер» перестаёт работать; чаще, и приложение стучится в сеть ради
+ * пустого ответа. Пока окно скрыто, опрос не идёт: там всё равно некому смотреть.
+ */
+const SYNC_POLL_MS = 30_000;
+
+/**
  * Предел ожидания гидратации. Батчи к облаку идут параллельно, поэтому запас
  * считается от одного вызова (4 с), а не от их суммы.
  */
@@ -292,7 +305,32 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     void writeLocalDocs([doc]);
   }, []);
 
-  const runSync = useCallback(async () => {
+  /**
+   * Показать то, что принёс обмен.
+   *
+   * Движок кладёт чужие операции в тот же журнал, что и свои, но экран об этом
+   * сам не узнаёт: состояние в памяти собрано проекцией на запуске. Пока этого
+   * шага не было, чужая отметка появлялась только после перезагрузки страницы —
+   * ровно то, на что и жаловались.
+   *
+   * Пересчёт идёт от журнала целиком, а не наложением разницы: та же чистая
+   * функция, что и при гидратации, а значит и тот же результат. Своя правка,
+   * случившаяся во время запроса, уже лежит в журнале и никуда не денется.
+   */
+  const showSynced = useCallback(async (): Promise<void> => {
+    const projected = project(await readLocalBase(), await opsLog.all());
+    const docs = await readLocalDocs();
+    commit({
+      type: 'synced',
+      journal: projected.journal,
+      skillClicks: projected.skillClicks,
+      awards: projected.awards,
+      ...(docs.settings ? { settings: docs.settings } : {}),
+      ...(docs.skills ? { skills: docs.skills } : {}),
+    });
+  }, [commit]);
+
+  const exchange = useCallback(async (): Promise<void> => {
     window.clearTimeout(syncTimer.current);
     syncTimer.current = undefined;
     if (loadFailed.current) return;
@@ -303,7 +341,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     pendingDocs.current.clear();
 
     const outcome = await syncOnce(undefined, docs);
-    if (outcome.docs.length > 0) await writeLocalDocs(outcome.docs);
+    const applied = await writeLocalDocs(outcome.docs);
     if (!outcome.ok) {
       // Не ушли — возвращаем, но не поверх более свежих: там могла оказаться
       // правка, сделанная за время запроса.
@@ -311,8 +349,45 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         const newer = pendingDocs.current.get(doc.kind);
         if (!newer || newer.hlc < doc.hlc) pendingDocs.current.set(doc.kind, doc);
       }
+      return;
     }
-  }, []);
+
+    // Сервер отдаёт документы при каждом чтении, поэтому спрашиваем не «пришли
+    // ли они», а «легли ли»: перерисовывать экран ради того же самого незачем.
+    if (outcome.pulled > 0 || applied.length > 0) await showSynced();
+  }, [showSynced]);
+
+  /**
+   * Обмен идёт по одному.
+   *
+   * Поводов для него теперь несколько — своя правка, возврат из фона, опрос по
+   * времени, — и они легко совпадают. Два захода разом отправили бы одни и те
+   * же операции дважды: повтор сервер отсечёт по `opId`, но заплатят за него
+   * трафик и суточная квота записи. Совпавший заход при этом не отбрасывается,
+   * а превращается в один повтор следом: записанное, пока запрос был в пути,
+   * обязано уехать, а не ждать следующего повода.
+   */
+  const running = useRef<Promise<void> | undefined>(undefined);
+  const again = useRef(false);
+
+  const runSync = useCallback((): Promise<void> => {
+    if (running.current) {
+      again.current = true;
+      return running.current;
+    }
+    const cycle = (async () => {
+      try {
+        do {
+          again.current = false;
+          await exchange();
+        } while (again.current);
+      } finally {
+        running.current = undefined;
+      }
+    })();
+    running.current = cycle;
+    return cycle;
+  }, [exchange]);
 
   const scheduleSync = useCallback(() => {
     window.clearTimeout(syncTimer.current);
@@ -494,26 +569,36 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
   }, [commit, restoreClock, stamp]);
 
   /*
-   * Сворачивание мини-аппа не даёт времени на отложенную запись — дожимаем
-   * немедленно. Отправка на сервер идёт следом и без ожидания: она может не
-   * успеть, и это нормально — операции остаются в очереди и уедут при
-   * следующем открытии. А вот запись в хранилище успеть обязана.
+   * Поводы для обмена, кроме собственной правки.
+   *
+   * Сворачивание мини-аппа не даёт времени на отложенную отправку — дожимаем
+   * немедленно. Она может не успеть, и это нормально: операции лежат в журнале
+   * и уедут при следующем открытии.
+   *
+   * Возврат из фона — повод не меньший, и раньше его здесь не было вовсе.
+   * Приложение отдавало своё, но чужого не спрашивало, пока человек сам
+   * чего-нибудь не нажмёт, — телефон и компьютер расходились и оставались
+   * расходиться. Туда же появившаяся сеть и опрос по времени: два окна могут
+   * быть открыты рядом, и тогда никто никуда не переключается.
    */
   useEffect(() => {
-    const hide = (): void => {
-      void runSync();
-    };
-    const onHide = (): void => {
-      if (document.visibilityState === 'hidden') hide();
-    };
-    // Именованная, а не инлайновая: анонимную снять нельзя, и при каждой смене
+    // Именованные, а не инлайновые: анонимную снять нельзя, и при каждой смене
     // runSync поверх старого слушателя вешался бы ещё один — с устаревшим замыканием.
-    const onPageHide = (): void => hide();
-    document.addEventListener('visibilitychange', onHide);
+    const onVisibility = (): void => void runSync();
+    const onPageHide = (): void => void runSync();
+    const onOnline = (): void => void runSync();
+    const poll = window.setInterval(() => {
+      if (document.visibilityState !== 'hidden') void runSync();
+    }, SYNC_POLL_MS);
+
+    document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('pagehide', onPageHide);
+    window.addEventListener('online', onOnline);
     return () => {
-      document.removeEventListener('visibilitychange', onHide);
+      window.clearInterval(poll);
+      document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('pagehide', onPageHide);
+      window.removeEventListener('online', onOnline);
     };
   }, [runSync]);
 
@@ -910,6 +995,18 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           ...opsForClear(stamp),
           ...recordOps(latest.current, { type: 'awards', awards: {} }, stamp),
         ]);
+
+        /*
+         * Местные документы опустошаются тоже — и именно местные, без очереди
+         * отправки. Список приоритетов лежит документом, а не операциями, и
+         * барьер его не касается: оставленный как был, он вернулся бы на экран
+         * первым же обменом, который перерисовывает состояние по документам.
+         *
+         * На сервер пустой список не едет: там он ничего не значит (настройки
+         * без приоритетов читаются как отсутствующие), а вот стереть кабинет
+         * соседнему устройству, которое ни о чём не просили, — значит.
+         */
+        void writeLocalDocs([settingsDoc(emptySettings(), stamp), skillsDoc(emptySkills(), stamp)]);
 
         commit({
           type: 'hydrate',

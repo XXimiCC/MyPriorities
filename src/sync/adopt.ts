@@ -25,7 +25,14 @@
 
 import type { SnapshotContents } from '../domain/snapshot';
 import { exportSnapshot, parseSnapshot } from '../domain/snapshot';
-import type { ClicksMap, Priority, Settings } from '../domain/types';
+import type {
+  AwardMap,
+  BatteryShift,
+  ClicksMap,
+  DayKey,
+  Priority,
+  Settings,
+} from '../domain/types';
 import { opsLog } from '../store/local/db';
 import { readDocs, settingsDoc, skillsDoc, type ReadDocs } from './documents';
 import { contribute, rewindCursor, serverState, syncOnce, type EngineDeps } from './engine';
@@ -145,6 +152,101 @@ function withReferenced(base: Settings, extra: Priority[], clicks: ClicksMap): S
   return missing.length === 0 ? base : { ...base, priorities: [...base.priorities, ...missing] };
 }
 
+// --- Сверка снимка с журналом ------------------------------------------------
+
+/**
+ * Снимок, поправленный тем, что принёс обмен.
+ *
+ * Доливка сравнивает состояние устройства с состоянием сервера и отправляет
+ * туда всё, чего там нет. Пока устройство знает только своё, это верно. Но
+ * обмен идёт первым и успевает принести чужое — в том числе снятия: убранный на
+ * телефоне блок, удалённый переход заряда. Снимок, с которым приложение
+ * открылось, про них ещё не знает, и доливка честно объявляет их «недостающим
+ * на сервере» и ставит обратно — да ещё и с более свежей меткой, то есть
+ * навсегда.
+ *
+ * Снаружи это выглядело так: отметки на компьютере и на телефоне расходятся, а
+ * перезагрузка не помогает: каждое открытие воскрешало снятое заново и
+ * увозило воскресшее обратно на сервер.
+ *
+ * Правило: где журнал за время обмена изменился, побеждает журнал. Всё
+ * остальное в снимке остаётся как было — он может помнить то, чего в журнале
+ * нет вовсе (перенос из прежнего хранилища, копия перед переездом), и терять
+ * это нельзя.
+ */
+function reconciled(local: SnapshotContents, before: Projected, after: Projected): SnapshotContents {
+  return {
+    ...local,
+    journal: {
+      clicks: reconcileClicks(local.journal.clicks, before.journal.clicks, after.journal.clicks),
+      battery: reconcileBattery(
+        local.journal.battery,
+        before.journal.battery,
+        after.journal.battery,
+      ),
+    },
+    skillClicks: reconcileClicks(local.skillClicks, before.skillClicks, after.skillClicks),
+    awards: reconcileAwards(local.awards, before.awards, after.awards),
+  };
+}
+
+/** Счётчики: изменившаяся за обмен ячейка берётся из журнала, остальные — из снимка. */
+function reconcileClicks(mine: ClicksMap, before: ClicksMap, after: ClicksMap): ClicksMap {
+  const out: ClicksMap = {};
+  for (const [day, entry] of Object.entries(mine)) out[day] = { ...entry };
+
+  for (const day of new Set([...Object.keys(before), ...Object.keys(after)])) {
+    const was = before[day] ?? {};
+    const now = after[day] ?? {};
+    for (const id of new Set([...Object.keys(was), ...Object.keys(now)])) {
+      const wasCount = was[id] ?? 0;
+      const nowCount = now[id] ?? 0;
+      if (wasCount === nowCount) continue;
+      const entry = (out[day] ??= {});
+      if (nowCount > 0) entry[id] = nowCount;
+      else delete entry[id];
+    }
+    if (out[day] !== undefined && Object.keys(out[day]!).length === 0) delete out[day];
+  }
+  return out;
+}
+
+/**
+ * Заряд: важны только минуты, которые обмен убрал.
+ *
+ * Смену уровня выправлять незачем — доливка не трогает занятые минуты, у них
+ * свой автор. А вот освободившуюся минуту она заняла бы заново, и удалённый на
+ * другом устройстве переход вернулся бы.
+ */
+function reconcileBattery(
+  mine: Record<DayKey, BatteryShift[]>,
+  before: Record<DayKey, BatteryShift[]>,
+  after: Record<DayKey, BatteryShift[]>,
+): Record<DayKey, BatteryShift[]> {
+  const out: Record<DayKey, BatteryShift[]> = {};
+  for (const [day, shifts] of Object.entries(mine)) out[day] = [...shifts];
+
+  for (const day of new Set([...Object.keys(before), ...Object.keys(after)])) {
+    const alive = new Set((after[day] ?? []).map((shift) => shift[0]));
+    const gone = (before[day] ?? []).map((shift) => shift[0]).filter((minute) => !alive.has(minute));
+    if (gone.length === 0) continue;
+
+    const kept = (out[day] ?? []).filter((shift) => !gone.includes(shift[0]));
+    if (kept.length > 0) out[day] = kept;
+    else delete out[day];
+  }
+  return out;
+}
+
+/** Достижения: снятое за время обмена не выдаём заново. Выданное доливка и так не тронет. */
+function reconcileAwards(mine: AwardMap, before: AwardMap, after: AwardMap): AwardMap {
+  const out: AwardMap = { ...mine };
+  for (const id of Object.keys(before)) {
+    if (after[id] === undefined) delete out[id];
+  }
+  return out;
+}
+
 /** Объединение карт кликов — только чтобы узнать, какие id вообще встречаются. */
 function bothClicks(a: ClicksMap, b: ClicksMap): ClicksMap {
   const out: ClicksMap = {};
@@ -158,22 +260,41 @@ function bothClicks(a: ClicksMap, b: ClicksMap): ClicksMap {
  * Общая часть перехода и восстановления: забрать чужое, долить своё, отдать
  * получившееся.
  *
- * `docsAnyway` разделяет два случая. При переходе настройки отправляются, только
- * если на сервере их ещё нет: чужие свежее наших древних. При восстановлении —
- * всегда: человек прямо попросил вернуть то, что было.
+ * Режим разделяет два случая.
+ *
+ * `adopt` — обычное открытие приложения. Настройки отправляются, только если на
+ * сервере их ещё нет: чужие свежее наших древних. А снимок перед доливкой
+ * сверяется с журналом: то, что обмен только что снял, доливать нельзя.
+ *
+ * `restore` — человек прямо попросил вернуть то, что было. Здесь и настройки
+ * уходят всегда, и снимок берётся как есть: воскрешение — ровно то, чего просили.
  */
 async function joinServer(
   local: SnapshotContents,
   stamp: Stamper,
-  docsAnyway: boolean,
+  mode: 'adopt' | 'restore',
   deps?: EngineDeps,
 ): Promise<Adopted | undefined> {
+  const docsAnyway = mode === 'restore';
+
+  /*
+   * Журнал до обмена. Нужен, чтобы отличить «этого на сервере никогда не было»
+   * от «это только что оттуда снято»: сам снимок такого не помнит. Возврату он
+   * ни к чему — там снимок и есть то, что просили вернуть.
+   */
+  const before = docsAnyway ? undefined : project(await readLocalBase(), await opsLog.all());
+
   /*
    * Сначала забираем. Считать «чего не хватает» до того, как узнали, что там
    * есть, значило бы долить лишнее — и, что хуже, перебить чужие числа своими.
    */
   const pull = await syncOnce(deps);
   if (!pull.ok) return undefined;
+
+  const want =
+    before === undefined
+      ? local
+      : reconciled(local, before, project(await readLocalBase(), await opsLog.all()));
 
   /*
    * Копия снимается здесь, а не раньше.
@@ -197,16 +318,16 @@ async function joinServer(
    * разница с самим собой всегда пуста: своё так и осталось бы на устройстве, а
    * обмен бодро отчитывался бы «долито 0».
    */
-  const before = await serverState(deps);
-  if (!before) return undefined;
-  const ops: Op[] = opsToFill(local, before, stamp);
+  const theirsState = await serverState(deps);
+  if (!theirsState) return undefined;
+  const ops: Op[] = opsToFill(want, theirsState, stamp);
 
   /*
    * Документы решаются поштучно. Оптом было бы неверно: у сервера могут быть
    * настройки и не быть каталога навыков, и «раз настройки есть, значит всё
    * есть» оставило бы каталог на устройстве навсегда.
    */
-  const seen = bothClicks(before.journal.clicks, local.journal.clicks);
+  const seen = bothClicks(theirsState.journal.clicks, want.journal.clicks);
   const settings = docsAnyway
     ? withReferenced(local.settings, theirs.settings?.priorities ?? [], seen)
     : withReferenced(theirs.settings ?? local.settings, local.settings.priorities, seen);
@@ -248,7 +369,7 @@ export async function adoptServerState(
   stamp: Stamper,
   deps?: EngineDeps,
 ): Promise<Adopted | undefined> {
-  return joinServer(local, stamp, false, deps);
+  return joinServer(local, stamp, 'adopt', deps);
 }
 
 /**
@@ -274,7 +395,7 @@ export async function restoreBeforeSync(
    * всё чужое уже прочитано, а журнала может не быть вовсе.
    */
   await rewindCursor();
-  return joinServer(parseSnapshot(raw), stamp, true, deps);
+  return joinServer(parseSnapshot(raw), stamp, 'restore', deps);
 }
 
 export type { SyncDoc };

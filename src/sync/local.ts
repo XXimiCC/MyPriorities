@@ -107,11 +107,18 @@ export async function hasLocalDocs(): Promise<boolean> {
  *
  * Побеждает большая метка — то же правило, что и на сервере. Иначе пришедшее
  * по сети затирало бы свежую местную правку просто потому, что пришло позже.
+ *
+ * Отвечает тем, что действительно легло. Сервер отдаёт документы при каждом
+ * чтении, и без этого ответа обмен не мог бы отличить «пришло чужое, надо
+ * показать» от «пришло то же самое, что и лежало».
  */
-export async function writeLocalDocs(docs: SyncDoc[]): Promise<void> {
+export async function writeLocalDocs(docs: SyncDoc[]): Promise<SyncDoc[]> {
+  const written: SyncDoc[] = [];
   for (const doc of docs) {
     const current = sanitize(await opsLog.meta(KEY(doc.kind)));
     if (current && current.hlc >= doc.hlc) continue;
     await opsLog.setMeta(KEY(doc.kind), doc);
+    written.push(doc);
   }
+  return written;
 }

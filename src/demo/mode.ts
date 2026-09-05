@@ -37,6 +37,16 @@ const OFF = 'off';
 /** Префикс ссылки-приглашения: `t.me/<бот>/app?startapp=demo_f`. */
 const START_PREFIX = 'demo_';
 
+/**
+ * Хвост с меткой источника: `startapp=demo_f_src_habr`.
+ *
+ * `startapp` один на всё, и каталогу нужны оба смысла сразу — иначе посетитель,
+ * нажавший в карточке демо-ссылку, а не обычную, для метки не существует.
+ * Разбирает метку src/sync/source.ts; здесь хвост только отрезается, чтобы имя
+ * профиля осталось точным.
+ */
+const SOURCE_MARK = '_src_';
+
 export interface Entry {
   id: DemoId;
   guest: boolean;
@@ -63,7 +73,9 @@ export function resolveEntry(search: string, start: string | undefined): Entry |
   }
 
   if (start?.startsWith(START_PREFIX)) {
-    const invited = findProfile(start.slice(START_PREFIX.length));
+    const tail = start.slice(START_PREFIX.length);
+    const mark = tail.indexOf(SOURCE_MARK);
+    const invited = findProfile(mark === -1 ? tail : tail.slice(0, mark));
     if (invited) return { id: invited.id, guest: true };
   }
 

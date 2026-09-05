@@ -18,9 +18,18 @@ describe('вход в демо', () => {
   });
 
   it('метка источника демо не включает', () => {
-    // Иначе `startapp=from_habr` открыл бы приложение чужой историей.
-    expect(resolveEntry('', 'from_habr')).toBeUndefined();
-    expect(resolveEntry('', 'from_max')).toBeUndefined();
+    // Иначе `startapp=src_habr` открыл бы приложение чужой историей.
+    expect(resolveEntry('', 'src_habr')).toBeUndefined();
+    expect(resolveEntry('', 'src_max')).toBeUndefined();
+  });
+
+  it('приглашение с меткой открывает тот же профиль', () => {
+    // Ссылка из каталога: демо и метка в одном `startapp`. Хвост отрезается,
+    // иначе профиля с именем `max_src_productradar` не найдётся и демо не откроется.
+    expect(resolveEntry('', 'demo_max_src_productradar')).toEqual({ id: 'max', guest: true });
+    expect(resolveEntry('', 'demo_f_src_habr')).toEqual({ id: 'f', guest: true });
+    // Метку саму по себе разбирает sync/source.ts — здесь только выбор профиля.
+    expect(resolveEntry('', 'demo_выдумка_src_habr')).toBeUndefined();
   });
 
   it('несуществующий профиль не открывает ничего', () => {
@@ -38,5 +47,6 @@ describe('вход в демо', () => {
     // `startapp` переживает перезагрузку, и без этого выход из демо возвращал бы
     // в него же следующим кадром.
     expect(resolveEntry('?demo=off', 'demo_max')).toBeUndefined();
+    expect(resolveEntry('?demo=off', 'demo_max_src_productradar')).toBeUndefined();
   });
 });

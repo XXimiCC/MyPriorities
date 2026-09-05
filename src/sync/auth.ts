@@ -14,6 +14,7 @@ import { sessionStore } from '../platform/session';
 import { initData, platform } from '../telegram/sdk';
 import { deviceId } from './device';
 import { loginAvailable, startLogin, takeCallback } from './oauth';
+import { source } from './source';
 import { TransportError, sessionExpired, transport, type Session } from './transport';
 
 export type SyncState =
@@ -66,7 +67,13 @@ async function signInSilently(): Promise<Session | undefined> {
    */
   const callback = takeCallback();
   if (callback) {
-    const session = await transport.login({ mode: 'oidc', ...callback, deviceId: device, platform });
+    const session = await transport.login({
+      mode: 'oidc',
+      ...callback,
+      deviceId: device,
+      platform,
+      source,
+    });
     await sessionStore.write(session);
     publish({ kind: 'signed-in', userId: session.userId });
     return session;
@@ -79,7 +86,7 @@ async function signInSilently(): Promise<Session | undefined> {
     return undefined;
   }
 
-  const session = await transport.login({ initData, deviceId: device, platform });
+  const session = await transport.login({ initData, deviceId: device, platform, source });
   await sessionStore.write(session);
   publish({ kind: 'signed-in', userId: session.userId });
   return session;

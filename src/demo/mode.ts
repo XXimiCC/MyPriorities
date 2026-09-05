@@ -37,15 +37,28 @@ const OFF = 'off';
 /** Префикс ссылки-приглашения: `t.me/<бот>/app?startapp=demo_f`. */
 const START_PREFIX = 'demo_';
 
-interface Entry {
+/**
+ * Хвост с меткой источника: `startapp=demo_f_src_habr`.
+ *
+ * `startapp` один на всё, и каталогу нужны оба смысла сразу — иначе посетитель,
+ * нажавший в карточке демо-ссылку, а не обычную, для метки не существует.
+ * Разбирает метку src/sync/source.ts; здесь хвост только отрезается, чтобы имя
+ * профиля осталось точным.
+ */
+const SOURCE_MARK = '_src_';
+
+export interface Entry {
   id: DemoId;
   guest: boolean;
 }
 
-function resolve(): Entry | undefined {
-  if (typeof window === 'undefined') return undefined;
-
-  const query = new URLSearchParams(window.location.search);
+/**
+ * Сам разбор — без обращения к `window`: адрес и хвост ссылки приходят
+ * аргументами, и потому проверяются обычным тестом в node. Спрашивает окно один
+ * вызов ниже, и это единственное место в каталоге, которое про окно знает.
+ */
+export function resolveEntry(search: string, start: string | undefined): Entry | undefined {
+  const query = new URLSearchParams(search);
   const asked = query.get(PARAM);
   if (asked === OFF) return undefined;
 
@@ -59,15 +72,18 @@ function resolve(): Entry | undefined {
     return { id: named?.id ?? 'm', guest: false };
   }
 
-  if (startParam?.startsWith(START_PREFIX)) {
-    const invited = findProfile(startParam.slice(START_PREFIX.length));
+  if (start?.startsWith(START_PREFIX)) {
+    const tail = start.slice(START_PREFIX.length);
+    const mark = tail.indexOf(SOURCE_MARK);
+    const invited = findProfile(mark === -1 ? tail : tail.slice(0, mark));
     if (invited) return { id: invited.id, guest: true };
   }
 
   return undefined;
 }
 
-const entry = resolve();
+const entry =
+  typeof window === 'undefined' ? undefined : resolveEntry(window.location.search, startParam);
 
 /** Какой набор загружен. null — обычная работа с настоящими данными. */
 export const DEMO_ID: DemoId | null = entry?.id ?? null;

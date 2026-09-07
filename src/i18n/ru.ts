@@ -215,7 +215,7 @@ export const ruStrings = {
   'skills.hint': 'Цветом отмечено, сколько прибавилось за 30 дней. Нажми на навык, чтобы увидеть лестницу целиком и настроить его.',
   'skills.total': 'Всего —',
   'skills.add': 'Добавить навык',
-  'skills.limit': 'Максимум {max} навыков',
+  'skills.limit': 'Максимум {max} {maxUnit}',
   'skills.addBlock': 'Добавить {minutes} минут: {title}',
   'skills.blocksToday': '{count} {unit} сегодня',
   'skills.formTitle': 'Навык',

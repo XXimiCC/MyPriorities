@@ -82,10 +82,8 @@ export const enStrings = {
   // --- Presets ---
   'presets.title': 'Presets',
   'presets.intro': 'Where do we start? Take a ready-made set that fits your kind of life — you can reorder, rename and recolor all of it later.',
-  'presets.introFromDemo': 'The set the demo was built on is already marked — an easy place to start. Any other one is the same single tap away, and all of it can be reordered, renamed and recolored later.',
   'presets.hint': 'Ready-made priority sets for different kinds of life. Take one whole, then tune it to yourself.',
   'presets.current': 'In use',
-  'presets.fromDemo': 'From the demo',
   'presets.apply': 'Use this set',
   'presets.applyConfirm': 'Replace your current priorities with “{name}”? Collected time stays — priorities whose names match keep their history.',
 

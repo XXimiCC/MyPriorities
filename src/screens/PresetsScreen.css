@@ -45,6 +45,31 @@
   color: var(--text-faint);
 }
 
+/* Состав набора на карточке: приоритеты в том же порядке, в каком они встанут
+   на главной. Мелко и врассыпную — это опись, а не заголовок. */
+.pcard__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  margin-top: 2px;
+}
+
+.pcard__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+.pcard__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 2px;
+  box-shadow: 0 0 5px var(--accent);
+}
+
 .pcard__badge {
   position: absolute;
   top: 12px;

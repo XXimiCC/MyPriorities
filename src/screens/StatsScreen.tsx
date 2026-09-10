@@ -13,6 +13,7 @@ import {
   computeStats,
   dailyBreakdown,
   drainCounts,
+  initialPeriod,
   periodDays,
   type PriorityStat,
 } from '../domain/stats';
@@ -75,7 +76,11 @@ interface Props {
 
 export function StatsScreen({ onDemo }: Props): JSX.Element {
   const { settings, journal, actions } = useStore();
-  const [periodId, setPeriodId] = useState<PeriodId>('week');
+  /* Начальный период выбирается по журналу — см. initialPeriod. Ленивый
+     инициализатор, а не эффект: посчитать надо до первой отрисовки, иначе
+     вернувшийся успеет увидеть пустое окно, и один раз за открытие экрана,
+     потому что дальше периодами распоряжается человек. */
+  const [periodId, setPeriodId] = useState<PeriodId>(() => initialPeriod(journal));
   const [busy, setBusy] = useState(false);
   const [sync, setSync] = useState<SyncState>(syncState);
 

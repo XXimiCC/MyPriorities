@@ -1,4 +1,4 @@
-import type { Period } from './periods';
+import { PERIODS, type Period, type PeriodId } from './periods';
 import { addDays, dayKey, lastNDays, minuteOfDay, parseDayKey, todayKey } from './date';
 import {
   blockMinutesOf,
@@ -38,6 +38,43 @@ export function earliestDay(journal: Journal): DayKey | undefined {
   const keys = [...Object.keys(journal.clicks), ...Object.keys(journal.battery)];
   if (keys.length === 0) return undefined;
   return keys.reduce((min, key) => (key < min ? key : min));
+}
+
+/** Окно, на котором экран статистики открывается по умолчанию. */
+const DEFAULT_PERIOD = PERIODS.find((p) => p.id === 'week')!;
+
+/** Есть ли в этих днях хоть одна отметка: клик по приоритету или переход батареи. */
+function markedWithin(journal: Journal, days: DayKey[]): boolean {
+  return days.some(
+    (day) =>
+      Object.values(journal.clicks[day] ?? {}).some((n) => n > 0) ||
+      (journal.battery[day]?.length ?? 0) > 0,
+  );
+}
+
+/**
+ * Период, на котором открывается статистика.
+ *
+ * По умолчанию это «7 дней»: окно про то, как жизнь идёт сейчас, и тому, кто
+ * отмечает регулярно, нужно именно оно. Но у вернувшегося после недельной паузы
+ * оно пустое — часы, блоки, среднее и серия нули, а под «куда уходит время»
+ * стоит «за этот период ничего не отмечено». История при этом цела, она просто
+ * лежит за краем окна; экран же выглядит так, будто приложение забыло человека.
+ * Пауза в неделю здесь не редкость: уведомлений в продукте нет по решению, и
+ * возвращается человек сам.
+ *
+ * Поэтому: в последних семи днях пусто, а история есть — открываем «всё время»,
+ * единственное окно, которое эту историю показывает наверняка. Само окно не
+ * меняется: «7 дней» остаются семью днями, выбирается только то, какое из них
+ * открыто при входе.
+ *
+ * Считается один раз, при открытии экрана: дальше человек переключает периоды
+ * сам, и подменять его выбор было бы хуже пустого окна. Пустой журнал остаётся
+ * на «7 днях» — новичку показывать нечего ни в каком окне.
+ */
+export function initialPeriod(journal: Journal, now: Date = new Date()): PeriodId {
+  if (markedWithin(journal, periodDays(DEFAULT_PERIOD, journal, now))) return DEFAULT_PERIOD.id;
+  return earliestDay(journal) ? 'all' : DEFAULT_PERIOD.id;
 }
 
 // --- Приоритеты --------------------------------------------------------------

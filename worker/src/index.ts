@@ -28,6 +28,7 @@ import {
 import type { Env } from './env';
 import { HttpError, corsHeaders, json, readJson } from './http';
 import { runNightlyMaintenance } from './report';
+import { jobFor, sendReminder } from './schedule';
 import { authenticate } from './session';
 import { notifyTicket } from './telegram';
 import { handleBootstrap, handlePull, handlePush } from './sync';
@@ -149,7 +150,9 @@ export default {
     }
   },
 
-  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(runNightlyMaintenance(env));
+  async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    // Обработчик один на все расписания, и какое сработало — видно только по
+    // event.cron. Развилка живёт в schedule.ts, здесь остаётся сам вызов.
+    ctx.waitUntil(jobFor(event.cron) === 'reminder' ? sendReminder(env) : runNightlyMaintenance(env));
   },
 };

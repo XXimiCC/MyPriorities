@@ -69,6 +69,7 @@ const sidebar = [
       { text: 'Демо-режим', link: '/dev/mock' },
       { text: 'Панель отладки', link: '/dev/devkit' },
       { text: 'Архитектура', link: '/dev/architecture' },
+      { text: 'Аналитика', link: '/dev/analytics' },
       { text: 'Строки интерфейса', link: '/dev/i18n' },
       { text: 'Скриншоты', link: '/dev/screenshots' },
       { text: 'Сборка и публикация', link: '/dev/release' },
